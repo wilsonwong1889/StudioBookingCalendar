@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bookings | StudioBookingSoftware</title>
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
+  </head>
+  <body data-page="bookings">
+    <div class="site-frame">
+      <header class="site-header">
+        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+        <nav class="site-nav" aria-label="Primary">
+          <a class="nav-link" href="/">Home</a>
+          <a class="nav-link" href="/info">Info</a>
+          <a class="nav-link" href="/staff">Staff</a>
+          <a class="nav-link" href="/faq">FAQ</a>
+          <a class="nav-link" href="/contact">Contact</a>
+          <a class="nav-link" href="/rooms">Rooms</a>
+          <a class="nav-link is-active" href="/bookings">Bookings</a>
+          <a class="nav-link" href="/account">Account</a>
+          <a class="nav-link" href="/admin">Admin</a>
+        </nav>
+        <div class="header-side">
+          <div class="header-actions">
+            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Sign in</a>
+            <a id="header-secondary-link" class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
+            <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
+          </div>
+          <div class="status-strip">
+            <div class="status-chip">
+              <span class="status-chip-label">Backend</span>
+              <strong id="health-status">Checking...</strong>
+              <span id="health-detail" class="status-detail">Waiting for health probe.</span>
+            </div>
+            <div class="status-chip">
+              <span class="status-chip-label">Session</span>
+              <strong id="session-status">Signed out</strong>
+              <span id="session-detail" class="status-detail">Create an account or log in to continue.</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="page-grid booking-page-grid">
+        <section class="hero-card hero-card-wide">
+          <p class="eyebrow">Bookings</p>
+          <h1>Check room availability, then sign in when you are ready to book.</h1>
+          <p class="hero-copy">
+            Guests can browse available rooms and start times here. Sessions can run from 1 hour up to the maximum allowed for that room between 10am and 6pm.
+          </p>
+        </section>
+
+        <section class="panel booking-planner-panel">
+          <div class="panel-header">
+            <p class="panel-kicker">Availability</p>
+            <h2>Build your session</h2>
+          </div>
+
+          <div id="booking-empty" class="empty-state">
+            Guests can browse availability. Log in on the account page when you are ready to complete a booking.
+          </div>
+
+          <form id="availability-form" class="stack-form booking-toolbar-form">
+            <label class="inline-field">
+              <span>Room</span>
+              <select id="booking-room-select" name="room_id"></select>
+            </label>
+            <label class="inline-field">
+              <span>Date</span>
+              <input id="booking-date-input" type="date" name="date" />
+            </label>
+            <button class="ghost-button" type="submit">Check availability</button>
+          </form>
+
+          <div id="availability-summary" class="empty-state hidden"></div>
+
+          <div id="booking-slot-list" class="slot-grid hidden"></div>
+
+          <form id="booking-form" class="stack-form booking-form">
+            <label class="inline-field hidden">
+              <span>Start time</span>
+              <select id="booking-start-select" name="start_time"></select>
+            </label>
+            <label class="inline-field">
+              <span>Duration</span>
+              <select id="booking-duration-select" name="duration_minutes" required>
+                <option value="60">1 hour</option>
+              </select>
+            </label>
+            <div id="booking-staff-section" class="profile-span-2 booking-staff-shell">
+              <div class="booking-staff-header">
+                <div>
+                  <span class="booking-staff-title">Available staff for this room</span>
+                  <p class="field-help">Select optional staff support for this session. Staff profiles appear here with photos when the room offers them.</p>
+                </div>
+                <span class="pill hidden" data-booking-staff-count></span>
+              </div>
+              <div class="empty-state" data-booking-staff-empty>Choose a room to preview available staff for this session.</div>
+              <div id="booking-staff-options" class="staff-options hidden"></div>
+            </div>
+            <label class="profile-span-2">
+              <span>Booking notes</span>
+              <textarea id="booking-note-input" name="note" rows="3" placeholder="Session details, guests, or special requests"></textarea>
+            </label>
+            <button class="primary-button" type="submit">Save 5-minute spot hold</button>
+          </form>
+        </section>
+
+        <section id="booking-summary-card" class="panel booking-summary-panel">
+          <div class="panel-header">
+            <p class="panel-kicker">Selection</p>
+            <h2 id="booking-summary-title">Pick a room and date</h2>
+          </div>
+          <div id="booking-summary-meta" class="detail-stack">
+            <div class="empty-state">Choose a room and load availability to see your selection details here.</div>
+          </div>
+        </section>
+
+        <section id="booking-history-panel" class="panel panel-wide booking-history-shell">
+          <div class="booking-history-layout">
+            <div class="booking-history-priority">
+              <div class="panel-header booking-history-section-header">
+                <p class="panel-kicker">Pending</p>
+                <div class="booking-history-section-top">
+                  <h2>Complete your saved bookings</h2>
+                  <span id="pending-bookings-count" class="pill hidden"></span>
+                </div>
+                <p class="panel-copy">Finish payment before the timer ends or the room opens back up for someone else.</p>
+              </div>
+              <div id="pending-bookings-list" class="booking-list"></div>
+            </div>
+
+            <details id="recent-bookings-shell" class="booking-history-dropdown">
+              <summary class="booking-history-summary">
+                <div class="booking-history-summary-copy">
+                  <p class="panel-kicker">Recent</p>
+                  <h3>Your recent bookings</h3>
+                  <p>Open this dropdown to review past, paid, completed, or cancelled bookings.</p>
+                </div>
+                <span id="recent-bookings-count" class="pill">0 bookings</span>
+              </summary>
+              <div id="recent-bookings-list" class="booking-list booking-list-secondary"></div>
+            </details>
+          </div>
+        </section>
+      </main>
+
+      <footer class="signal-ribbon">
+        <div class="signal-panel">
+          <strong>Activity</strong>
+          <div id="app-message" class="signal-copy">Frontend booting.</div>
+        </div>
+      </footer>
+      <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
+        <p>
+          BIPOC Foundation is situated on the unceded, traditional and ancestral Siksikaitsitapii
+          (Blackfoot) Confederacy territory, Nations of Treaty No. 7, and the historical regional
+          homeland of the Metis. We pay respect to the past, present and future Indigenous Peoples
+          who steward the land while recognizing and respecting their cultural heritage, beliefs and
+          relationship to the land.
+        </p>
+        <p>Copyright &copy; 2026 - media arts collective. All Rights Reserved.</p>
+        <p class="site-acknowledgement-credit">Powered by BIPOC Foundation.</p>
+      </section>
+    </div>
+
+    <script type="module" src="/assets/js/main.js?v=20260401w"></script>
+  </body>
+</html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reserve Room | StudioBookingSoftware</title>
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
+  </head>
+  <body data-page="reserve">
+    <div class="site-frame">
+      <header class="site-header">
+        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+        <nav class="site-nav" aria-label="Primary">
+          <a class="nav-link" href="/">Home</a>
+          <a class="nav-link" href="/info">Info</a>
+          <a class="nav-link" href="/staff">Staff</a>
+          <a class="nav-link" href="/faq">FAQ</a>
+          <a class="nav-link" href="/contact">Contact</a>
+          <a class="nav-link" href="/rooms">Rooms</a>
+          <a class="nav-link is-active" href="/bookings">Bookings</a>
+          <a class="nav-link" href="/account">Account</a>
+          <a class="nav-link" href="/admin">Admin</a>
+        </nav>
+        <div class="header-side">
+          <div class="header-actions">
+            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Sign in</a>
+            <a id="header-secondary-link" class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
+            <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
+          </div>
+          <div class="status-strip">
+            <div class="status-chip">
+              <span class="status-chip-label">Backend</span>
+              <strong id="health-status">Checking...</strong>
+              <span id="health-detail" class="status-detail">Waiting for health probe.</span>
+            </div>
+            <div class="status-chip">
+              <span class="status-chip-label">Session</span>
+              <strong id="session-status">Signed out</strong>
+              <span id="session-detail" class="status-detail">Create an account or log in to continue.</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="page-grid reserve-page-grid">
+        <section class="hero-card hero-card-wide">
+          <p class="eyebrow">Room booking</p>
+          <h1 id="reserve-room-title">Choose a room to see today’s openings.</h1>
+          <p id="reserve-room-copy" class="hero-copy">
+            Open a room from the catalog to review available sessions up to that room's maximum duration for a specific day and browse the full month below.
+          </p>
+        </section>
+
+        <section id="reserve-empty" class="panel panel-wide">
+          <div class="empty-state">
+            Pick a room from the rooms page to load its dedicated booking screen.
+          </div>
+        </section>
+
+        <section id="reserve-planner-panel" class="panel reserve-planner hidden">
+          <div class="panel-header">
+            <p class="panel-kicker">Day planner</p>
+            <h2>Available times for the selected day</h2>
+            <p class="panel-copy">Choose a date, review open start times, then create the booking from this room page.</p>
+          </div>
+
+          <div class="reserve-toolbar">
+            <label class="inline-field">
+              <span>Date</span>
+              <input id="reserve-date-input" type="date" />
+            </label>
+            <button id="reserve-date-button" class="ghost-button" type="button">Load times</button>
+          </div>
+
+          <div id="reserve-availability-summary" class="empty-state"></div>
+          <div id="reserve-slot-list" class="slot-grid hidden"></div>
+
+          <form id="reserve-booking-form" class="stack-form booking-form">
+            <label class="inline-field hidden">
+              <span>Start time</span>
+              <select id="reserve-start-select" name="start_time"></select>
+            </label>
+            <label class="inline-field">
+              <span>Duration</span>
+              <select id="reserve-duration-select" name="duration_minutes" required>
+                <option value="60">1 hour</option>
+              </select>
+            </label>
+            <label class="profile-span-2">
+              <span>Booking notes</span>
+              <textarea id="reserve-note-input" name="note" rows="3" placeholder="Session details, guests, or special requests"></textarea>
+            </label>
+            <div id="reserve-staff-section" class="profile-span-2 hidden">
+              <span>Additional staff</span>
+              <p class="field-help">Select any staff profiles you'd like to add to this booking.</p>
+              <div id="reserve-staff-options" class="staff-options"></div>
+            </div>
+            <button id="reserve-submit-button" class="primary-button" type="submit">Create pending booking</button>
+          </form>
+        </section>
+
+        <section id="reserve-summary-panel" class="panel reserve-summary hidden">
+          <div class="panel-header">
+            <p class="panel-kicker">Selection</p>
+            <h2 id="reserve-summary-title">Pick a time</h2>
+          </div>
+          <div id="reserve-summary-meta" class="detail-stack">
+            <div class="empty-state">Select a date to review the room availability.</div>
+          </div>
+        </section>
+
+        <section id="reserve-calendar-panel" class="panel panel-wide hidden">
+          <div class="panel-header reserve-calendar-header">
+            <div>
+              <p class="panel-kicker">Month view</p>
+              <h2 id="reserve-calendar-title">Availability by day</h2>
+            </div>
+            <div class="reserve-calendar-actions">
+              <button id="reserve-prev-month" class="ghost-button" type="button">Previous</button>
+              <button id="reserve-next-month" class="ghost-button" type="button">Next</button>
+            </div>
+          </div>
+          <div class="calendar-weekdays">
+            <span>Sun</span>
+            <span>Mon</span>
+            <span>Tue</span>
+            <span>Wed</span>
+            <span>Thu</span>
+            <span>Fri</span>
+            <span>Sat</span>
+          </div>
+          <div id="reserve-month-grid" class="calendar-grid"></div>
+        </section>
+      </main>
+
+      <footer class="signal-ribbon">
+        <div class="signal-panel">
+          <strong>Activity</strong>
+          <div id="app-message" class="signal-copy">Frontend booting.</div>
+        </div>
+      </footer>
+      <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
+        <p>
+          BIPOC Foundation is situated on the unceded, traditional and ancestral Siksikaitsitapii
+          (Blackfoot) Confederacy territory, Nations of Treaty No. 7, and the historical regional
+          homeland of the Metis. We pay respect to the past, present and future Indigenous Peoples
+          who steward the land while recognizing and respecting their cultural heritage, beliefs and
+          relationship to the land.
+        </p>
+        <p>Copyright &copy; 2026 - media arts collective. All Rights Reserved.</p>
+        <p class="site-acknowledgement-credit">Powered by BIPOC Foundation.</p>
+      </section>
+    </div>
+
+    <script type="module" src="/assets/js/main.js?v=20260401u"></script>
+  </body>
+</html>

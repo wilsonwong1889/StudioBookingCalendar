@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StudioBookingSoftware</title>
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
+  </head>
+  <body data-page="home">
+    <div class="site-frame">
+      <header class="site-header site-header-simple">
+        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+        <nav class="site-nav" aria-label="Primary">
+          <a class="nav-link is-active" href="/">Home</a>
+          <a class="nav-link" href="/info">Info</a>
+          <a class="nav-link" href="/staff">Staff</a>
+          <a class="nav-link" href="/faq">FAQ</a>
+          <a class="nav-link" href="/contact">Contact</a>
+          <a class="nav-link" href="/rooms">Rooms</a>
+          <a class="nav-link" href="/bookings">Bookings</a>
+          <a class="nav-link" href="/admin">Admin</a>
+        </nav>
+        <div class="header-actions">
+          <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
+          <a id="header-secondary-link" class="ghost-button ghost-link" href="/account?mode=signup">Create account</a>
+          <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
+        </div>
+      </header>
+
+      <main class="home-layout home-layout-refined">
+        <section class="hero-card hero-card-wide home-hero-shell">
+          <div class="home-hero-grid">
+            <div class="home-hero-copy">
+              <div>
+                <p class="eyebrow">Studio booking made simple</p>
+                <h1>Plan your session before you book it.</h1>
+                <p class="hero-copy">
+                  A cleaner front door for your Lethbridge studio: explore the space, understand how
+                  bookings work, and get to the right page without landing in a room catalog first.
+                </p>
+                <p class="hero-copy">
+                  Use the public pages to learn about the studio, view staff, and then move into room
+                  selection only when you are ready.
+                </p>
+              </div>
+              <div class="hero-actions">
+                <a class="primary-button hero-primary" href="/info">Explore the studio</a>
+                <a class="ghost-button ghost-link" href="/rooms">See rooms</a>
+                <a class="ghost-button ghost-link" href="/staff">Meet the team</a>
+              </div>
+              <div class="home-badge-row">
+                <span class="pill">Lethbridge, Alberta</span>
+                <span class="pill">Rooms + staff booking</span>
+                <span class="pill">Admin-managed availability</span>
+              </div>
+            </div>
+
+            <div class="home-hero-side">
+              <div class="home-side-card">
+                <span class="panel-kicker">Start Here</span>
+                <h2>What the homepage should do</h2>
+                <ul class="home-checklist">
+                  <li>Show what the studio offers without forcing booking UI first.</li>
+                  <li>Point guests to rooms, staff, and information in a clear order.</li>
+                  <li>Keep account and system status visible for returning users.</li>
+                </ul>
+              </div>
+              <div class="hero-status-inline home-status-grid">
+                <div class="status-chip">
+                  <span class="status-chip-label">Backend</span>
+                  <strong id="health-status">Checking...</strong>
+                  <span id="health-detail" class="status-detail">Waiting for health probe.</span>
+                </div>
+                <div class="status-chip">
+                  <span class="status-chip-label">Session</span>
+                  <strong id="session-status">Signed out</strong>
+                  <span id="session-detail" class="status-detail">Log in or create an account to continue.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">How It Works</p>
+            <h2>A simpler path for first-time visitors</h2>
+            <p class="panel-copy">The homepage now points people through the studio in a cleaner order.</p>
+          </div>
+          <div class="story-grid">
+            <article class="story-card">
+              <span>1</span>
+              <h3>Learn the space</h3>
+              <p>Start with studio details, location notes, rules, and building photos before choosing anything.</p>
+            </article>
+            <article class="story-card">
+              <span>2</span>
+              <h3>Review rooms and staff</h3>
+              <p>Browse rooms and optional staff support only when you are ready to compare services.</p>
+            </article>
+            <article class="story-card">
+              <span>3</span>
+              <h3>Book with less friction</h3>
+              <p>Create your account, check availability, and confirm a session with a much clearer flow.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">Studio Highlights</p>
+            <h2>What visitors need up front</h2>
+          </div>
+          <div class="feature-list home-feature-list">
+            <article class="feature-item">
+              <strong>Clear public pages</strong>
+              <p>Info, staff, FAQ, and contact pages now do the explaining before guests enter booking flow.</p>
+            </article>
+            <article class="feature-item">
+              <strong>Optional staff add-ons</strong>
+              <p>Rooms can offer assigned staff profiles like engineers, photographers, or film crew support.</p>
+            </article>
+            <article class="feature-item">
+              <strong>Focused room browsing</strong>
+              <p>The home screen no longer dumps live room cards into the landing experience.</p>
+            </article>
+            <article class="feature-item">
+              <strong>Admin-managed operations</strong>
+              <p>Admins control room setup, staff options, user accounts, and the day schedule from one place.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">Inside The Building</p>
+            <h2>A quick visual pass before booking</h2>
+          </div>
+          <div class="media-grid">
+            <figure class="media-card">
+              <img class="detail-image" src="/assets/media/studio-building-exterior.svg" alt="Studio building exterior" loading="lazy" />
+              <figcaption>Street-facing exterior and arrival point.</figcaption>
+            </figure>
+            <figure class="media-card">
+              <img class="detail-image" src="/assets/media/studio-building-lobby.svg" alt="Studio lobby" loading="lazy" />
+              <figcaption>Main lobby and client welcome area.</figcaption>
+            </figure>
+            <figure class="media-card">
+              <img class="detail-image" src="/assets/media/studio-building-signature-room.svg" alt="Signature studio room" loading="lazy" />
+              <figcaption>Signature room atmosphere and production feel.</figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">Visit</p>
+            <h2>Plan your next step</h2>
+          </div>
+          <div class="home-visit-grid">
+            <article class="detail-card">
+              <h3>Studio location</h3>
+              <p>2525 36 St N, Lethbridge, AB T1H 5L1</p>
+              <p>Use the info page for arrival guidance, house rules, and on-site expectations.</p>
+              <div class="hero-actions">
+                <a class="primary-button" href="/info">View studio info</a>
+              </div>
+            </article>
+            <article class="detail-card">
+              <h3>Ready to move forward</h3>
+              <p>Review staff, check room details, or go straight to your account if you already know what you need.</p>
+              <div class="hero-actions">
+                <a class="ghost-button ghost-link" href="/staff">Staff directory</a>
+                <a class="ghost-button ghost-link" href="/account">Account</a>
+              </div>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <footer class="signal-ribbon signal-ribbon-compact">
+        <div class="signal-panel">
+          <strong>Status</strong>
+          <div id="app-message" class="signal-copy">Frontend booting.</div>
+        </div>
+      </footer>
+      <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
+        <p>
+          BIPOC Foundation is situated on the unceded, traditional and ancestral Siksikaitsitapii
+          (Blackfoot) Confederacy territory, Nations of Treaty No. 7, and the historical regional
+          homeland of the Metis. We pay respect to the past, present and future Indigenous Peoples
+          who steward the land while recognizing and respecting their cultural heritage, beliefs and
+          relationship to the land.
+        </p>
+        <p>Copyright &copy; 2026 - media arts collective. All Rights Reserved.</p>
+        <p class="site-acknowledgement-credit">Powered by BIPOC Foundation.</p>
+      </section>
+    </div>
+
+    <script type="module" src="/assets/js/main.js?v=20260401s"></script>
+  </body>
+</html>

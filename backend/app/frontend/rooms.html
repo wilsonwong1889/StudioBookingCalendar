@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rooms | StudioBookingSoftware</title>
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
+  </head>
+  <body data-page="rooms">
+    <div class="site-frame">
+      <header class="site-header">
+        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+        <nav class="site-nav" aria-label="Primary">
+          <a class="nav-link" href="/">Home</a>
+          <a class="nav-link" href="/info">Info</a>
+          <a class="nav-link" href="/staff">Staff</a>
+          <a class="nav-link" href="/faq">FAQ</a>
+          <a class="nav-link" href="/contact">Contact</a>
+          <a class="nav-link is-active" href="/rooms">Rooms</a>
+          <a class="nav-link" href="/bookings">Bookings</a>
+          <a class="nav-link" href="/account">Account</a>
+          <a class="nav-link" href="/admin">Admin</a>
+        </nav>
+        <div class="header-side">
+          <div class="header-actions">
+            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Sign in</a>
+            <a id="header-secondary-link" class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
+            <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
+          </div>
+          <div class="status-strip">
+            <div class="status-chip">
+              <span class="status-chip-label">Backend</span>
+              <strong id="health-status">Checking...</strong>
+              <span id="health-detail" class="status-detail">Waiting for health probe.</span>
+            </div>
+            <div class="status-chip">
+              <span class="status-chip-label">Session</span>
+              <strong id="session-status">Signed out</strong>
+              <span id="session-detail" class="status-detail">Create an account or log in to continue.</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="page-grid">
+        <section class="hero-card hero-card-wide">
+          <p class="eyebrow">Rooms</p>
+          <h1>Browse the studio catalog without dragging booking or admin tools onto the same screen.</h1>
+          <p class="hero-copy">
+            Admin users can optionally include inactive rooms here. Everyone else gets a clear, public-facing catalog.
+          </p>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">Catalog</p>
+            <h2>Available rooms</h2>
+            <p class="panel-copy">Rates, capacity, room imagery, and quick availability previews come directly from the live API.</p>
+          </div>
+          <div id="rooms-toolbar" class="rooms-toolbar hidden">
+            <label class="checkbox-row rooms-filter">
+              <input id="show-inactive-toggle" type="checkbox" />
+              <span>Include inactive rooms</span>
+            </label>
+          </div>
+          <div class="rooms-preview-toolbar">
+            <label class="inline-field">
+              <span>Preview date</span>
+              <input id="rooms-preview-date" type="date" />
+            </label>
+            <button id="rooms-preview-button" class="ghost-button" type="button">Show availability</button>
+          </div>
+          <div id="rooms-grid" class="rooms-grid"></div>
+        </section>
+      </main>
+
+      <footer class="signal-ribbon">
+        <div class="signal-panel">
+          <strong>Activity</strong>
+          <div id="app-message" class="signal-copy">Frontend booting.</div>
+        </div>
+      </footer>
+      <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
+        <p>
+          BIPOC Foundation is situated on the unceded, traditional and ancestral Siksikaitsitapii
+          (Blackfoot) Confederacy territory, Nations of Treaty No. 7, and the historical regional
+          homeland of the Metis. We pay respect to the past, present and future Indigenous Peoples
+          who steward the land while recognizing and respecting their cultural heritage, beliefs and
+          relationship to the land.
+        </p>
+        <p>Copyright &copy; 2026 - media arts collective. All Rights Reserved.</p>
+        <p class="site-acknowledgement-credit">Powered by BIPOC Foundation.</p>
+      </section>
+    </div>
+
+    <script type="module" src="/assets/js/main.js?v=20260401r"></script>
+  </body>
+</html>

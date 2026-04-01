@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FAQ | StudioBookingSoftware</title>
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
+  </head>
+  <body data-page="faq">
+    <div class="site-frame">
+      <header class="site-header">
+        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+        <nav class="site-nav" aria-label="Primary">
+          <a class="nav-link" href="/">Home</a>
+          <a class="nav-link" href="/info">Info</a>
+          <a class="nav-link" href="/staff">Staff</a>
+          <a class="nav-link is-active" href="/faq">FAQ</a>
+          <a class="nav-link" href="/contact">Contact</a>
+          <a class="nav-link" href="/rooms">Rooms</a>
+          <a class="nav-link" href="/bookings">Bookings</a>
+          <a class="nav-link" href="/account">Account</a>
+          <a class="nav-link" href="/admin">Admin</a>
+        </nav>
+        <div class="header-side">
+          <div class="header-actions">
+            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
+            <a id="header-secondary-link" class="ghost-button ghost-link" href="/account?mode=signup">Create account</a>
+            <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
+          </div>
+          <div class="status-strip">
+            <div class="status-chip">
+              <span class="status-chip-label">Backend</span>
+              <strong id="health-status">Checking...</strong>
+              <span id="health-detail" class="status-detail">Waiting for health probe.</span>
+            </div>
+            <div class="status-chip">
+              <span class="status-chip-label">Session</span>
+              <strong id="session-status">Signed out</strong>
+              <span id="session-detail" class="status-detail">Log in or create an account to continue.</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="page-grid">
+        <section class="hero-card hero-card-wide">
+          <p class="eyebrow">FAQ</p>
+          <h1>Common booking questions, answered clearly.</h1>
+          <p class="hero-copy">Use this page to answer the questions guests usually ask before they commit to a room, a staff add-on, or a session date.</p>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">Bookings</p>
+            <h2>Before you reserve</h2>
+          </div>
+          <div class="story-grid">
+            <article class="story-card">
+              <span>1</span>
+              <strong>How long is each booking?</strong>
+              <p>Bookings can be created from 1 hour up to the maximum duration configured for that room, using whole-hour steps only.</p>
+            </article>
+            <article class="story-card">
+              <span>2</span>
+              <strong>Can I add staff support?</strong>
+              <p>Yes. If a room has staff profiles attached, you can add them during booking and see the price before completing the session.</p>
+            </article>
+            <article class="story-card">
+              <span>3</span>
+              <strong>Can I book more than one session?</strong>
+              <p>The current setup is optimized for one session per day per account, which helps prevent accidental overbooking and keeps the schedule fair.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">Studio use</p>
+            <h2>Arrival and room expectations</h2>
+          </div>
+          <div class="story-grid">
+            <article class="story-card">
+              <span>4</span>
+              <strong>When should I arrive?</strong>
+              <p>Plan to arrive 10 to 15 minutes early so your group can check in, unload, and be ready when the booked session begins.</p>
+            </article>
+            <article class="story-card">
+              <span>5</span>
+              <strong>Can I bring guests?</strong>
+              <p>Yes, but stay within the room capacity shown on the room page so the session remains comfortable and safe.</p>
+            </article>
+            <article class="story-card">
+              <span>6</span>
+              <strong>What should I bring?</strong>
+              <p>Bring project files, drives, reference tracks, and any specialty equipment you need. The room pages should outline what each space is best suited for.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">Payments</p>
+            <h2>Payment and cancellations</h2>
+          </div>
+          <div class="detail-stack">
+            <div class="summary-line"><span>Pending bookings</span><strong>Created first, then paid</strong></div>
+            <div class="summary-line"><span>Refunds</span><strong>Admin-managed when required</strong></div>
+            <div class="summary-line"><span>Staff conflicts</span><strong>Blocked automatically if a staff member is already booked elsewhere</strong></div>
+            <div class="summary-line"><span>Need help?</span><strong>Use the Contact page for booking support</strong></div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="signal-ribbon">
+        <div class="signal-panel">
+          <strong>Status</strong>
+          <div id="app-message" class="signal-copy">Frontend booting.</div>
+        </div>
+      </footer>
+      <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
+        <p>
+          BIPOC Foundation is situated on the unceded, traditional and ancestral Siksikaitsitapii
+          (Blackfoot) Confederacy territory, Nations of Treaty No. 7, and the historical regional
+          homeland of the Metis. We pay respect to the past, present and future Indigenous Peoples
+          who steward the land while recognizing and respecting their cultural heritage, beliefs and
+          relationship to the land.
+        </p>
+        <p>Copyright &copy; 2026 - media arts collective. All Rights Reserved.</p>
+        <p class="site-acknowledgement-credit">Powered by BIPOC Foundation.</p>
+      </section>
+    </div>
+
+    <script type="module" src="/assets/js/main.js?v=20260401r"></script>
+  </body>
+</html>

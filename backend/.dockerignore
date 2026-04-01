@@ -1,0 +1,13 @@
+.env
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.coverage
+htmlcov
+alembic/__pycache__
+app/__pycache__
+tests/__pycache__
+postgres_data

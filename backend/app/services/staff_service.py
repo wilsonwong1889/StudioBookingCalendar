@@ -1,0 +1,133 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from app.models.room import Room
+from app.models.staff_profile import StaffProfile
+from app.schemas.staff import StaffProfileCreate, StaffProfileUpdate
+from app.staffing import build_staff_snapshot, normalize_staff_roles, normalize_string_list
+
+STAFF_MEDIA_DIR = Path(__file__).resolve().parents[1] / "frontend" / "media" / "staff"
+
+
+def _normalize_profile_name(value: str | None) -> str:
+    name = (value or "").strip()
+    if len(name) < 2:
+        raise ValueError("Staff profile name must be at least 2 characters")
+    return name
+
+
+def _ensure_unique_name(db: Session, name: str, exclude_profile_id=None) -> None:
+    query = db.query(StaffProfile).filter(func.lower(StaffProfile.name) == name.lower())
+    if exclude_profile_id:
+        query = query.filter(StaffProfile.id != exclude_profile_id)
+    if query.first():
+        raise ValueError("A staff profile with that name already exists")
+
+
+def _remove_staff_from_rooms(db: Session, profile_id: str) -> None:
+    for room in db.query(Room).all():
+        room_staff = normalize_staff_roles(room.staff_roles)
+        updated_staff = [staff_member for staff_member in room_staff if staff_member["id"] != profile_id]
+        if len(updated_staff) != len(room_staff):
+            room.staff_roles = updated_staff
+
+
+def _sync_staff_snapshot_to_rooms(db: Session, profile: StaffProfile) -> None:
+    snapshot = build_staff_snapshot(profile)
+    for room in db.query(Room).all():
+        room_staff = normalize_staff_roles(room.staff_roles)
+        replaced = False
+        updated_staff = []
+        for staff_member in room_staff:
+            if staff_member["id"] == snapshot["id"]:
+                if profile.active:
+                    updated_staff.append(snapshot)
+                replaced = True
+            else:
+                updated_staff.append(staff_member)
+        if replaced:
+            room.staff_roles = updated_staff
+
+
+def _delete_photo_if_unused(db: Session, photo_url: str | None, exclude_profile_id=None) -> None:
+    if not photo_url or not photo_url.startswith("/assets/media/staff/"):
+        return
+
+    query = db.query(StaffProfile).filter(StaffProfile.photo_url == photo_url)
+    if exclude_profile_id:
+        query = query.filter(StaffProfile.id != exclude_profile_id)
+    if query.first():
+        return
+
+    photo_path = STAFF_MEDIA_DIR / photo_url.rsplit("/", 1)[-1]
+    if photo_path.exists():
+        photo_path.unlink()
+
+
+def list_staff_profiles(db: Session) -> list[StaffProfile]:
+    return db.query(StaffProfile).order_by(StaffProfile.active.desc(), StaffProfile.name.asc()).all()
+
+
+def create_staff_profile(db: Session, payload: StaffProfileCreate) -> StaffProfile:
+    name = _normalize_profile_name(payload.name)
+    _ensure_unique_name(db, name)
+    profile = StaffProfile(
+        name=name,
+        description=payload.description.strip() if payload.description else None,
+        skills=normalize_string_list(payload.skills),
+        talents=normalize_string_list(payload.talents),
+        photo_url=payload.photo_url,
+        add_on_price_cents=payload.add_on_price_cents,
+        active=payload.active,
+    )
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+    return profile
+
+
+def update_staff_profile(db: Session, profile_id: str, payload: StaffProfileUpdate) -> StaffProfile:
+    profile = db.query(StaffProfile).filter(StaffProfile.id == profile_id).first()
+    if not profile:
+        raise ValueError("Staff profile not found")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    previous_photo_url = profile.photo_url
+    if "name" in update_data and update_data["name"] is not None:
+        profile.name = _normalize_profile_name(update_data["name"])
+        _ensure_unique_name(db, profile.name, exclude_profile_id=profile.id)
+    if "description" in update_data:
+        profile.description = update_data["description"].strip() if update_data["description"] else None
+    if "skills" in update_data and update_data["skills"] is not None:
+        profile.skills = normalize_string_list(update_data["skills"])
+    if "talents" in update_data and update_data["talents"] is not None:
+        profile.talents = normalize_string_list(update_data["talents"])
+    if "photo_url" in update_data:
+        profile.photo_url = update_data["photo_url"]
+    if "add_on_price_cents" in update_data and update_data["add_on_price_cents"] is not None:
+        profile.add_on_price_cents = update_data["add_on_price_cents"]
+    if "active" in update_data and update_data["active"] is not None:
+        profile.active = update_data["active"]
+
+    _sync_staff_snapshot_to_rooms(db, profile)
+    db.commit()
+    db.refresh(profile)
+    if previous_photo_url != profile.photo_url:
+        _delete_photo_if_unused(db, previous_photo_url, exclude_profile_id=profile.id)
+    return profile
+
+
+def delete_staff_profile(db: Session, profile_id: str) -> None:
+    profile = db.query(StaffProfile).filter(StaffProfile.id == profile_id).first()
+    if not profile:
+        raise ValueError("Staff profile not found")
+
+    photo_url = profile.photo_url
+    _remove_staff_from_rooms(db, str(profile.id))
+    db.delete(profile)
+    db.commit()
+    _delete_photo_if_unused(db, photo_url)

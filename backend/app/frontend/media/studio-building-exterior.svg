@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" fill="none">
+  <rect width="1600" height="1000" fill="#171214"/>
+  <rect y="700" width="1600" height="300" fill="#251d20"/>
+  <rect x="160" y="240" width="1280" height="500" rx="22" fill="#2d2427" stroke="#5b464b" stroke-width="6"/>
+  <rect x="240" y="320" width="360" height="190" rx="12" fill="#4d0f16"/>
+  <rect x="640" y="320" width="320" height="190" rx="12" fill="#3a3235"/>
+  <rect x="1000" y="320" width="360" height="190" rx="12" fill="#4d0f16"/>
+  <rect x="660" y="520" width="280" height="220" rx="16" fill="#121012" stroke="#8e1414" stroke-width="6"/>
+  <rect x="710" y="560" width="180" height="120" rx="10" fill="#7d1319"/>
+  <circle cx="800" cy="155" r="76" fill="#8e1414" opacity=".23"/>
+  <text x="800" y="150" fill="#f6efef" font-family="Avenir Next, Arial, sans-serif" font-size="74" font-weight="700" text-anchor="middle">Studio Exterior</text>
+  <text x="800" y="890" fill="#d1c2c5" font-family="Avenir Next, Arial, sans-serif" font-size="34" text-anchor="middle">Add a real full-building photo here when ready.</text>
+</svg>

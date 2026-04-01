@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin | StudioBookingSoftware</title>
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
+  </head>
+  <body data-page="admin">
+    <div class="site-frame">
+      <header class="site-header">
+        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+        <nav class="site-nav" aria-label="Primary">
+          <a class="nav-link" href="/">Home</a>
+          <a class="nav-link" href="/info">Info</a>
+          <a class="nav-link" href="/staff">Staff</a>
+          <a class="nav-link" href="/faq">FAQ</a>
+          <a class="nav-link" href="/contact">Contact</a>
+          <a class="nav-link" href="/rooms">Rooms</a>
+          <a class="nav-link" href="/bookings">Bookings</a>
+          <a class="nav-link" href="/account">Account</a>
+          <a class="nav-link is-active" href="/admin">Admin</a>
+        </nav>
+        <div class="header-side">
+          <div class="header-actions">
+            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Sign in</a>
+            <a id="header-secondary-link" class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
+            <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
+          </div>
+          <div class="status-strip">
+            <div class="status-chip">
+              <span class="status-chip-label">Backend</span>
+              <strong id="health-status">Checking...</strong>
+              <span id="health-detail" class="status-detail">Waiting for health probe.</span>
+            </div>
+            <div class="status-chip">
+              <span class="status-chip-label">Session</span>
+              <strong id="session-status">Signed out</strong>
+              <span id="session-detail" class="status-detail">Create an account or log in to continue.</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="page-grid">
+        <section class="hero-card hero-card-wide">
+          <p class="eyebrow">Admin</p>
+          <h1>Keep lookup, manual booking, refunds, and room setup in a dedicated operations surface.</h1>
+          <p class="hero-copy">
+            This page is intentionally separate from the user flow so staff tools can expand without cluttering the customer-facing experience.
+          </p>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">Access</p>
+            <h2>Admin workspace</h2>
+            <p class="panel-copy">Visible only when the current session is an admin account.</p>
+          </div>
+
+          <div id="admin-empty" class="empty-state">
+            Sign in as an admin user on the account page to use lookup, manual booking, and room management tools.
+          </div>
+
+          <div id="admin-workspace-shell" class="hidden">
+            <div class="admin-workspace-nav">
+              <div class="auth-switcher admin-tab-switcher" role="tablist" aria-label="Admin workspaces">
+                <button class="tab-button active" type="button" role="tab" data-admin-tab="overview">Overview</button>
+                <button class="tab-button" type="button" role="tab" data-admin-tab="accounts">Accounts</button>
+                <button class="tab-button" type="button" role="tab" data-admin-tab="bookings">Bookings</button>
+                <button class="tab-button" type="button" role="tab" data-admin-tab="staff">Staff catalog</button>
+                <button class="tab-button" type="button" role="tab" data-admin-tab="rooms">Room management</button>
+                <button class="tab-button" type="button" role="tab" data-admin-tab="qa">Backend test cases</button>
+              </div>
+              <label class="inline-field admin-workspace-picker">
+                <span>Workspace</span>
+                <select id="admin-workspace-select">
+                  <option value="overview">Overview</option>
+                  <option value="accounts">Accounts</option>
+                  <option value="bookings">Bookings</option>
+                  <option value="staff">Staff catalog</option>
+                  <option value="rooms">Room management</option>
+                  <option value="qa">Backend test cases</option>
+                </select>
+              </label>
+            </div>
+
+            <section id="admin-panel-overview" class="admin-tab-panel" data-admin-panel="overview">
+              <div class="panel-header">
+                <p class="panel-kicker">Overview</p>
+                <h3>Admin snapshot</h3>
+                <p class="panel-copy">Use this workspace for the high-level performance view and recent operational activity.</p>
+              </div>
+
+              <section id="admin-analytics-panel" class="hidden admin-analytics-panel">
+                <div class="panel-header">
+                  <p class="panel-kicker">Snapshot</p>
+                  <h3>Booking performance</h3>
+                  <p class="panel-copy">A quick summary of booking volume, revenue, and room usage.</p>
+                </div>
+                <div id="admin-analytics-grid" class="admin-summary-grid"></div>
+                <div class="admin-room-breakdown-shell">
+                  <h3>Room breakdown</h3>
+                  <div id="admin-room-breakdown" class="admin-room-breakdown"></div>
+                </div>
+                <div class="admin-room-breakdown-shell">
+                  <h3>Staff utilization</h3>
+                  <div id="admin-staff-breakdown" class="admin-room-breakdown"></div>
+                </div>
+              </section>
+
+              <section id="admin-activity-panel" class="hidden admin-activity-panel">
+                <div class="panel-header">
+                  <p class="panel-kicker">Activity</p>
+                  <h3>Recent actions</h3>
+                  <p class="panel-copy">Refunds, manual bookings, cancellations, and payment updates appear here.</p>
+                </div>
+                <div id="admin-activity-list" class="admin-activity-list"></div>
+              </section>
+            </section>
+
+            <section id="admin-panel-accounts" class="admin-tab-panel hidden" data-admin-panel="accounts">
+              <div class="panel-header">
+                <p class="panel-kicker">Accounts</p>
+                <h3>Customer and admin profiles</h3>
+                <p class="panel-copy">Review account details, billing information, saved card metadata, and booking activity. Card displays stay masked to the last 4 digits only.</p>
+              </div>
+
+              <section class="admin-accounts-shell">
+                <div class="admin-account-column">
+                  <div class="panel-header">
+                    <p class="panel-kicker">Directory</p>
+                    <h3>All accounts</h3>
+                    <p class="panel-copy">Select a profile to inspect full account information and management actions.</p>
+                  </div>
+                  <div id="admin-accounts-list" class="admin-accounts-list"></div>
+                </div>
+
+                <div class="admin-account-column">
+                  <div class="panel-header">
+                    <p class="panel-kicker">Profile</p>
+                    <h3>Account details</h3>
+                    <p class="panel-copy">This detail view keeps payment information masked while still exposing the rest of the account record.</p>
+                  </div>
+                  <div id="admin-account-detail" class="admin-account-detail"></div>
+                </div>
+              </section>
+            </section>
+
+            <section id="admin-panel-qa" class="admin-tab-panel hidden" data-admin-panel="qa">
+              <div class="panel-header">
+                <p class="panel-kicker">Backend Tests</p>
+                <h3>Backend test cases</h3>
+                <p class="panel-copy">Green means the backend case is covered and passing. Yellow is a follow-up status, and red is reserved for broken or missing cases.</p>
+              </div>
+              <div id="admin-test-case-summary" class="admin-summary-grid"></div>
+              <div id="admin-test-cases-list" class="admin-test-cases-list"></div>
+            </section>
+
+            <section id="admin-panel-bookings" class="admin-tab-panel hidden" data-admin-panel="bookings">
+              <div class="panel-header">
+                <p class="panel-kicker">Bookings</p>
+                <h3>Lookup, booking creation, and payment actions</h3>
+                <p class="panel-copy">This workspace keeps booking search, manual creation, refunds, and check-in tools together.</p>
+              </div>
+
+              <section class="admin-bookings-shell">
+                <div class="admin-bookings-toolbar">
+                  <label class="inline-field">
+                    <span>Day view</span>
+                    <input id="admin-schedule-date" type="date" />
+                  </label>
+                  <label class="inline-field">
+                    <span>Room filter</span>
+                    <select id="admin-schedule-room-filter">
+                      <option value="all">All rooms</option>
+                    </select>
+                  </label>
+                  <div class="admin-schedule-legend">
+                    <span class="pill">Pending</span>
+                    <span class="pill">Paid</span>
+                    <span class="pill">Completed</span>
+                    <span class="pill">Cancelled</span>
+                    <span class="pill">Refunded</span>
+                  </div>
+                </div>
+
+                <div id="admin-day-summary" class="admin-summary-grid"></div>
+                <div id="admin-day-schedule" class="admin-day-schedule"></div>
+              </section>
+
+              <div class="admin-grid admin-grid-bookings">
+                <form id="admin-booking-lookup-form" class="stack-form hidden admin-subpanel">
+                  <h3>Booking lookup</h3>
+                  <label>
+                    <span>User email</span>
+                    <input type="email" name="email" />
+                  </label>
+                  <label>
+                    <span>Booking code</span>
+                    <input type="text" name="booking_code" />
+                  </label>
+                  <label>
+                    <span>Status</span>
+                    <select name="status">
+                      <option value="">Any status</option>
+                      <option value="PendingPayment">PendingPayment</option>
+                      <option value="Paid">Paid</option>
+                      <option value="Completed">Completed</option>
+                      <option value="Cancelled">Cancelled</option>
+                      <option value="Refunded">Refunded</option>
+                    </select>
+                  </label>
+                  <button class="ghost-button" type="submit">Search bookings</button>
+                  <button id="admin-booking-clear" class="ghost-button" type="button">Clear search</button>
+                </form>
+
+                <form id="admin-manual-booking-form" class="stack-form hidden admin-subpanel">
+                  <h3>Manual booking</h3>
+                  <label>
+                    <span>User email</span>
+                    <input type="email" name="user_email" required />
+                  </label>
+                  <label>
+                    <span>Full name</span>
+                    <input type="text" name="full_name" />
+                  </label>
+                  <label>
+                    <span>Room</span>
+                    <select id="admin-room-select" name="room_id"></select>
+                  </label>
+                  <label>
+                    <span>Start time</span>
+                    <input id="admin-booking-start" type="datetime-local" name="start_time" required />
+                  </label>
+                  <label>
+                    <span>Duration</span>
+                    <select name="duration_minutes">
+                      <option value="60">1 hour</option>
+                      <option value="120">2 hours</option>
+                      <option value="180">3 hours</option>
+                      <option value="240">4 hours</option>
+                      <option value="300">5 hours</option>
+                    </select>
+                  </label>
+                  <div id="admin-manual-staff-section" class="profile-span-2 hidden">
+                    <span>Optional staff</span>
+                    <p class="field-help">Attach room staff add-ons to this manual booking when needed.</p>
+                    <div id="admin-manual-staff-options" class="staff-options"></div>
+                  </div>
+                  <label>
+                    <span>Booking notes</span>
+                    <textarea name="note" rows="3" placeholder="Walk-in details, setup notes, or access instructions"></textarea>
+                  </label>
+                  <button class="primary-button" type="submit">Create manual booking</button>
+                </form>
+
+                <section class="stack-form hidden admin-subpanel admin-bulk-danger">
+                  <h3>Bulk clearing</h3>
+                  <p class="field-help">Use these destructive actions only when you intentionally want to remove booking records.</p>
+                  <button id="admin-clear-day-button" class="ghost-button room-action-danger" type="button">Clear bookings for selected day</button>
+                  <button id="admin-clear-past-button" class="ghost-button room-action-danger" type="button">Clear past bookings</button>
+                </section>
+              </div>
+
+              <div class="panel-header">
+                <p class="panel-kicker">Records</p>
+                <h3>Booking details and customer information</h3>
+                <p class="panel-copy">See who booked, who cancelled, room details, staff add-ons, and booking notes in one organized list.</p>
+              </div>
+              <div id="admin-booking-results" class="booking-list hidden"></div>
+            </section>
+
+            <section id="admin-panel-staff" class="admin-tab-panel hidden" data-admin-panel="staff">
+              <div class="panel-header">
+                <p class="panel-kicker">Staff</p>
+                <h3>Profiles and room staffing</h3>
+                <p class="panel-copy">Create staff profiles, price them, upload JPG photos, and control where they appear as bookable add-ons.</p>
+              </div>
+
+              <div class="admin-grid admin-grid-staff">
+                <form id="admin-staff-profile-form" class="stack-form hidden admin-subpanel">
+                  <h3>Staff profile</h3>
+                  <input id="admin-staff-profile-id" type="hidden" name="staff_profile_id" />
+                  <input id="admin-staff-photo-url" type="hidden" name="photo_url" />
+                  <label>
+                    <span>Name</span>
+                    <input type="text" name="name" required placeholder="Ava Martinez" />
+                  </label>
+                  <label>
+                    <span>Service summary</span>
+                    <textarea name="description" rows="3" placeholder="Live engineering, vocal coaching, and session setup support"></textarea>
+                  </label>
+                  <label>
+                    <span>Skills</span>
+                    <textarea name="skills" rows="2" placeholder="Pro Tools, Mic placement, Dialogue cleanup"></textarea>
+                  </label>
+                  <label>
+                    <span>Talents</span>
+                    <textarea name="talents" rows="2" placeholder="Vocal comping, Lighting setups, Interview coaching"></textarea>
+                  </label>
+                  <label>
+                    <span>Add-on price (cents)</span>
+                    <input type="number" name="add_on_price_cents" min="0" value="0" />
+                  </label>
+                  <label>
+                    <span>Profile picture (JPG)</span>
+                    <input id="admin-staff-photo-file" type="file" accept=".jpg,.jpeg,image/jpeg" />
+                  </label>
+                  <div id="admin-staff-photo-preview" class="staff-photo-preview empty-state">
+                    Upload a JPG photo to show this staff member on room and booking pages.
+                  </div>
+                  <p class="field-help">JPG only. Maximum 5 MB.</p>
+                  <label class="checkbox-row">
+                    <input type="checkbox" name="active" checked />
+                    <span>Available for booking</span>
+                  </label>
+                  <div class="room-actions">
+                    <button class="primary-button" type="submit">Save staff profile</button>
+                    <button id="admin-staff-cancel-edit" class="ghost-button" type="button">Clear form</button>
+                  </div>
+                </form>
+              </div>
+
+              <section id="admin-room-management-panel" class="hidden admin-room-management-panel">
+                <div class="panel-header">
+                  <p class="panel-kicker">Catalog</p>
+                  <h3>Staff catalog</h3>
+                  <p class="panel-copy">Create reusable staff profiles with pricing, skills, talents, and a JPG profile image.</p>
+                </div>
+                <div id="admin-staff-catalog-list" class="admin-staff-catalog-list"></div>
+
+                <div class="panel-header">
+                  <p class="panel-kicker">Assignments</p>
+                  <h3>Room staff assignment</h3>
+                  <p class="panel-copy">Choose which staff profiles can be booked with each room.</p>
+                </div>
+                <div id="admin-room-staff-list" class="admin-room-staff-list"></div>
+              </section>
+            </section>
+
+            <section id="admin-panel-rooms" class="admin-tab-panel hidden" data-admin-panel="rooms">
+              <div class="panel-header">
+                <p class="panel-kicker">Rooms</p>
+                <h3>Create, edit, archive, and review rooms</h3>
+                <p class="panel-copy">This workspace keeps room setup and room inventory together as a separate operations surface.</p>
+              </div>
+
+              <div class="admin-grid admin-grid-rooms">
+                <form id="room-form" class="stack-form hidden admin-subpanel">
+                  <h3 id="room-form-title">Create room</h3>
+                  <input id="room-form-id" type="hidden" name="room_id" />
+                  <label>
+                    <span>Name</span>
+                    <input type="text" name="name" required />
+                  </label>
+                  <label>
+                    <span>Description</span>
+                    <textarea name="description" rows="3"></textarea>
+                  </label>
+                  <label>
+                    <span>Capacity</span>
+                    <input type="number" name="capacity" min="1" />
+                  </label>
+                  <label>
+                    <span>Photo URLs</span>
+                    <textarea name="photos" rows="3" placeholder="https://example.com/photo-one.jpg"></textarea>
+                  </label>
+                  <label>
+                    <span>Hourly rate (cents)</span>
+                    <input type="number" name="hourly_rate_cents" min="0" value="5000" />
+                  </label>
+                  <label>
+                    <span>Max booking duration</span>
+                    <select name="max_booking_duration_minutes">
+                      <option value="60">1 hour</option>
+                      <option value="120">2 hours</option>
+                      <option value="180">3 hours</option>
+                      <option value="240">4 hours</option>
+                      <option value="300" selected>5 hours</option>
+                    </select>
+                  </label>
+                  <div id="admin-room-create-staff-section" class="profile-span-2">
+                    <span>Staff options for this room</span>
+                    <p class="field-help">Choose from the staff profiles you created above. Customers will see these while booking the room.</p>
+                    <div id="admin-room-create-staff-options" class="staff-options"></div>
+                  </div>
+                  <div class="room-actions">
+                    <button id="room-form-submit" class="primary-button" type="submit">Create room</button>
+                    <button id="room-form-cancel" class="ghost-button hidden" type="button">Cancel edit</button>
+                  </div>
+                </form>
+              </div>
+
+              <div id="rooms-toolbar" class="rooms-toolbar hidden">
+                <label class="checkbox-row rooms-filter">
+                  <input id="show-inactive-toggle" type="checkbox" />
+                  <span>Include inactive rooms</span>
+                </label>
+              </div>
+              <div id="rooms-grid" class="rooms-grid"></div>
+            </section>
+          </div>
+        </section>
+      </main>
+
+      <footer class="signal-ribbon">
+        <div class="signal-panel">
+          <strong>Activity</strong>
+          <div id="app-message" class="signal-copy">Frontend booting.</div>
+        </div>
+      </footer>
+      <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
+        <p>
+          BIPOC Foundation is situated on the unceded, traditional and ancestral Siksikaitsitapii
+          (Blackfoot) Confederacy territory, Nations of Treaty No. 7, and the historical regional
+          homeland of the Metis. We pay respect to the past, present and future Indigenous Peoples
+          who steward the land while recognizing and respecting their cultural heritage, beliefs and
+          relationship to the land.
+        </p>
+        <p>Copyright &copy; 2026 - media arts collective. All Rights Reserved.</p>
+        <p class="site-acknowledgement-credit">Powered by BIPOC Foundation.</p>
+      </section>
+    </div>
+
+    <script type="module" src="/assets/js/main.js?v=20260401x"></script>
+  </body>
+</html>

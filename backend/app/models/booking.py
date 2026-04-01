@@ -1,7 +1,20 @@
 import uuid
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, func, CheckConstraint, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    CheckConstraint,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from app.config import settings
 from app.database import Base
+
 
 class Booking(Base):
     __tablename__ = "bookings"
@@ -19,12 +32,38 @@ class Booking(Base):
     end_time = Column(DateTime(timezone=True), nullable=False)
     duration_minutes = Column(Integer, nullable=False)
     price_cents = Column(Integer, nullable=False)
-    currency = Column(String, default="USD")
+    currency = Column(String, default=settings.DEFAULT_CURRENCY)
     status = Column(String, nullable=False, default="PendingPayment")
     booking_code = Column(String, nullable=False, unique=True)
+    user_email_snapshot = Column(String)
+    user_full_name_snapshot = Column(String)
+    user_phone_snapshot = Column(String)
     payment_intent_id = Column(String)
+    confirmed_at = Column(DateTime(timezone=True))
+    checked_in_at = Column(DateTime(timezone=True))
+    cancelled_at = Column(DateTime(timezone=True))
+    cancellation_reason = Column(String)
+    note = Column(String)
+    staff_assignments = Column(JSONB, default=list)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    @property
+    def payment_expires_at(self):
+        if self.status != "PendingPayment" or not self.created_at:
+            return None
+        created_at = self.created_at
+        if created_at.tzinfo is None or created_at.utcoffset() is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        return created_at + timedelta(minutes=settings.PENDING_BOOKING_EXPIRY_MINUTES)
+
+    @property
+    def payment_seconds_remaining(self):
+        expires_at = self.payment_expires_at
+        if not expires_at:
+            return None
+        remaining = int((expires_at - datetime.now(timezone.utc)).total_seconds())
+        return max(0, remaining)
 
 
 class BookingSlot(Base):
@@ -35,5 +74,50 @@ class BookingSlot(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     booking_id = Column(UUID(as_uuid=True), ForeignKey("bookings.id", ondelete="CASCADE"), nullable=False)
-    room_id = Column(UUID(as_uuid=True), nullable=False)
+    room_id = Column(UUID(as_uuid=True), ForeignKey("rooms.id", ondelete="CASCADE"), nullable=False)
     slot_start = Column(DateTime(timezone=True), nullable=False)
+
+
+class Refund(Base):
+    __tablename__ = "refunds"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('Requested','Processed','Rejected')",
+            name="refund_status_check",
+        ),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    booking_id = Column(UUID(as_uuid=True), ForeignKey("bookings.id", ondelete="CASCADE"), nullable=False)
+    admin_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+    amount_cents = Column(Integer, nullable=False)
+    currency = Column(String, nullable=False, default=settings.DEFAULT_CURRENCY)
+    status = Column(String, nullable=False, default="Requested")
+    stripe_refund_id = Column(String)
+    reason = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class NotificationLog(Base):
+    __tablename__ = "notification_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+    booking_id = Column(UUID(as_uuid=True), ForeignKey("bookings.id", ondelete="CASCADE"))
+    type = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="Queued")
+    details = Column(JSONB)
+    sent_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    actor_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+    booking_id = Column(UUID(as_uuid=True), ForeignKey("bookings.id", ondelete="CASCADE"))
+    action = Column(String, nullable=False)
+    details = Column(JSONB)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

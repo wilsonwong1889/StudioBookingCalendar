@@ -1,0 +1,73 @@
+name: Backend CI
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: studio_booking
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d studio_booking"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          python - <<'PY'
+          from pathlib import Path
+          env_path = Path(".env")
+          content = env_path.read_text()
+          content = content.replace(
+              "DATABASE_URL=postgresql://postgres:password@db:5432/studio_booking",
+              "DATABASE_URL=postgresql://postgres:password@localhost:5432/studio_booking",
+          )
+          content = content.replace(
+              "REDIS_URL=redis://redis:6379/0",
+              "REDIS_URL=redis://localhost:6379/0",
+          )
+          content = content.replace("CELERY_TASK_ALWAYS_EAGER=false", "CELERY_TASK_ALWAYS_EAGER=true")
+          env_path.write_text(content)
+          PY
+      - name: Run migrations
+        run: alembic upgrade head
+      - name: Run smoke tests
+        run: python -m unittest discover -s tests -v
+      - name: Import app
+        run: python -c "import app.main; print('import_ok')"
+      - name: Build Docker image
+        run: docker build -t studio-booking:test .

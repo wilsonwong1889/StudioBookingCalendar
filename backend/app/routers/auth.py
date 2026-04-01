@@ -1,16 +1,126 @@
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+from secrets import randbelow
+
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
+
+from app.config import settings
+from app.core.dependencies import get_current_user
+from app.core.rate_limit import rate_limit_dependency
+from app.core.security import create_access_token, decode_token, hash_password, verify_password
 from app.database import get_db
 from app.models.user import User
-from app.schemas.user import UserCreate, UserOut, Token
-from app.core.security import hash_password, verify_password, create_access_token
-from app.core.dependencies import get_current_user
+from app.schemas.user import Token, TwoFactorResendIn, TwoFactorVerifyIn, UserCreate, UserOut
+from app.services.booking_service import create_notification_log
+
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
+auth_rate_limit = rate_limit_dependency("auth", settings.AUTH_RATE_LIMIT_MAX_REQUESTS)
+
+
+def _generate_two_factor_code() -> str:
+    return f"{randbelow(1_000_000):06d}"
+
+
+def _normalize_two_factor_method(user: User) -> str:
+    method = (user.two_factor_method or "email").strip().lower()
+    if method not in {"email", "sms"}:
+        return "email"
+    if method == "sms" and not user.phone:
+        raise HTTPException(status_code=400, detail="Two-factor SMS requires a phone number on the account")
+    if method == "email" and not user.email:
+        raise HTTPException(status_code=400, detail="Two-factor email requires an email address on the account")
+    return method
+
+
+def _queue_two_factor_delivery(db: Session, user: User, method: str, code: str) -> None:
+    notification_type = f"login_verification_{method}"
+    create_notification_log(
+        db,
+        user_id=user.id,
+        booking_id=None,
+        notification_type=notification_type,
+        status="Queued",
+        details={
+            "queued_tasks": [f"send_login_verification_{method}"],
+            "expires_in_minutes": settings.TWO_FACTOR_CODE_EXPIRE_MINUTES,
+        },
+    )
+    db.commit()
+
+    from app.tasks import (
+        send_login_verification_email_task,
+        send_login_verification_sms_task,
+    )
+
+    if method == "sms":
+        send_login_verification_sms_task.delay(str(user.id), code)
+        return
+    send_login_verification_email_task.delay(str(user.id), code)
+
+
+def _create_two_factor_challenge(db: Session, user: User) -> Token:
+    method = _normalize_two_factor_method(user)
+    code = _generate_two_factor_code()
+    user.two_factor_method = method
+    user.two_factor_code_hash = hash_password(code)
+    user.two_factor_code_expires_at = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.TWO_FACTOR_CODE_EXPIRE_MINUTES
+    )
+    db.commit()
+    db.refresh(user)
+    _queue_two_factor_delivery(db, user, method, code)
+    challenge_token = create_access_token(
+        {"sub": str(user.id), "purpose": "login_2fa"},
+        expires_minutes=settings.TWO_FACTOR_CODE_EXPIRE_MINUTES,
+    )
+    return Token(
+        two_factor_required=True,
+        two_factor_token=challenge_token,
+        two_factor_method=method,
+    )
+
+
+def _verify_two_factor_token(db: Session, payload: TwoFactorVerifyIn) -> User:
+    try:
+        token_payload = decode_token(payload.two_factor_token)
+    except Exception as exc:  # pragma: no cover - jose raises multiple subclasses
+        raise HTTPException(status_code=401, detail="Two-factor session expired") from exc
+
+    if token_payload.get("purpose") != "login_2fa":
+        raise HTTPException(status_code=401, detail="Invalid two-factor session")
+
+    user = db.query(User).filter(User.id == token_payload.get("sub")).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    expires_at = user.two_factor_code_expires_at
+    if not user.two_factor_code_hash or not expires_at:
+        raise HTTPException(status_code=400, detail="No active two-factor code")
+    if expires_at <= datetime.now(timezone.utc):
+        user.two_factor_code_hash = None
+        user.two_factor_code_expires_at = None
+        db.commit()
+        raise HTTPException(status_code=401, detail="Two-factor code expired")
+    if not verify_password(payload.code, user.two_factor_code_hash):
+        raise HTTPException(status_code=401, detail="Invalid verification code")
+
+    user.two_factor_code_hash = None
+    user.two_factor_code_expires_at = None
+    db.commit()
+    db.refresh(user)
+    return user
+
 
 @router.post("/signup", response_model=UserOut, status_code=201)
-def signup(payload: UserCreate, db: Session = Depends(get_db)):
+def signup(
+    payload: UserCreate,
+    db: Session = Depends(get_db),
+    _: None = Depends(auth_rate_limit),
+):
     existing = db.query(User).filter(User.email == payload.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -23,18 +133,79 @@ def signup(payload: UserCreate, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
+    notification_details = {
+        "queued_tasks": [
+            "send_account_created_email",
+            "send_account_created_sms",
+        ],
+    }
+    create_notification_log(
+        db,
+        user_id=user.id,
+        booking_id=None,
+        notification_type="account_created",
+        status="Queued",
+        details=notification_details,
+    )
+    db.commit()
+    from app.tasks import (
+        send_account_created_email_task,
+        send_account_created_sms_task,
+    )
+
+    send_account_created_email_task.delay(str(user.id))
+    send_account_created_sms_task.delay(str(user.id))
     return user
+
 
 @router.post("/login", response_model=Token)
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: None = Depends(auth_rate_limit),
 ):
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if user.two_factor_enabled:
+        return _create_two_factor_challenge(db, user)
+
     token = create_access_token({"sub": str(user.id)})
-    return {"access_token": token, "token_type": "bearer"}
+    return Token(access_token=token, token_type="bearer")
+
+
+@router.post("/verify-2fa", response_model=Token)
+def verify_two_factor(
+    payload: TwoFactorVerifyIn,
+    db: Session = Depends(get_db),
+    _: None = Depends(auth_rate_limit),
+):
+    user = _verify_two_factor_token(db, payload)
+    token = create_access_token({"sub": str(user.id)})
+    return Token(access_token=token, token_type="bearer")
+
+
+@router.post("/resend-2fa", response_model=Token)
+def resend_two_factor(
+    payload: TwoFactorResendIn,
+    db: Session = Depends(get_db),
+    _: None = Depends(auth_rate_limit),
+):
+    try:
+        token_payload = decode_token(payload.two_factor_token)
+    except Exception as exc:  # pragma: no cover - jose raises multiple subclasses
+        raise HTTPException(status_code=401, detail="Two-factor session expired") from exc
+
+    if token_payload.get("purpose") != "login_2fa":
+        raise HTTPException(status_code=401, detail="Invalid two-factor session")
+
+    user = db.query(User).filter(User.id == token_payload.get("sub")).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return _create_two_factor_challenge(db, user)
+
 
 @router.get("/me", response_model=UserOut)
 def get_me(current_user: User = Depends(get_current_user)):

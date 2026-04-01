@@ -6,8 +6,10 @@ psycopg2-binary==2.9.9
 pydantic[email]==2.7.1
 pydantic-settings==2.2.1
 python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+passlib==1.7.4
 python-multipart==0.0.9
 stripe==9.5.0
 sendgrid==6.11.0
 python-dotenv==1.0.1
+redis==5.0.4
+celery==5.4.0
