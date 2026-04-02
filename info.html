@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Studio Info | StudioBookingSoftware</title>
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
+  </head>
+  <body data-page="info">
+    <div class="site-frame">
+      <header class="site-header">
+        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+        <nav class="site-nav" aria-label="Primary">
+          <a class="nav-link" href="/">Home</a>
+          <a class="nav-link is-active" href="/info">Info</a>
+          <a class="nav-link" href="/staff">Staff</a>
+          <a class="nav-link" href="/faq">FAQ</a>
+          <a class="nav-link" href="/contact">Contact</a>
+          <a class="nav-link" href="/rooms">Rooms</a>
+          <a class="nav-link" href="/bookings">Bookings</a>
+          <a class="nav-link" href="/account">Account</a>
+          <a class="nav-link" href="/admin">Admin</a>
+        </nav>
+        <div class="header-side">
+          <div class="header-actions">
+            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
+            <a id="header-secondary-link" class="ghost-button ghost-link" href="/account?mode=signup">Create account</a>
+            <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
+          </div>
+          <div class="status-strip">
+            <div class="status-chip">
+              <span class="status-chip-label">Backend</span>
+              <strong id="health-status">Checking...</strong>
+              <span id="health-detail" class="status-detail">Waiting for health probe.</span>
+            </div>
+            <div class="status-chip">
+              <span class="status-chip-label">Session</span>
+              <strong id="session-status">Signed out</strong>
+              <span id="session-detail" class="status-detail">Log in or create an account to continue.</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="page-grid">
+        <section class="hero-card hero-card-wide">
+          <p class="eyebrow">Studio info</p>
+          <h1>Everything guests should know before they book the space.</h1>
+          <p class="hero-copy">
+            Use this page to explain what the studio offers, who it serves, what the experience feels like, and where the building is located.
+          </p>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <p class="panel-kicker">About</p>
+            <h2>What this studio is for</h2>
+          </div>
+          <div class="detail-stack">
+            <p class="hero-copy">This studio is designed for recording sessions, podcast capture, production shoots, strategy meetings, content creation, and client-facing creative work.</p>
+            <p class="hero-copy">The booking platform is meant to keep the process direct: browse the room, pick the time, add any staff support you need, and arrive with a clear understanding of the space.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <p class="panel-kicker">Guest flow</p>
+            <h2>How bookings work</h2>
+          </div>
+          <div class="detail-stack">
+            <div class="summary-line"><span>1. Choose a room</span><strong>Browse the public room catalog</strong></div>
+            <div class="summary-line"><span>2. Pick a time</span><strong>Select an available session up to that room's allowed duration</strong></div>
+            <div class="summary-line"><span>3. Add staff support</span><strong>Choose staff profiles offered for that room</strong></div>
+            <div class="summary-line"><span>4. Review details</span><strong>See pricing before finishing the booking</strong></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <p class="panel-kicker">Visit</p>
+            <h2>Location and arrival</h2>
+          </div>
+          <div class="detail-stack">
+            <div class="summary-line"><span>Address</span><strong>2525 36 St N, Lethbridge, AB T1H 5L1</strong></div>
+            <div class="summary-line"><span>Arrival</span><strong>Plan to arrive 10 to 15 minutes before your slot</strong></div>
+            <div class="summary-line"><span>Best for</span><strong>Recording, podcasts, branded shoots, meetings, and creative sessions</strong></div>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">House rules</p>
+            <h2>What guests should expect on site</h2>
+          </div>
+          <div class="story-grid">
+            <article class="story-card">
+              <span>1</span>
+              <strong>Respect start times</strong>
+              <p>Choose enough time for setup, the session itself, and wrap so the room can turn over cleanly.</p>
+            </article>
+            <article class="story-card">
+              <span>2</span>
+              <strong>Stay within room capacity</strong>
+              <p>Capacity exists to keep the room comfortable, safe, and workable for everyone in the session.</p>
+            </article>
+            <article class="story-card">
+              <span>3</span>
+              <strong>Leave the room ready for turnover</strong>
+              <p>Clear personal items, gear, and trash before the session ends so the next booking starts cleanly.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">Founders</p>
+            <h2>Studio leadership</h2>
+            <p class="panel-copy">This section gives you a public-facing place to present the founders behind the studio.</p>
+          </div>
+          <div id="info-founders-grid" class="admin-staff-catalog-list"></div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">Building</p>
+            <h2>Whole-building photo gallery</h2>
+            <p class="panel-copy">These slots are ready for real exterior and interior photos of the full studio building.</p>
+          </div>
+          <div id="info-building-gallery" class="rooms-grid"></div>
+        </section>
+      </main>
+
+      <footer class="signal-ribbon">
+        <div class="signal-panel">
+          <strong>Status</strong>
+          <div id="app-message" class="signal-copy">Frontend booting.</div>
+        </div>
+      </footer>
+      <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
+        <p>
+          BIPOC Foundation is situated on the unceded, traditional and ancestral Siksikaitsitapii
+          (Blackfoot) Confederacy territory, Nations of Treaty No. 7, and the historical regional
+          homeland of the Metis. We pay respect to the past, present and future Indigenous Peoples
+          who steward the land while recognizing and respecting their cultural heritage, beliefs and
+          relationship to the land.
+        </p>
+        <p>Copyright &copy; 2026 - media arts collective. All Rights Reserved.</p>
+        <p class="site-acknowledgement-credit">Powered by BIPOC Foundation.</p>
+      </section>
+    </div>
+
+    <script type="module" src="/assets/js/main.js?v=20260401r"></script>
+  </body>
+</html>

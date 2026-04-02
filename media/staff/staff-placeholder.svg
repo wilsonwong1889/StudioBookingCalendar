@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img" aria-labelledby="title desc">
+  <title id="title">Staff profile placeholder</title>
+  <desc id="desc">Generic portrait placeholder for staff profiles without an uploaded photo.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2a2d31" />
+      <stop offset="100%" stop-color="#8c1111" />
+    </linearGradient>
+  </defs>
+  <rect width="320" height="320" rx="44" fill="url(#bg)" />
+  <circle cx="160" cy="118" r="56" fill="#f2ede6" opacity="0.95" />
+  <path
+    d="M84 270c10-46 43-74 76-74s66 28 76 74"
+    fill="none"
+    stroke="#f2ede6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="28"
+  />
+</svg>

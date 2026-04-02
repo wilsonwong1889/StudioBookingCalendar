@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Account | StudioBookingSoftware</title>
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
+  </head>
+  <body data-page="account">
+    <div class="site-frame">
+      <header class="site-header">
+        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+        <nav class="site-nav" aria-label="Primary">
+          <a class="nav-link" href="/">Home</a>
+          <a class="nav-link" href="/info">Info</a>
+          <a class="nav-link" href="/staff">Staff</a>
+          <a class="nav-link" href="/faq">FAQ</a>
+          <a class="nav-link" href="/contact">Contact</a>
+          <a class="nav-link" href="/rooms">Rooms</a>
+          <a class="nav-link" href="/bookings">Bookings</a>
+          <a class="nav-link is-active" href="/account">Account</a>
+          <a class="nav-link" href="/admin">Admin</a>
+        </nav>
+        <div class="header-side">
+          <div class="header-actions">
+            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Sign in</a>
+            <a id="header-secondary-link" class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
+            <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
+          </div>
+          <div class="status-strip">
+            <div class="status-chip">
+              <span class="status-chip-label">Backend</span>
+              <strong id="health-status">Checking...</strong>
+              <span id="health-detail" class="status-detail">Waiting for health probe.</span>
+            </div>
+            <div class="status-chip">
+              <span class="status-chip-label">Session</span>
+              <strong id="session-status">Signed out</strong>
+              <span id="session-detail" class="status-detail">Create an account or log in to continue.</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="page-grid account-page-grid">
+        <section class="hero-card hero-card-wide account-hero">
+          <p class="eyebrow">Account</p>
+          <h1 id="account-hero-title">Access and profile live in one clean place.</h1>
+          <p class="hero-copy">
+            <span id="account-hero-copy">
+              Use this page for account entry, profile updates, password changes, and reminder preferences.
+            </span>
+          </p>
+          <div id="account-summary-card" class="account-summary hidden">
+            <strong id="account-summary-name">Welcome back.</strong>
+            <span id="account-summary-email" class="status-detail">Your account details live here.</span>
+          </div>
+        </section>
+
+        <section id="account-auth-panel" class="panel account-auth-panel">
+          <p class="panel-kicker">Access</p>
+          <h2>Log in or create account</h2>
+          <div class="auth-switcher">
+            <button class="tab-button active" type="button" data-auth-tab="login">Log in</button>
+            <button class="tab-button" type="button" data-auth-tab="signup">Create account</button>
+          </div>
+
+          <form id="login-form" class="stack-form" data-auth-form="login">
+            <label>
+              <span>Email</span>
+              <input type="email" name="email" autocomplete="username" required />
+            </label>
+            <label>
+              <span>Password</span>
+              <input type="password" name="password" autocomplete="current-password" required />
+            </label>
+            <button class="primary-button" type="submit">Log in</button>
+          </form>
+
+          <form id="login-2fa-form" class="stack-form hidden" data-auth-form="two-factor">
+            <p id="login-2fa-copy" class="form-note">
+              Enter the 6-digit verification code sent to your sign-in method.
+            </p>
+            <label>
+              <span>Verification code</span>
+              <input type="text" name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required />
+            </label>
+            <div class="room-actions">
+              <button class="primary-button" type="submit">Verify code</button>
+              <button id="login-2fa-resend-button" class="ghost-button" type="button">Resend code</button>
+              <button id="login-2fa-cancel-button" class="ghost-button" type="button">Back</button>
+            </div>
+          </form>
+
+          <form id="signup-form" class="stack-form hidden" data-auth-form="signup">
+            <label>
+              <span>Full name</span>
+              <input type="text" name="full_name" autocomplete="name" required />
+            </label>
+            <label>
+              <span>Email</span>
+              <input type="email" name="email" autocomplete="email" required />
+            </label>
+            <label>
+              <span>Password</span>
+              <input type="password" name="password" autocomplete="new-password" required />
+            </label>
+            <label>
+              <span>Phone</span>
+              <input type="tel" name="phone" autocomplete="tel" />
+            </label>
+            <button class="primary-button" type="submit">Create account</button>
+          </form>
+
+          <button id="logout-button" class="ghost-button hidden" type="button">Log out</button>
+        </section>
+
+        <section id="account-profile-panel" class="panel panel-wide">
+          <p class="panel-kicker">Profile</p>
+          <h2>Preferences and security</h2>
+          <p class="panel-copy">
+            Your account saves in two layers: a local draft while you type, and a full account save whenever you are ready.
+          </p>
+
+          <div id="profile-empty" class="empty-state">
+            Log in to load your account details.
+          </div>
+
+          <form id="profile-form" class="stack-form hidden profile-grid">
+            <div class="profile-savebar profile-span-2">
+              <div class="profile-savecopy">
+                <strong id="profile-save-state">Account details are ready.</strong>
+                <span id="profile-save-detail" class="status-detail">You can save now or continue later.</span>
+              </div>
+              <div class="profile-saveactions">
+                <button id="profile-restore-draft-button" class="ghost-button hidden" type="button">Restore draft</button>
+                <button id="profile-discard-draft-button" class="ghost-button hidden" type="button">Clear draft</button>
+                <button id="profile-save-button" class="primary-button" type="submit">Save profile</button>
+              </div>
+            </div>
+
+            <fieldset class="profile-fieldset profile-span-2">
+              <legend>Personal details</legend>
+              <div class="profile-grid">
+                <label>
+                  <span>Full name</span>
+                  <input type="text" name="full_name" autocomplete="name" />
+                </label>
+                <label>
+                  <span>Email</span>
+                  <input type="email" name="email" readonly disabled />
+                </label>
+                <label>
+                  <span>Phone</span>
+                  <input type="tel" name="phone" autocomplete="tel" />
+                </label>
+                <label>
+                  <span>Birthday</span>
+                  <input type="date" name="birthday" autocomplete="bday" />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="profile-fieldset profile-span-2">
+              <legend>Billing address</legend>
+              <div class="profile-grid">
+                <label class="profile-span-2">
+                  <span>Address line 1</span>
+                  <input type="text" name="billing_line1" autocomplete="address-line1" />
+                </label>
+                <label class="profile-span-2">
+                  <span>Address line 2</span>
+                  <input type="text" name="billing_line2" autocomplete="address-line2" />
+                </label>
+                <label>
+                  <span>City</span>
+                  <input type="text" name="billing_city" autocomplete="address-level2" />
+                </label>
+                <label>
+                  <span>Province or state</span>
+                  <input type="text" name="billing_state" autocomplete="address-level1" />
+                </label>
+                <label>
+                  <span>Postal code</span>
+                  <input type="text" name="billing_postal_code" autocomplete="postal-code" />
+                </label>
+                <label>
+                  <span>Country</span>
+                  <input type="text" name="billing_country" autocomplete="country-name" />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="profile-span-2 profile-fieldset">
+              <legend>Saved payment method</legend>
+              <p class="form-note">
+                Store only safe card details here. Do not enter a full card number or CVV.
+              </p>
+              <div class="profile-grid profile-grid-tight">
+                <label>
+                  <span>Payment method ID</span>
+                  <input type="text" name="payment_method_id" placeholder="pm_..." />
+                </label>
+                <label>
+                  <span>Card brand</span>
+                  <input type="text" name="card_brand" placeholder="Visa" />
+                </label>
+                <label>
+                  <span>Last 4</span>
+                  <input type="text" name="card_last4" inputmode="numeric" maxlength="4" placeholder="4242" />
+                </label>
+                <label>
+                  <span>Expiry month</span>
+                  <input type="number" name="card_exp_month" min="1" max="12" placeholder="12" />
+                </label>
+                <label>
+                  <span>Expiry year</span>
+                  <input type="number" name="card_exp_year" min="2024" max="2100" placeholder="2030" />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="profile-fieldset profile-span-2">
+              <legend>Notifications and sign-in</legend>
+              <div class="profile-preferences">
+                <label class="checkbox-row">
+                  <input type="checkbox" name="opt_in_email" />
+                  <span>Email reminders</span>
+                </label>
+                <label class="checkbox-row">
+                  <input type="checkbox" name="opt_in_sms" />
+                  <span>SMS reminders</span>
+                </label>
+                <label class="checkbox-row">
+                  <input type="checkbox" name="two_factor_enabled" />
+                  <span>Require two-factor verification at login</span>
+                </label>
+                <label>
+                  <span>Two-factor method</span>
+                  <select name="two_factor_method">
+                    <option value="email">Email code</option>
+                    <option value="sms">SMS code</option>
+                  </select>
+                </label>
+              </div>
+              <p class="form-note">Booking-created notices, account-created notices, and pre-session reminders can still send automatically. Two-factor adds a login code on top of your password.</p>
+            </fieldset>
+          </form>
+
+          <form id="password-form" class="stack-form hidden password-form profile-fieldset">
+            <div class="profile-legend">Security</div>
+            <label>
+              <span>Current password</span>
+              <input type="password" name="current_password" autocomplete="current-password" />
+            </label>
+            <label>
+              <span>New password</span>
+              <input type="password" name="new_password" autocomplete="new-password" />
+            </label>
+            <button class="ghost-button" type="submit">Change password</button>
+          </form>
+
+          <section id="account-danger-zone" class="profile-fieldset account-danger-zone hidden">
+            <div class="profile-legend">Danger zone</div>
+            <p class="form-note">
+              Delete this profile from the user side at any time. Past bookings stay visible to admins for operational records, but this account and active session will be removed.
+            </p>
+            <button id="profile-delete-button" class="ghost-button room-action-danger" type="button">Delete profile</button>
+          </section>
+        </section>
+      </main>
+
+      <footer class="signal-ribbon">
+        <div class="signal-panel">
+          <strong>Activity</strong>
+          <div id="app-message" class="signal-copy">Frontend booting.</div>
+        </div>
+      </footer>
+      <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
+        <p>
+          BIPOC Foundation is situated on the unceded, traditional and ancestral Siksikaitsitapii
+          (Blackfoot) Confederacy territory, Nations of Treaty No. 7, and the historical regional
+          homeland of the Metis. We pay respect to the past, present and future Indigenous Peoples
+          who steward the land while recognizing and respecting their cultural heritage, beliefs and
+          relationship to the land.
+        </p>
+        <p>Copyright &copy; 2026 - media arts collective. All Rights Reserved.</p>
+        <p class="site-acknowledgement-credit">Powered by BIPOC Foundation.</p>
+      </section>
+    </div>
+
+    <script type="module" src="/assets/js/main.js?v=20260401y"></script>
+  </body>
+</html>
