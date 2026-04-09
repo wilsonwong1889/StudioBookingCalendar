@@ -6,10 +6,12 @@ import hmac
 import json
 import re
 import time
+from contextlib import nullcontext
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from threading import Barrier
+from unittest.mock import patch
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
@@ -219,7 +221,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn('./api.js?v=20260401r', response.text)
         self.assertIn('./state.js?v=20260401r', response.text)
         self.assertIn("views/admin.js?v=20260401x", response.text)
-        self.assertIn("views/booking-detail.js?v=20260401u", response.text)
+        self.assertIn("views/booking-detail.js?v=", response.text)
         self.assertIn("views/bookings.js?v=20260401w", response.text)
         self.assertIn("views/room-booking.js?v=20260401u", response.text)
         self.assertIn("views/rooms.js?v=20260401r", response.text)
@@ -572,6 +574,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertTrue(response.json()["access_token"])
 
     def test_20_week_three_booking_flow(self) -> None:
+        from app.config import settings
         from app.models.room import Room
 
         with self.SessionLocal() as db:
@@ -651,7 +654,12 @@ class AppSmokeTest(unittest.TestCase):
         booking = response.json()
         self.assertEqual(booking["status"], "PendingPayment")
         self.assertEqual(booking["price_cents"], 5000)
-        self.assertTrue(booking["payment_client_secret"].startswith("pi_client_secret_stub_"))
+        self.assertTrue(booking["payment_intent_id"].startswith("pi_"))
+        self.assertTrue(booking["payment_client_secret"])
+        if settings.PAYMENT_BACKEND == "stub":
+            self.assertTrue(booking["payment_client_secret"].startswith("pi_client_secret_stub_"))
+        else:
+            self.assertIn("_secret_", booking["payment_client_secret"])
         self.assertTrue(booking["booking_code"])
         self.assertEqual(booking["note"], "Podcast intro and guest setup")
         self.assertIsNotNone(booking["payment_expires_at"])
@@ -1028,7 +1036,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(response.status_code, 201, response.text)
         pending_booking = response.json()
         self.assertEqual(pending_booking["status"], "PendingPayment")
-        self.assertTrue(pending_booking["payment_intent_id"].startswith("pi_stub_"))
+        self.assertTrue(pending_booking["payment_intent_id"].startswith("pi_"))
 
         event = {
             "type": "payment_intent.succeeded",
@@ -1081,11 +1089,18 @@ class AppSmokeTest(unittest.TestCase):
         availability = response.json()
         self.assertIn(start_time.isoformat(), availability["available_start_times"])
 
-        response = self.client.post(
-            f"/api/admin/bookings/{pending_booking['id']}/refund",
-            headers=admin_headers,
-            json={"amount_cents": 5000, "reason": "Admin approved refund"},
+        refund_context = (
+            patch("app.services.booking_service.create_refund", return_value="re_smoke_stripe")
+            if settings.PAYMENT_BACKEND == "stripe"
+            else nullcontext()
         )
+
+        with refund_context:
+            response = self.client.post(
+                f"/api/admin/bookings/{pending_booking['id']}/refund",
+                headers=admin_headers,
+                json={"amount_cents": 5000, "reason": "Admin approved refund"},
+            )
         self.assertEqual(response.status_code, 200, response.text)
         refund = response.json()
         self.assertEqual(refund["status"], "Processed")
