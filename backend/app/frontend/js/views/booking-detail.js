@@ -125,11 +125,12 @@ async function mountStripePaymentForm(session) {
   }
 
   clearPaymentElement();
+  toggleHidden(elements.bookingPaymentElement, false);
   stripeClient = window.Stripe(session.stripe_publishable_key);
   stripeElements = stripeClient.elements({ clientSecret: session.payment_client_secret });
   paymentElement = stripeElements.create("payment");
   paymentElement.mount("#booking-payment-element");
-  toggleHidden(elements.bookingPaymentElement, false);
+  elements.bookingPaymentElement?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 function renderPaymentPanel(state, booking) {
