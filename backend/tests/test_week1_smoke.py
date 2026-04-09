@@ -236,6 +236,10 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn('getSearchParam("room") || getSearchParam("id")', response.text)
         self.assertIn("const MAX_DURATION_MINUTES = 300;", response.text)
 
+        response = self.client.get("/assets/js/views/booking-detail.js")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIn("stripeElements.submit()", response.text)
+
         response = self.client.get("/assets/js/views/rooms.js")
         self.assertEqual(response.status_code, 200, response.text)
         self.assertIn('href="/bookings?room=${room.id}"', response.text)

@@ -247,6 +247,10 @@ export function initBookingDetailView(actions) {
           throw new Error("Load the payment session first");
         }
         setState({ message: "Confirming payment..." });
+        const submitResult = await stripeElements.submit();
+        if (submitResult?.error) {
+          throw new Error(submitResult.error.message || "Payment details are incomplete");
+        }
         const result = await stripeClient.confirmPayment({
           elements: stripeElements,
           clientSecret: activePaymentSession.payment_client_secret,
