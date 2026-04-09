@@ -125,6 +125,7 @@ async function mountStripePaymentForm(session) {
   }
 
   clearPaymentElement();
+  activePaymentSession = session;
   toggleHidden(elements.bookingPaymentElement, false);
   stripeClient = window.Stripe(session.stripe_publishable_key);
   stripeElements = stripeClient.elements({ clientSecret: session.payment_client_secret });
