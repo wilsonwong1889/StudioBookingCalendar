@@ -12,7 +12,7 @@ from app.database import get_db
 from app.models.room import Room
 from app.models.staff_profile import StaffProfile  # noqa: F401
 from app.models.user import User
-from app.schemas.room import RoomOut, RoomUpdate
+from app.schemas.room import RoomOut, RoomPhotoUploadOut, RoomUpdate
 from app.schemas.booking import (
     AdminActivityItemOut,
     AdminAnalyticsSummaryOut,
@@ -40,6 +40,7 @@ from app.services.booking_service import (
     process_refund,
     StaffAvailabilityError,
     StaffSelectionError,
+    waive_booking_payment,
     clear_bookings_for_admin_day,
     clear_past_bookings_for_admin,
 )
@@ -62,6 +63,7 @@ from app.services.suitedash_service import (
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 admin_rate_limit = rate_limit_dependency("admin", settings.ADMIN_RATE_LIMIT_MAX_REQUESTS)
 STAFF_MEDIA_DIR = Path(__file__).resolve().parents[1] / "frontend" / "media" / "staff"
+ROOM_MEDIA_DIR = Path(__file__).resolve().parents[1] / "frontend" / "media" / "rooms"
 MAX_STAFF_PHOTO_BYTES = 5 * 1024 * 1024
 
 
@@ -253,6 +255,31 @@ async def admin_upload_staff_photo(
     return {"photo_url": f"/assets/media/staff/{saved_filename}"}
 
 
+@router.post("/rooms/photo", response_model=RoomPhotoUploadOut)
+async def admin_upload_room_photo(
+    photo: UploadFile = File(...),
+    admin: User = Depends(get_admin_user),
+    _: None = Depends(admin_rate_limit),
+):
+    filename = (photo.filename or "").lower()
+    if not filename.endswith((".jpg", ".jpeg")):
+        raise HTTPException(status_code=400, detail="Only JPG room photos are supported")
+
+    file_bytes = await photo.read()
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded photo is empty")
+    if len(file_bytes) > MAX_STAFF_PHOTO_BYTES:
+        raise HTTPException(status_code=400, detail="Room photo must be 5 MB or smaller")
+    if not _is_jpeg_bytes(file_bytes):
+        raise HTTPException(status_code=400, detail="Uploaded file is not a valid JPG image")
+
+    ROOM_MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+    saved_filename = f"{uuid4().hex}.jpg"
+    saved_path = ROOM_MEDIA_DIR / saved_filename
+    saved_path.write_bytes(file_bytes)
+    return {"photo_url": f"/assets/media/rooms/{saved_filename}"}
+
+
 @router.get("/bookings", response_model=List[AdminBookingLookupOut])
 def admin_bookings(
     status: Optional[str] = Query(default=None),
@@ -334,6 +361,19 @@ def admin_check_in_booking(
 ):
     try:
         return check_in_booking(db, booking_id, admin)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/bookings/{booking_id}/waive-payment", response_model=BookingOut)
+def admin_waive_booking_payment(
+    booking_id: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+    _: None = Depends(admin_rate_limit),
+):
+    try:
+        return waive_booking_payment(db, booking_id, admin)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

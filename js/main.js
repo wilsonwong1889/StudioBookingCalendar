@@ -1,15 +1,16 @@
 import { api } from "./api.js?v=20260401r";
 import { CURRENT_PAGE, getSearchParam } from "./config.js?v=20260401r";
 import { setState, state, subscribe, persistToken } from "./state.js?v=20260401r";
-import { initAdminView, renderAdminView } from "./views/admin.js?v=20260401x";
+import { initAdminView, renderAdminView } from "./views/admin.js?v=20260408f";
 import { initAuthView, renderAuthView } from "./views/auth.js?v=20260401y";
-import { initBookingDetailView, renderBookingDetailView } from "./views/booking-detail.js?v=20260401u";
-import { initBookingsView, renderBookingsView } from "./views/bookings.js?v=20260401w";
+import { initBookingDetailView, renderBookingDetailView } from "./views/booking-detail.js?v=20260408h";
+import { initBookingsView, renderBookingsView } from "./views/bookings.js?v=20260408g";
 import { initInfoView, renderInfoView } from "./views/info.js?v=20260401r";
+import { initPaymentSuccessView, renderPaymentSuccessView } from "./views/payment-success.js?v=20260408c";
 import { initProfileView, renderProfileView } from "./views/profile.js?v=20260401y";
 import { initRoomBookingView, renderRoomBookingView } from "./views/room-booking.js?v=20260401u";
 import { initRoomDetailView, renderRoomDetailView } from "./views/room-detail.js?v=20260401r";
-import { initRoomsView, renderRoomsView } from "./views/rooms.js?v=20260401r";
+import { initRoomsView, renderRoomsView } from "./views/rooms.js?v=20260408e";
 import { initStaffDirectoryView, renderStaffDirectoryView } from "./views/staff-directory.js?v=20260401v";
 import { renderStatus } from "./views/status.js?v=20260401r";
 
@@ -25,6 +26,7 @@ const PAGE_DATA_REQUIREMENTS = {
   staff: { rooms: false, bookings: false, admin: false, selectedRoom: false, selectedBooking: false, publicStaff: true },
   bookings: { rooms: true, bookings: true, admin: false, selectedRoom: false, selectedBooking: false },
   booking: { rooms: false, bookings: false, admin: false, selectedRoom: false, selectedBooking: true },
+  "payment-success": { rooms: false, bookings: false, admin: false, selectedRoom: false, selectedBooking: true },
   admin: { rooms: true, bookings: false, admin: true, selectedRoom: false, selectedBooking: false },
 };
 
@@ -39,6 +41,7 @@ function renderApp(currentState) {
   renderBookingsView(currentState);
   renderBookingDetailView(currentState);
   renderInfoView(currentState);
+  renderPaymentSuccessView(currentState);
   renderProfileView(currentState);
   renderRoomBookingView(currentState);
   renderRoomDetailView(currentState);
@@ -407,6 +410,7 @@ initAuthView({ refreshSession, clearSession });
 initBookingsView({ refreshAvailabilityAndBookings });
 initBookingDetailView({ reloadBookingDetail: loadSelectedBooking });
 initInfoView();
+initPaymentSuccessView({ reloadPaymentSuccess: loadSelectedBooking });
 initProfileView({ clearSession });
 initRoomBookingView();
 initRoomDetailView();

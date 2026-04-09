@@ -246,24 +246,6 @@ function renderStaffTagRow(label, values = []) {
   `;
 }
 
-function formatCardSummary(savedPaymentMethod) {
-  if (!savedPaymentMethod) {
-    return "No saved card metadata";
-  }
-
-  const parts = [];
-  if (savedPaymentMethod.brand) {
-    parts.push(savedPaymentMethod.brand);
-  }
-  if (savedPaymentMethod.last4) {
-    parts.push(`ending in ${savedPaymentMethod.last4}`);
-  }
-  if (savedPaymentMethod.exp_month && savedPaymentMethod.exp_year) {
-    parts.push(`exp ${String(savedPaymentMethod.exp_month).padStart(2, "0")}/${savedPaymentMethod.exp_year}`);
-  }
-  return parts.join(" • ") || "Saved payment method on file";
-}
-
 function formatAddress(address) {
   if (!address) {
     return "No billing address";
@@ -300,7 +282,7 @@ function renderAdminAccountListItem(account, isSelected) {
         <span class="pill">${account.booking_count} booking${account.booking_count === 1 ? "" : "s"}</span>
       </div>
       <p>${account.phone ? formatPhone(account.phone) : "No phone on file"}</p>
-      <p>${formatCardSummary(account.saved_payment_method)}</p>
+      <p>${account.billing_address ? "Billing address on file" : "No billing address on file"}</p>
     </button>
   `;
 }
@@ -354,20 +336,10 @@ function renderAdminAccountDetail(account, currentUser) {
       </section>
 
       <section class="admin-account-section">
-        <h4>Billing and payment</h4>
-        <p class="field-help">Saved card displays are masked to the last 4 digits only.</p>
+        <h4>Billing</h4>
+        <p class="field-help">Card details are handled by Stripe and are not stored in this app.</p>
         <div class="admin-detail-grid">
           ${renderAccountField("Billing address", formatAddress(account.billing_address))}
-          ${renderAccountField("Stripe customer ID", account.stripe_customer_id || "Not connected", { mono: true })}
-          ${renderAccountField("Payment method ID", account.saved_payment_method?.payment_method_id || "Not stored", { mono: true })}
-          ${renderAccountField("Card brand", account.saved_payment_method?.brand || "Not provided")}
-          ${renderAccountField("Card last 4", account.saved_payment_method?.last4 || "Not stored")}
-          ${renderAccountField(
-            "Expiry",
-            account.saved_payment_method?.exp_month && account.saved_payment_method?.exp_year
-              ? `${String(account.saved_payment_method.exp_month).padStart(2, "0")}/${account.saved_payment_method.exp_year}`
-              : "Not stored",
-          )}
         </div>
       </section>
 
@@ -542,8 +514,13 @@ function renderManualBookingStaffOptions(currentState) {
 
 function renderAdminBookingCard(booking) {
   const refundButton =
-    booking.status === "Paid" || booking.status === "Cancelled" || booking.status === "Completed"
+    booking.price_cents > 0 &&
+    (booking.status === "Paid" || booking.status === "Cancelled" || booking.status === "Completed")
       ? `<button class="ghost-button admin-booking-action" type="button" data-admin-action="refund" data-booking-id="${booking.id}" data-amount="${booking.price_cents}">Refund</button>`
+      : "";
+  const waivePaymentButton =
+    booking.status === "PendingPayment"
+      ? `<button class="ghost-button admin-booking-action" type="button" data-admin-action="waive-payment" data-booking-id="${booking.id}">Skip Stripe and mark free</button>`
       : "";
   const checkInButton =
     booking.status === "Paid" && !booking.checked_in_at
@@ -576,6 +553,7 @@ function renderAdminBookingCard(booking) {
         <div class="availability-preview">
           <span class="availability-label">Booking status</span>
           <p>${booking.status}</p>
+          <p>${booking.created_at ? `Booked at ${formatBookingDate(booking.created_at)}` : "Booking time unavailable"}</p>
           <p>${booking.checked_in_at ? `Checked in ${formatBookingDate(booking.checked_in_at)}` : "Not checked in yet"}</p>
           <p>${booking.cancelled_at ? `Cancelled ${formatBookingDate(booking.cancelled_at)}` : "Active or completed booking"}</p>
         </div>
@@ -583,7 +561,7 @@ function renderAdminBookingCard(booking) {
       ${staffAssignments.length ? `<p><strong>Staff:</strong> ${staffAssignments.map((assignment) => assignment.name).join(", ")}</p>` : '<p><strong>Staff:</strong> None attached</p>'}
       ${booking.cancellation_reason ? `<p><strong>Cancellation reason:</strong> ${booking.cancellation_reason}</p>` : ""}
       ${booking.note ? `<p><strong>Notes:</strong> ${booking.note}</p>` : ""}
-      ${(checkInButton || refundButton) ? `<div class="room-actions">${checkInButton}${refundButton}</div>` : ""}
+      ${(waivePaymentButton || checkInButton || refundButton) ? `<div class="room-actions">${waivePaymentButton}${checkInButton}${refundButton}</div>` : ""}
     </article>
   `;
 }
@@ -1010,6 +988,18 @@ export function initAdminView(actions) {
     }
 
     try {
+      if (button.dataset.adminAction === "waive-payment") {
+        const confirmed = window.confirm("Skip Stripe and mark this booking free?");
+        if (!confirmed) {
+          return;
+        }
+        setState({ message: "Marking booking free..." });
+        await api.adminWaiveBookingPayment(button.dataset.bookingId);
+        adminSearchResults = null;
+        await actions.refreshAll("Booking marked paid without Stripe.");
+        return;
+      }
+
       if (button.dataset.adminAction === "refund") {
         setState({ message: "Processing refund..." });
         await api.adminRefundBooking(button.dataset.bookingId, {

@@ -135,6 +135,33 @@ class RuntimeConfigurationTest(unittest.TestCase):
 
         validate_runtime_configuration(settings_obj)
 
+    def test_production_accepts_inline_tasks_when_explicitly_allowed(self) -> None:
+        settings_obj = SimpleNamespace(
+            APP_ENV="production",
+            SECRET_KEY="super-long-live-secret-with-entropy-1234567890",
+            APP_BASE_URL="https://studio.example.ca",
+            PAYMENT_BACKEND="stripe",
+            EMAIL_BACKEND="disabled",
+            SMTP_HOST="",
+            SMTP_PORT=587,
+            SMTP_USERNAME="",
+            SMTP_PASSWORD="",
+            CELERY_TASK_ALWAYS_EAGER=True,
+            ALLOW_INLINE_TASKS_IN_PRODUCTION=True,
+            cors_origins=["https://studio.example.ca"],
+            STRIPE_PUBLISHABLE_KEY="pk_live_realistic_value",
+            STRIPE_SECRET_KEY="sk_live_realistic_value",
+            STRIPE_WEBHOOK_SECRET="whsec_live_realistic_value",
+            SENDGRID_API_KEY="SG.change-me",
+            EMAIL_FROM="bookings@studio.example.ca",
+            SMS_BACKEND="console",
+            TWILIO_ACCOUNT_SID="",
+            TWILIO_AUTH_TOKEN="",
+            TWILIO_FROM_NUMBER="",
+        )
+
+        validate_runtime_configuration(settings_obj)
+
     def test_production_rejects_placeholder_twilio_settings(self) -> None:
         settings_obj = SimpleNamespace(
             APP_ENV="production",

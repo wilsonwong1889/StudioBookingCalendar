@@ -76,6 +76,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     RESERVATION_HOLD_MINUTES: int = 5
     CELERY_TASK_ALWAYS_EAGER: bool = True
+    ALLOW_INLINE_TASKS_IN_PRODUCTION: bool = False
     REMINDER_HOURS_BEFORE: str = "24,5,1"
     REMINDER_DISPATCH_INTERVAL_MINUTES: int = 30
     PENDING_BOOKING_CLEANUP_INTERVAL_MINUTES: int = 1
@@ -177,8 +178,10 @@ def validate_runtime_configuration(settings_obj: Optional[Settings] = None) -> N
         errors.append("PAYMENT_BACKEND must be stripe or stub in production")
     if current.EMAIL_BACKEND not in {"disabled", "sendgrid", "smtp"}:
         errors.append("EMAIL_BACKEND must be disabled, sendgrid, or smtp in production")
-    if current.CELERY_TASK_ALWAYS_EAGER:
-        errors.append("CELERY_TASK_ALWAYS_EAGER must be false in production")
+    if current.CELERY_TASK_ALWAYS_EAGER and not getattr(current, "ALLOW_INLINE_TASKS_IN_PRODUCTION", False):
+        errors.append(
+            "CELERY_TASK_ALWAYS_EAGER must be false in production unless ALLOW_INLINE_TASKS_IN_PRODUCTION is true"
+        )
     if any("localhost" in origin or "127.0.0.1" in origin for origin in current.cors_origins):
         errors.append("ALLOWED_CORS_ORIGINS must not include localhost in production")
     if current.PAYMENT_BACKEND == "stripe":

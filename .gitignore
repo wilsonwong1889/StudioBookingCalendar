@@ -33,3 +33,9 @@ backend/.env.*
 backend/venv/
 backend/__pycache__/
 backend/.pytest_cache/
+backend/app/frontend/media/rooms/*.jpg
+backend/app/frontend/media/rooms/*.jpeg
+!backend/app/frontend/media/rooms/.gitkeep
+backend/app/frontend/media/staff/*.jpg
+backend/app/frontend/media/staff/*.jpeg
+!backend/app/frontend/media/staff/.gitkeep

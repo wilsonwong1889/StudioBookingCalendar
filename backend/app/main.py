@@ -30,6 +30,7 @@ FRONTEND_PAGES = {
     "/staff": "staff.html",
     "/bookings": "bookings.html",
     "/booking": "booking.html",
+    "/payment-success": "payment-success.html",
     "/admin": "admin.html",
 }
 

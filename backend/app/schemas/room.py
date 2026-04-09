@@ -102,3 +102,7 @@ class RoomUpdate(BaseModel):
         if value is None:
             return value
         return validate_room_max_duration(value)
+
+
+class RoomPhotoUploadOut(BaseModel):
+    photo_url: str

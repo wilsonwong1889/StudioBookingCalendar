@@ -16,7 +16,7 @@ const FOUNDERS = [
 const BUILDING_GALLERY = [
   {
     title: "Full building exterior",
-    image: "/assets/media/studio-building-exterior.svg",
+    image: "/assets/media/studio-building-exterior.jpg",
     copy: "A dedicated place for your outside building photo so clients know what to look for on arrival.",
   },
   {

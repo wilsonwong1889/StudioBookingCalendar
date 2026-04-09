@@ -35,6 +35,12 @@ function formatDuration(minutes) {
   return `${hours} hour${hours === 1 ? "" : "s"}`;
 }
 
+function buildPaymentSuccessUrl(bookingId) {
+  const successUrl = new URL("/payment-success", window.location.origin);
+  successUrl.searchParams.set("id", bookingId);
+  return successUrl;
+}
+
 function renderStaffImage(photoUrl, label) {
   if (photoUrl) {
     return `<img class="staff-profile-image" src="${photoUrl}" alt="${label}" loading="lazy" />`;
@@ -138,6 +144,7 @@ function renderPaymentPanel(state, booking) {
   }
 
   const isPending = booking.status === "PendingPayment";
+  const canAdminWaivePayment = isPending && Boolean(state.currentUser?.is_admin);
   toggleHidden(elements.bookingPaymentPanel, !isPending);
   if (!isPending) {
     clearPaymentElement();
@@ -149,6 +156,13 @@ function renderPaymentPanel(state, booking) {
     <button class="ghost-button" type="button" data-booking-detail-action="load-payment" data-booking-id="${booking.id}">
       Load payment
     </button>
+    ${
+      canAdminWaivePayment
+        ? `<button class="ghost-button" type="button" data-booking-detail-action="waive-payment" data-booking-id="${booking.id}">
+      Skip Stripe as admin
+    </button>`
+        : ""
+    }
     <button class="primary-button hidden" type="button" data-booking-detail-action="confirm-payment" data-booking-id="${booking.id}">
       Confirm payment
     </button>
@@ -247,21 +261,36 @@ export function initBookingDetailView(actions) {
           throw new Error("Load the payment session first");
         }
         setState({ message: "Confirming payment..." });
+        const successUrl = buildPaymentSuccessUrl(activePaymentSession.booking_id);
+        const submitResult = await stripeElements.submit();
+        if (submitResult?.error) {
+          throw new Error(submitResult.error.message || "Payment details are incomplete");
+        }
         const result = await stripeClient.confirmPayment({
           elements: stripeElements,
           clientSecret: activePaymentSession.payment_client_secret,
           confirmParams: {
-            return_url: window.location.href,
+            return_url: successUrl.toString(),
           },
           redirect: "if_required",
         });
         if (result.error) {
           throw new Error(result.error.message || "Payment confirmation failed");
         }
-        if (actions?.reloadBookingDetail) {
-          await actions.reloadBookingDetail("Payment submitted. Refreshing booking detail...");
+        window.location.assign(successUrl.toString());
+        return;
+      }
+
+      if (action === "waive-payment") {
+        const confirmed = window.confirm("Skip Stripe and mark this booking free?");
+        if (!confirmed) {
+          return;
         }
-        setState({ message: "Payment submitted. Check the updated booking state." });
+        setState({ message: "Skipping Stripe and marking booking free..." });
+        const booking = await api.adminWaiveBookingPayment(button.dataset.bookingId);
+        clearPaymentElement();
+        setState({ selectedBooking: booking, message: "Booking marked free." });
+        window.location.assign(buildPaymentSuccessUrl(booking.id).toString());
       }
     } catch (error) {
       setState({ message: error.message });
