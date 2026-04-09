@@ -10,7 +10,7 @@ import { initPaymentSuccessView, renderPaymentSuccessView } from "./views/paymen
 import { initProfileView, renderProfileView } from "./views/profile.js?v=20260401y";
 import { initRoomBookingView, renderRoomBookingView } from "./views/room-booking.js?v=20260401u";
 import { initRoomDetailView, renderRoomDetailView } from "./views/room-detail.js?v=20260401r";
-import { initRoomsView, renderRoomsView } from "./views/rooms.js?v=20260401r";
+import { initRoomsView, renderRoomsView } from "./views/rooms.js?v=20260408e";
 import { initStaffDirectoryView, renderStaffDirectoryView } from "./views/staff-directory.js?v=20260401v";
 import { renderStatus } from "./views/status.js?v=20260401r";
 

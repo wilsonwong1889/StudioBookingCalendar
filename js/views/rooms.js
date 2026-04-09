@@ -1,4 +1,4 @@
-import { api } from "../api.js?v=20260401r";
+import { api } from "../api.js?v=20260408e";
 import { elements } from "../dom.js?v=20260401r";
 import { setState, state } from "../state.js?v=20260401r";
 
@@ -30,6 +30,42 @@ function getPrimaryPhoto(room) {
   return Array.isArray(room.photos) && room.photos.length ? room.photos[0] : null;
 }
 
+function getRoomPhotoUrlInput() {
+  return elements.roomForm?.querySelector("#room-photo-url");
+}
+
+function getRoomPhotoFileInput() {
+  return elements.roomForm?.querySelector("#room-photo-file");
+}
+
+function getRoomPhotoPreview() {
+  return elements.roomForm?.querySelector("#room-photo-preview");
+}
+
+function setRoomPhotoPreview(photoUrl, roomName = "Room") {
+  const preview = getRoomPhotoPreview();
+  if (!preview) {
+    return;
+  }
+
+  if (!photoUrl) {
+    preview.classList.add("empty-state");
+    preview.innerHTML = "Upload a JPG photo to show this room across booking and room detail pages.";
+    return;
+  }
+
+  preview.classList.remove("empty-state");
+  preview.innerHTML = `
+    <div class="staff-photo-preview-card">
+      <img class="staff-photo-preview-image" src="${photoUrl}" alt="${roomName}" loading="lazy" />
+      <div class="staff-option-copy">
+        <strong>${roomName}</strong>
+        <span>This image will appear as the primary room photo.</span>
+      </div>
+    </div>
+  `;
+}
+
 function resetRoomForm() {
   editingRoomId = null;
   selectedCreateStaffIds = new Set();
@@ -50,6 +86,11 @@ function resetRoomForm() {
   if (elements.roomForm?.elements?.max_booking_duration_minutes) {
     elements.roomForm.elements.max_booking_duration_minutes.value = "300";
   }
+  const roomPhotoUrlInput = getRoomPhotoUrlInput();
+  if (roomPhotoUrlInput) {
+    roomPhotoUrlInput.value = "";
+  }
+  setRoomPhotoPreview(null);
 }
 
 function populateRoomForm(room) {
@@ -65,9 +106,16 @@ function populateRoomForm(room) {
   elements.roomForm.elements.name.value = room.name || "";
   elements.roomForm.elements.description.value = room.description || "";
   elements.roomForm.elements.capacity.value = room.capacity || "";
-  elements.roomForm.elements.photos.value = (room.photos || []).join("\n");
+  const roomPhotos = Array.isArray(room.photos) ? room.photos : [];
+  const primaryPhoto = roomPhotos[0] || "";
+  elements.roomForm.elements.photos.value = roomPhotos.slice(1).join("\n");
   elements.roomForm.elements.hourly_rate_cents.value = room.hourly_rate_cents || 5000;
   elements.roomForm.elements.max_booking_duration_minutes.value = room.max_booking_duration_minutes || 300;
+  const roomPhotoUrlInput = getRoomPhotoUrlInput();
+  if (roomPhotoUrlInput) {
+    roomPhotoUrlInput.value = primaryPhoto;
+  }
+  setRoomPhotoPreview(primaryPhoto || null, room.name || "Room");
   if (elements.roomFormTitle) {
     elements.roomFormTitle.textContent = `Edit ${room.name}`;
   }
@@ -277,6 +325,21 @@ export function initRoomsView(actions) {
       renderCreateRoomStaffOptions(state);
     });
 
+    getRoomPhotoFileInput()?.addEventListener("change", () => {
+      const file = getRoomPhotoFileInput()?.files?.[0];
+      if (!file) {
+        setRoomPhotoPreview(
+          getRoomPhotoUrlInput()?.value || null,
+          elements.roomForm?.elements?.name?.value || "Room",
+        );
+        return;
+      }
+      setRoomPhotoPreview(
+        URL.createObjectURL(file),
+        elements.roomForm?.elements?.name?.value || file.name,
+      );
+    });
+
     elements.adminRoomCreateStaffOptions?.addEventListener("change", (event) => {
       const input = event.target.closest("input[type='checkbox']");
       if (!input) {
@@ -293,10 +356,21 @@ export function initRoomsView(actions) {
     elements.roomForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const form = new FormData(elements.roomForm);
-      const photos = String(form.get("photos") || "")
+      let primaryPhotoUrl = String(form.get("primary_photo_url") || "").trim() || null;
+      const roomPhotoFile = getRoomPhotoFileInput()?.files?.[0];
+      const additionalPhotos = String(form.get("photos") || "")
         .split("\n")
         .map((value) => value.trim())
         .filter(Boolean);
+      if (roomPhotoFile) {
+        const upload = await api.adminUploadRoomPhoto(roomPhotoFile);
+        primaryPhotoUrl = upload.photo_url;
+        const roomPhotoUrlInput = getRoomPhotoUrlInput();
+        if (roomPhotoUrlInput) {
+          roomPhotoUrlInput.value = primaryPhotoUrl;
+        }
+      }
+      const photos = Array.from(new Set([primaryPhotoUrl, ...additionalPhotos].filter(Boolean)));
 
       const payload = {
         name: form.get("name"),

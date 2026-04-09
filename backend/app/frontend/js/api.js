@@ -203,6 +203,14 @@ export const api = {
       body: formData,
     });
   },
+  adminUploadRoomPhoto(file) {
+    const formData = new FormData();
+    formData.append("photo", file);
+    return request("/api/admin/rooms/photo", {
+      method: "POST",
+      body: formData,
+    });
+  },
   adminCreateManualBooking(payload) {
     return request("/api/admin/bookings/manual", {
       method: "POST",

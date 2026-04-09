@@ -350,6 +350,7 @@
                 <form id="room-form" class="stack-form hidden admin-subpanel">
                   <h3 id="room-form-title">Create room</h3>
                   <input id="room-form-id" type="hidden" name="room_id" />
+                  <input id="room-photo-url" type="hidden" name="primary_photo_url" />
                   <label>
                     <span>Name</span>
                     <input type="text" name="name" required />
@@ -363,7 +364,15 @@
                     <input type="number" name="capacity" min="1" />
                   </label>
                   <label>
-                    <span>Photo URLs</span>
+                    <span>Primary room photo (JPG)</span>
+                    <input id="room-photo-file" type="file" accept=".jpg,.jpeg,image/jpeg" />
+                  </label>
+                  <div id="room-photo-preview" class="staff-photo-preview empty-state">
+                    Upload a JPG photo to show this room across booking and room detail pages.
+                  </div>
+                  <p class="field-help">JPG only. Maximum 5 MB.</p>
+                  <label>
+                    <span>Additional photo URLs</span>
                     <textarea name="photos" rows="3" placeholder="https://example.com/photo-one.jpg"></textarea>
                   </label>
                   <label>
@@ -423,6 +432,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260408d"></script>
+    <script type="module" src="/assets/js/main.js?v=20260408e"></script>
   </body>
 </html>

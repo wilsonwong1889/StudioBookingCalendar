@@ -204,7 +204,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn("admin-accounts-list", admin_page.text)
         self.assertIn("admin-test-case-summary", admin_page.text)
         self.assertIn("admin-test-cases-list", admin_page.text)
-        self.assertIn("20260408d", admin_page.text)
+        self.assertIn("20260408e", admin_page.text)
         self.assertLess(admin_page.text.index("Room management"), admin_page.text.index("Backend test cases"))
 
         response = self.client.get("/assets/styles/app.css")
@@ -225,7 +225,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn("views/payment-success.js?v=", response.text)
         self.assertIn("views/bookings.js?v=20260401w", response.text)
         self.assertIn("views/room-booking.js?v=20260401u", response.text)
-        self.assertIn("views/rooms.js?v=20260401r", response.text)
+        self.assertIn("views/rooms.js?v=20260408e", response.text)
         self.assertIn("views/room-detail.js?v=20260401r", response.text)
         self.assertIn("views/auth.js?v=20260401ab", response.text)
         self.assertIn("views/profile.js?v=20260401ab", response.text)
@@ -340,13 +340,22 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(response.status_code, 403, response.text)
 
         response = self.client.post(
+            "/api/admin/rooms/photo",
+            headers=admin_headers,
+            files={"photo": ("room.jpg", b"\xff\xd8\xffroom-photo\xff\xd9", "image/jpeg")},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        room_photo_url = response.json()["photo_url"]
+        self.assertTrue(room_photo_url.startswith("/assets/media/rooms/"))
+
+        response = self.client.post(
             "/api/rooms",
             headers=admin_headers,
             json={
                 "name": "Studio A",
                 "description": "Main room",
                 "capacity": 4,
-                "photos": ["https://example.com/a.jpg"],
+                "photos": [room_photo_url],
                 "hourly_rate_cents": 5000,
                 "max_booking_duration_minutes": 180,
             },
