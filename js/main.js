@@ -1,14 +1,14 @@
 import { api } from "./api.js?v=20260401r";
 import { CURRENT_PAGE, getSearchParam } from "./config.js?v=20260401r";
 import { setState, state, subscribe, persistToken } from "./state.js?v=20260401r";
-import { initAdminView, renderAdminView } from "./views/admin.js?v=20260408q";
-import { initAuthView, renderAuthView } from "./views/auth.js?v=20260401y";
-import { initBookingDetailView, renderBookingDetailView } from "./views/booking-detail.js?v=20260408k";
-import { initBookingsView, renderBookingsView } from "./views/bookings.js?v=20260408j";
+import { initAdminView, renderAdminView } from "./views/admin.js?v=20260409c";
+import { initAuthView, renderAuthView } from "./views/auth.js?v=20260401ab";
+import { initBookingDetailView, renderBookingDetailView } from "./views/booking-detail.js?v=20260409a";
+import { initBookingsView, renderBookingsView } from "./views/bookings.js?v=20260409c";
 import { initInfoView, renderInfoView } from "./views/info.js?v=20260401r";
-import { initPaymentSuccessView, renderPaymentSuccessView } from "./views/payment-success.js?v=20260408k";
+import { initPaymentSuccessView, renderPaymentSuccessView } from "./views/payment-success.js?v=20260409a";
 import { initProfileView, renderProfileView } from "./views/profile.js?v=20260408m";
-import { initRoomBookingView, renderRoomBookingView } from "./views/room-booking.js?v=20260401u";
+import { initRoomBookingView, renderRoomBookingView } from "./views/room-booking.js?v=20260409c";
 import { initRoomDetailView, renderRoomDetailView } from "./views/room-detail.js?v=20260401r";
 import { initRoomsView, renderRoomsView } from "./views/rooms.js?v=20260408q";
 import { initStaffDirectoryView, renderStaffDirectoryView } from "./views/staff-directory.js?v=20260401v";
@@ -69,6 +69,7 @@ function resetScopedData() {
     patch.adminUsers = [];
     patch.adminTestCases = [];
     patch.adminStaffProfiles = [];
+    patch.adminPromoCodes = [];
   }
   if (!requirements.publicStaff) {
     patch.publicStaffProfiles = [];
@@ -236,6 +237,24 @@ async function refreshAdminStaffProfiles(message) {
   }
 }
 
+async function refreshAdminPromoCodes(message) {
+  if (!currentRequirements().admin) {
+    return;
+  }
+
+  if (!state.currentUser?.is_admin) {
+    setState({ adminPromoCodes: [], message: message || state.message });
+    return;
+  }
+
+  try {
+    const adminPromoCodes = await api.getAdminPromoCodes();
+    setState({ adminPromoCodes, message: message || "Promo codes loaded." });
+  } catch (error) {
+    setState({ message: error.message });
+  }
+}
+
 async function refreshPublicStaffProfiles(message) {
   if (!currentRequirements().publicStaff) {
     return;
@@ -301,6 +320,7 @@ async function refreshAvailabilityAndBookings(message) {
   await refreshAdminUsers(message);
   await refreshAdminTestCases(message);
   await refreshAdminStaffProfiles(message);
+  await refreshAdminPromoCodes(message);
   await refreshPublicStaffProfiles(message);
   await loadSelectedBooking(message);
 
@@ -338,6 +358,7 @@ async function loadPageData(message) {
     await refreshAdminUsers(message || "Admin workspace ready.");
     await refreshAdminTestCases(message || "Admin workspace ready.");
     await refreshAdminStaffProfiles(message || "Admin workspace ready.");
+    await refreshAdminPromoCodes(message || "Admin workspace ready.");
   }
   if (requirements.publicStaff) {
     await refreshPublicStaffProfiles(message || "Staff page ready.");
@@ -374,6 +395,7 @@ async function refreshSession(message) {
       adminUsers: [],
       adminTestCases: [],
       adminStaffProfiles: [],
+      adminPromoCodes: [],
       publicStaffProfiles: [],
       selectedRoom: null,
       selectedBooking: null,
@@ -394,6 +416,7 @@ async function clearSession() {
     adminUsers: [],
     adminTestCases: [],
     adminStaffProfiles: [],
+    adminPromoCodes: [],
     publicStaffProfiles: [],
     selectedRoom: null,
     selectedBooking: null,

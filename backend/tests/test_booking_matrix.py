@@ -77,6 +77,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
         from app.database import Base, SessionLocal, engine
         from app.main import app
         from app.models.booking import AuditLog, Booking, BookingSlot, NotificationLog, Refund
+        from app.models.promo_code import PromoCode
         from app.models.room import Room
         from app.models.staff_profile import StaffProfile
         from app.models.user import User
@@ -131,6 +132,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
         cls.BookingSlot = BookingSlot
         cls.NotificationLog = NotificationLog
         cls.Refund = Refund
+        cls.PromoCode = PromoCode
         cls.Room = Room
         cls.StaffProfile = StaffProfile
         cls.User = User
@@ -209,6 +211,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
                 self.AuditLog,
                 self.NotificationLog,
                 self.Refund,
+                self.PromoCode,
                 self.BookingSlot,
                 self.Booking,
                 self.Room,
@@ -278,6 +281,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
         start_time: datetime,
         duration_minutes: int = 60,
         staff_assignments=None,
+        promo_code: str = None,
         note: str = None,
     ):
         payload = self.BookingCreate(
@@ -285,9 +289,32 @@ class BookingServiceMatrixTest(unittest.TestCase):
             start_time=start_time,
             duration_minutes=duration_minutes,
             staff_assignments=staff_assignments or [],
+            promo_code=promo_code,
             note=note,
         )
         return self.create_booking(db, user, payload)
+
+    def _create_promo_code(
+        self,
+        db,
+        *,
+        code: str = "FOUNDATION10",
+        percent_off: int = 10,
+        amount_off_cents=None,
+        active: bool = True,
+        max_redemptions=None,
+    ):
+        promo_code = self.PromoCode(
+            code=code,
+            percent_off=percent_off,
+            amount_off_cents=amount_off_cents,
+            active=active,
+            max_redemptions=max_redemptions,
+        )
+        db.add(promo_code)
+        db.commit()
+        db.refresh(promo_code)
+        return promo_code
 
     def _insert_booking_direct(
         self,
@@ -996,6 +1023,25 @@ class BookingServiceMatrixTest(unittest.TestCase):
             manual_audit = audit_logs[-1]
             self.assertEqual(manual_audit.actor_id, admin.id)
             self.assertEqual(manual_audit.details["price_cents"], original_price_cents)
+
+    def test_139c_create_booking_applies_promo_code_discount(self) -> None:
+        with self.SessionLocal() as db:
+            user = self._create_user(db)
+            room = self._create_room(db, hourly_rate_cents=5000)
+            self._create_promo_code(db, code="FOUNDATION10", percent_off=10)
+
+            booking = self._create_pending_booking(
+                db,
+                user=user,
+                room=room,
+                start_time=self._aware_time(day=8, hour=14),
+                promo_code="FOUNDATION10",
+            )
+
+            self.assertEqual(booking.original_price_cents, 5000)
+            self.assertEqual(booking.discount_cents, 500)
+            self.assertEqual(booking.price_cents, 4500)
+            self.assertEqual(booking.promo_code, "FOUNDATION10")
 
     def test_140_webhook_success_is_idempotent_for_paid_booking(self) -> None:
         with self.SessionLocal() as db:

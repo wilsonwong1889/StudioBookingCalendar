@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bookings | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260409c" />
   </head>
   <body data-page="bookings">
     <div class="site-frame">
@@ -103,6 +103,16 @@
               <span>Booking notes</span>
               <textarea id="booking-note-input" name="note" rows="3" placeholder="Session details, guests, or special requests"></textarea>
             </label>
+            <div class="profile-span-2 booking-promo-shell">
+              <div class="booking-promo-toolbar">
+                <label class="inline-field booking-promo-field">
+                  <span>Promo code</span>
+                  <input id="booking-promo-code-input" type="text" name="promo_code" placeholder="FOUNDATION10" autocomplete="off" />
+                </label>
+                <button id="booking-promo-preview-button" class="ghost-button" type="button">Apply code</button>
+              </div>
+              <div id="booking-promo-feedback" class="empty-state hidden"></div>
+            </div>
             <button class="primary-button" type="submit">Save 5-minute spot hold</button>
           </form>
         </section>
@@ -181,6 +191,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260408j"></script>
+    <script type="module" src="/assets/js/main.js?v=20260409c"></script>
   </body>
 </html>

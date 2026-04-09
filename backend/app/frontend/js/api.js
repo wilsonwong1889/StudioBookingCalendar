@@ -116,6 +116,15 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  previewPromoCode(code, amountCents) {
+    return request("/api/public/promo-codes/preview", {
+      method: "POST",
+      body: JSON.stringify({
+        code,
+        amount_cents: amountCents,
+      }),
+    });
+  },
   cancelBooking(bookingId, payload) {
     return request(`/api/bookings/${bookingId}/cancel`, {
       method: "POST",
@@ -178,6 +187,21 @@ export const api = {
   },
   getAdminStaffProfiles() {
     return request("/api/admin/staff");
+  },
+  getAdminPromoCodes() {
+    return request("/api/admin/promo-codes");
+  },
+  adminCreatePromoCode(payload) {
+    return request("/api/admin/promo-codes", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  adminUpdatePromoCode(promoCodeId, payload) {
+    return request(`/api/admin/promo-codes/${promoCodeId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
   },
   adminCreateStaffProfile(payload) {
     return request("/api/admin/staff", {

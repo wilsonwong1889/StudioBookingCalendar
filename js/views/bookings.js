@@ -8,6 +8,8 @@ const MAX_DURATION_MINUTES = 300;
 let selectedStaffIds = new Set();
 let recentBookingSearchQuery = "";
 let recentBookingStatusFilter = "all";
+let bookingPromoPreview = null;
+let bookingPromoMessage = "";
 
 function todayString() {
   return new Date().toISOString().slice(0, 10);
@@ -85,6 +87,120 @@ function formatCountdown(seconds) {
 
 function formatBookingCount(count) {
   return `${count} booking${count === 1 ? "" : "s"}`;
+}
+
+function getBookingPromoCodeInput() {
+  return document.getElementById("booking-promo-code-input");
+}
+
+function getBookingPromoFeedback() {
+  return document.getElementById("booking-promo-feedback");
+}
+
+function getBookingPromoSelectionKey(roomId, durationMinutes, amountCents) {
+  return JSON.stringify({
+    roomId: String(roomId || ""),
+    durationMinutes: Number(durationMinutes || 0),
+    amountCents: Number(amountCents || 0),
+    staffIds: [...selectedStaffIds].sort(),
+  });
+}
+
+function getBookingPromoInputValue() {
+  return getBookingPromoCodeInput()?.value?.trim()?.toUpperCase() || "";
+}
+
+function getBookingPromoContext(room, durationMinutes) {
+  if (!room) {
+    return null;
+  }
+
+  const amountCents = calculateEstimatedTotal(room, durationMinutes);
+  return {
+    amountCents,
+    selectionKey: getBookingPromoSelectionKey(room.id, durationMinutes, amountCents),
+  };
+}
+
+function clearBookingPromoState(message = "") {
+  bookingPromoPreview = null;
+  bookingPromoMessage = message;
+}
+
+function invalidateBookingPromoIfNeeded(room, durationMinutes) {
+  if (!bookingPromoPreview || !room) {
+    return;
+  }
+
+  const context = getBookingPromoContext(room, durationMinutes);
+  if (!context || bookingPromoPreview.selectionKey !== context.selectionKey) {
+    clearBookingPromoState("Selection changed. Apply promo again to refresh the total.");
+  }
+}
+
+function renderBookingPromoFeedback() {
+  const feedback = getBookingPromoFeedback();
+  if (!feedback) {
+    return;
+  }
+
+  if (bookingPromoPreview) {
+    feedback.classList.remove("hidden");
+    feedback.className = "empty-state booking-promo-feedback booking-promo-feedback-success";
+    feedback.innerHTML = `
+      <strong>${bookingPromoPreview.code} applied</strong>
+      <span>Discount ${formatCurrency(bookingPromoPreview.discount_cents)}. New estimated total ${formatCurrency(bookingPromoPreview.final_amount_cents)}.</span>
+    `;
+    return;
+  }
+
+  if (bookingPromoMessage) {
+    feedback.classList.remove("hidden");
+    feedback.className = "empty-state booking-promo-feedback booking-promo-feedback-error";
+    feedback.innerHTML = `<strong>Promo update</strong><span>${bookingPromoMessage}</span>`;
+    return;
+  }
+
+  feedback.className = "empty-state booking-promo-feedback hidden";
+  feedback.innerHTML = "";
+}
+
+async function applyBookingPromoPreview(currentState) {
+  const code = getBookingPromoInputValue();
+  const selectedRoom = currentState.rooms.find((room) => String(room.id) === elements.bookingRoomSelect.value);
+  const durationMinutes = getSelectedDuration();
+  const context = getBookingPromoContext(selectedRoom, durationMinutes);
+
+  if (!selectedRoom || !context) {
+    clearBookingPromoState("Choose a room and duration before applying a promo code.");
+    renderBookingPromoFeedback();
+    renderBookingSummary(currentState);
+    return;
+  }
+
+  if (!code) {
+    clearBookingPromoState("Enter a promo code first.");
+    renderBookingPromoFeedback();
+    renderBookingSummary(currentState);
+    return;
+  }
+
+  try {
+    setState({ message: "Checking promo code..." });
+    const preview = await api.previewPromoCode(code, context.amountCents);
+    bookingPromoPreview = {
+      ...preview,
+      selectionKey: context.selectionKey,
+    };
+    bookingPromoMessage = "";
+    setState({ message: `${preview.code} applied.` });
+  } catch (error) {
+    clearBookingPromoState(error.message);
+    setState({ message: error.message });
+  }
+
+  renderBookingPromoFeedback();
+  renderBookingSummary(currentState);
 }
 
 function getRecentBookingSearchValue() {
@@ -478,13 +594,29 @@ function renderBookingSummary(currentState) {
   }
 
   const estimatedPrice = calculateEstimatedTotal(selectedRoom, selectedDuration);
+  const promoSelectionKey = getBookingPromoSelectionKey(selectedRoom.id, selectedDuration, estimatedPrice);
+  const activePromo =
+    bookingPromoPreview &&
+    bookingPromoPreview.selectionKey === promoSelectionKey &&
+    bookingPromoPreview.code === getBookingPromoInputValue()
+      ? bookingPromoPreview
+      : null;
   elements.bookingSummaryTitle.textContent = `${selectedRoom.name} at ${formatTimeOnly(selectedStart)}`;
   elements.bookingSummaryMeta.innerHTML = `
     <div class="summary-stack">
       <div class="summary-line"><span>Date</span><strong>${formatBookingDate(selectedStart)}</strong></div>
       <div class="summary-line"><span>Duration</span><strong>${formatDuration(selectedDuration)}</strong></div>
       ${renderSelectedStaffBreakdown(selectedRoom)}
-      <div class="summary-line"><span>Estimated total</span><strong>${formatCurrency(estimatedPrice)} CAD</strong></div>
+      ${
+        activePromo
+          ? `
+            <div class="summary-line"><span>Original amount</span><strong>${formatCurrency(estimatedPrice)}</strong></div>
+            <div class="summary-line"><span>Promo</span><strong>${activePromo.code}</strong></div>
+            <div class="summary-line"><span>Discount</span><strong>-${formatCurrency(activePromo.discount_cents)}</strong></div>
+            <div class="summary-line"><span>Estimated total</span><strong>${formatCurrency(activePromo.final_amount_cents)} CAD</strong></div>
+          `
+          : `<div class="summary-line"><span>Estimated total</span><strong>${formatCurrency(estimatedPrice)} CAD</strong></div>`
+      }
       <div class="summary-line"><span>Booking access</span><strong>${currentState.currentUser ? "Ready to submit" : "Log in required"}</strong></div>
     </div>
   `;
@@ -555,6 +687,7 @@ export function initBookingsView(actions) {
 
   elements.bookingRoomSelect?.addEventListener("change", () => {
     selectedStaffIds = new Set();
+    clearBookingPromoState(getBookingPromoInputValue() ? "Room changed. Apply promo again to refresh the total." : "");
     setState({ availability: null });
     if (elements.bookingStartSelect) {
       elements.bookingStartSelect.innerHTML = "";
@@ -567,6 +700,7 @@ export function initBookingsView(actions) {
       elements.bookingSlotList.classList.add("hidden");
     }
     renderStaffOptions(state);
+    renderBookingPromoFeedback();
     renderBookingSummary(state);
   });
 
@@ -603,6 +737,9 @@ export function initBookingsView(actions) {
   });
 
   elements.bookingDurationSelect.addEventListener("change", () => {
+    const selectedRoom = getSelectedRoom();
+    invalidateBookingPromoIfNeeded(selectedRoom, getSelectedDuration());
+    renderBookingPromoFeedback();
     renderBookingSummary(state);
   });
 
@@ -617,7 +754,29 @@ export function initBookingsView(actions) {
     } else {
       selectedStaffIds.delete(input.value);
     }
+    const selectedRoom = getSelectedRoom();
+    invalidateBookingPromoIfNeeded(selectedRoom, getSelectedDuration());
+    renderBookingPromoFeedback();
     renderBookingSummary(state);
+  });
+
+  document.getElementById("booking-promo-preview-button")?.addEventListener("click", async () => {
+    await applyBookingPromoPreview(state);
+  });
+
+  getBookingPromoCodeInput()?.addEventListener("input", () => {
+    if (!getBookingPromoInputValue()) {
+      clearBookingPromoState("");
+      renderBookingPromoFeedback();
+      renderBookingSummary(state);
+      return;
+    }
+
+    if (bookingPromoPreview && bookingPromoPreview.code !== getBookingPromoInputValue()) {
+      clearBookingPromoState("Promo code changed. Apply again to refresh the total.");
+      renderBookingPromoFeedback();
+      renderBookingSummary(state);
+    }
   });
 
   if (elements.bookingSlotList) {
@@ -655,12 +814,17 @@ export function initBookingsView(actions) {
         room_id: roomId,
         start_time: startTime,
         duration_minutes: duration,
+        promo_code: getBookingPromoInputValue() || null,
         note: elements.bookingNoteInput?.value?.trim() || null,
         staff_assignments: [...selectedStaffIds],
       });
       if (elements.bookingNoteInput) {
         elements.bookingNoteInput.value = "";
       }
+      if (getBookingPromoCodeInput()) {
+        getBookingPromoCodeInput().value = "";
+      }
+      clearBookingPromoState("");
       selectedStaffIds = new Set();
       window.location.href = `/booking?id=${booking.id}`;
     } catch (error) {
@@ -739,6 +903,8 @@ export function renderBookingsView(currentState) {
   renderAvailabilitySummary();
   renderSlotList(currentState);
   renderStaffOptions(currentState);
+  invalidateBookingPromoIfNeeded(getSelectedRoom(), getSelectedDuration());
+  renderBookingPromoFeedback();
   renderBookingSummary(currentState);
 
   const bookingSubmitButton = elements.bookingForm.querySelector("button[type='submit']");

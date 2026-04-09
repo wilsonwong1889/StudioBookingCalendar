@@ -1,4 +1,5 @@
 import { downloadBookingCalendarFile } from "../calendar.js?v=20260408k";
+import { downloadBookingReceiptPdf } from "../receipt.js?v=20260409a";
 import { elements, toggleHidden } from "../dom.js?v=20260401r";
 
 let reloadPaymentSuccessAction = null;
@@ -119,6 +120,10 @@ export function initPaymentSuccessView(actions) {
       downloadBookingCalendarFile(currentPaymentSuccessBooking);
       return;
     }
+    if (button.dataset.paymentSuccessAction === "download-receipt" && currentPaymentSuccessBooking) {
+      await downloadBookingReceiptPdf(currentPaymentSuccessBooking.id, currentPaymentSuccessBooking.booking_code);
+      return;
+    }
     if (button.dataset.paymentSuccessAction === "refresh-status" && reloadPaymentSuccessAction) {
       await reloadPaymentSuccessAction("Checking payment status...");
     }
@@ -143,6 +148,7 @@ export function renderPaymentSuccessView(state) {
 
   const paymentSettled = booking.status === "Paid" || booking.status === "Completed";
   const paymentStillProcessing = booking.status === "PendingPayment";
+  const canDownloadReceipt = ["Paid", "Completed", "Refunded"].includes(booking.status);
   const title = getPaymentSuccessTitle(booking, paymentSettled, paymentStillProcessing);
   const copy = getPaymentSuccessCopy(booking, paymentSettled, paymentStillProcessing);
 
@@ -160,6 +166,7 @@ export function renderPaymentSuccessView(state) {
     <a class="primary-button ghost-link" href="/booking?id=${booking.id}">View booking</a>
     <a class="ghost-button ghost-link" href="/bookings">Back to bookings</a>
     ${canAddToCalendar ? '<button class="ghost-button" type="button" data-payment-success-action="download-calendar">Add to calendar</button>' : ""}
+    ${canDownloadReceipt ? '<button class="ghost-button" type="button" data-payment-success-action="download-receipt">Download receipt PDF</button>' : ""}
     ${paymentStillProcessing ? '<button class="ghost-button" type="button" data-payment-success-action="refresh-status">Refresh status</button>' : ""}
   `;
 

@@ -6,6 +6,8 @@ let editingStaffProfileId = null;
 let activeAdminTab = "overview";
 let selectedAdminScheduleDate = new Date().toISOString().slice(0, 10);
 let selectedAdminScheduleRoomId = "all";
+let selectedAdminCalendarMonth = new Date().toISOString().slice(0, 7);
+let selectedAdminCalendarRoomId = "all";
 let selectedAdminAccountId = null;
 let adminSearchResults = null;
 let selectedAdminBookingQuickFilter = "all";
@@ -107,6 +109,47 @@ function todayString() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function safeMonthValue(value) {
+  return /^\d{4}-\d{2}$/.test(String(value || "").trim()) ? String(value).trim() : todayString().slice(0, 7);
+}
+
+function getMonthDateKey(monthValue, dayNumber) {
+  return `${safeMonthValue(monthValue)}-${String(dayNumber).padStart(2, "0")}`;
+}
+
+function getMonthStartOffset(monthValue) {
+  const [year, month] = safeMonthValue(monthValue).split("-").map(Number);
+  return new Date(year, month - 1, 1).getDay();
+}
+
+function getMonthDayCount(monthValue) {
+  const [year, month] = safeMonthValue(monthValue).split("-").map(Number);
+  return new Date(year, month, 0).getDate();
+}
+
+function formatMonthHeading(monthValue) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+  }).format(new Date(`${safeMonthValue(monthValue)}-01T12:00:00`));
+}
+
+function getAdminCalendarMonthInput() {
+  return document.getElementById("admin-calendar-month");
+}
+
+function getAdminCalendarRoomFilter() {
+  return document.getElementById("admin-calendar-room-filter");
+}
+
+function getAdminRoomCalendarSummaryElement() {
+  return document.getElementById("admin-room-calendar-summary");
+}
+
+function getAdminRoomCalendarGridElement() {
+  return document.getElementById("admin-room-calendar-grid");
+}
+
 function formatBookingDate(value) {
   return new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",
@@ -168,6 +211,15 @@ function formatPhone(value) {
 function getDateKey(value) {
   const date = new Date(value);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function getAdminRoomCalendarLabel(currentState) {
+  if (selectedAdminCalendarRoomId === "all") {
+    return "All rooms";
+  }
+
+  const room = (currentState.rooms || []).find((item) => String(item.id) === selectedAdminCalendarRoomId);
+  return room?.name || "Selected room";
 }
 
 function getStatusClass(status) {
@@ -440,6 +492,190 @@ function formatMoney(cents, currency = "CAD") {
     currency,
     minimumFractionDigits: 2,
   }).format((cents || 0) / 100);
+}
+
+function toDateTimeLocalValue(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const localTime = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localTime.toISOString().slice(0, 16);
+}
+
+function parseOptionalInteger(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return null;
+  }
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getAdminPromoForm() {
+  return document.getElementById("admin-promo-form");
+}
+
+function getAdminPromoList() {
+  return document.getElementById("admin-promo-codes-list");
+}
+
+function getAdminPromoIdInput() {
+  return document.getElementById("admin-promo-id");
+}
+
+function getAdminPromoDiscountTypeSelect() {
+  return document.getElementById("admin-promo-discount-type");
+}
+
+function getAdminPromoPercentInput() {
+  return document.getElementById("admin-promo-percent-off");
+}
+
+function getAdminPromoAmountInput() {
+  return document.getElementById("admin-promo-amount-off-cents");
+}
+
+function formatPromoWindowValue(value) {
+  return value ? formatBookingDate(value) : "No limit";
+}
+
+function formatPromoDiscountLabel(promoCode) {
+  if (promoCode.percent_off) {
+    return `${promoCode.percent_off}% off`;
+  }
+  if (promoCode.amount_off_cents) {
+    return `${formatMoney(promoCode.amount_off_cents)} off`;
+  }
+  return "No discount";
+}
+
+function resetAdminPromoForm() {
+  const form = getAdminPromoForm();
+  if (!form) {
+    return;
+  }
+
+  form.reset();
+  if (getAdminPromoIdInput()) {
+    getAdminPromoIdInput().value = "";
+  }
+  const activeCheckbox = document.getElementById("admin-promo-active");
+  if (activeCheckbox) {
+    activeCheckbox.checked = true;
+  }
+  if (getAdminPromoDiscountTypeSelect()) {
+    getAdminPromoDiscountTypeSelect().value = "percent";
+  }
+  syncAdminPromoDiscountFields();
+}
+
+function syncAdminPromoDiscountFields() {
+  const discountType = getAdminPromoDiscountTypeSelect()?.value || "percent";
+  const percentInput = getAdminPromoPercentInput();
+  const amountInput = getAdminPromoAmountInput();
+
+  if (percentInput) {
+    percentInput.disabled = discountType !== "percent";
+  }
+  if (amountInput) {
+    amountInput.disabled = discountType !== "amount";
+  }
+}
+
+function populateAdminPromoForm(promoCode) {
+  const form = getAdminPromoForm();
+  if (!form || !promoCode) {
+    return;
+  }
+
+  getAdminPromoIdInput().value = promoCode.id;
+  document.getElementById("admin-promo-code").value = promoCode.code || "";
+  document.getElementById("admin-promo-description").value = promoCode.description || "";
+  getAdminPromoDiscountTypeSelect().value = promoCode.percent_off ? "percent" : "amount";
+  getAdminPromoPercentInput().value = promoCode.percent_off || "";
+  getAdminPromoAmountInput().value = promoCode.amount_off_cents || "";
+  document.getElementById("admin-promo-max-redemptions").value = promoCode.max_redemptions || "";
+  document.getElementById("admin-promo-starts-at").value = toDateTimeLocalValue(promoCode.starts_at);
+  document.getElementById("admin-promo-expires-at").value = toDateTimeLocalValue(promoCode.expires_at);
+  document.getElementById("admin-promo-active").checked = Boolean(promoCode.active);
+  syncAdminPromoDiscountFields();
+}
+
+function buildAdminPromoPayload() {
+  const discountType = getAdminPromoDiscountTypeSelect()?.value || "percent";
+  const description = document.getElementById("admin-promo-description")?.value?.trim() || null;
+  const startsAt = document.getElementById("admin-promo-starts-at")?.value;
+  const expiresAt = document.getElementById("admin-promo-expires-at")?.value;
+
+  return {
+    code: document.getElementById("admin-promo-code")?.value?.trim(),
+    description,
+    percent_off: discountType === "percent" ? parseOptionalInteger(getAdminPromoPercentInput()?.value) : null,
+    amount_off_cents: discountType === "amount" ? parseOptionalInteger(getAdminPromoAmountInput()?.value) : null,
+    active: Boolean(document.getElementById("admin-promo-active")?.checked),
+    max_redemptions: parseOptionalInteger(document.getElementById("admin-promo-max-redemptions")?.value),
+    starts_at: startsAt ? new Date(startsAt).toISOString() : null,
+    expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+  };
+}
+
+function renderAdminPromoCodeCard(promoCode) {
+  const redemptionsLabel = promoCode.max_redemptions
+    ? `${promoCode.active_redemptions} / ${promoCode.max_redemptions} active redemptions`
+    : `${promoCode.active_redemptions} active redemption${promoCode.active_redemptions === 1 ? "" : "s"}`;
+
+  return `
+    <article class="admin-promo-card ${promoCode.active ? "is-active" : "is-inactive"}">
+      <div class="admin-promo-card-header">
+        <div>
+          <h4>${promoCode.code}</h4>
+          <p>${promoCode.description || "No description added yet."}</p>
+        </div>
+        <div class="room-meta">
+          <span class="pill">${formatPromoDiscountLabel(promoCode)}</span>
+          <span class="pill ${promoCode.active ? "" : "muted"}">${promoCode.active ? "Active" : "Inactive"}</span>
+        </div>
+      </div>
+      <div class="admin-detail-grid">
+        <div class="admin-detail-field">
+          <span>Redemptions</span>
+          <div class="admin-detail-value">${redemptionsLabel}</div>
+        </div>
+        <div class="admin-detail-field">
+          <span>Starts</span>
+          <div class="admin-detail-value">${formatPromoWindowValue(promoCode.starts_at)}</div>
+        </div>
+        <div class="admin-detail-field">
+          <span>Expires</span>
+          <div class="admin-detail-value">${formatPromoWindowValue(promoCode.expires_at)}</div>
+        </div>
+      </div>
+      <div class="room-actions">
+        <button class="ghost-button" type="button" data-admin-action="edit-promo" data-promo-code-id="${promoCode.id}">Edit</button>
+        <button class="ghost-button" type="button" data-admin-action="toggle-promo" data-promo-code-id="${promoCode.id}" data-next-active="${promoCode.active ? "false" : "true"}">
+          ${promoCode.active ? "Deactivate" : "Activate"}
+        </button>
+      </div>
+    </article>
+  `;
+}
+
+function renderAdminPromoCodes(currentState) {
+  const list = getAdminPromoList();
+  if (!list) {
+    return;
+  }
+
+  const promoCodes = currentState.adminPromoCodes || [];
+  list.innerHTML = promoCodes.length
+    ? promoCodes.map(renderAdminPromoCodeCard).join("")
+    : '<div class="empty-state">No promo codes yet. Create one above to start offering discounts.</div>';
 }
 
 function formatActivityAction(action) {
@@ -857,6 +1093,7 @@ function renderAdminBookingCard(booking) {
   const checkedInAt = booking.checked_in_at ? formatBookingDate(booking.checked_in_at) : "Not checked in";
   const cancelledAt = booking.cancelled_at ? formatBookingDate(booking.cancelled_at) : "Not cancelled";
   const paymentReference = booking.payment_intent_id || "No payment reference yet";
+  const originalAmount = booking.original_price_cents ?? booking.price_cents;
   const staffMarkup = staffAssignments.length
     ? staffAssignments.map((assignment) => `<span class="pill">${assignment.name}</span>`).join("")
     : '<span class="pill muted">No staff attached</span>';
@@ -900,6 +1137,9 @@ function renderAdminBookingCard(booking) {
         <div class="availability-preview admin-booking-panel-card">
           <span class="availability-label">Payment</span>
           ${renderAdminBookingTimelineRow("Status", getStatusLabel(booking.status))}
+          ${renderAdminBookingTimelineRow("Original", formatMoney(originalAmount, booking.currency))}
+          ${booking.discount_cents ? renderAdminBookingTimelineRow("Discount", `-${formatMoney(booking.discount_cents, booking.currency)}`) : ""}
+          ${booking.promo_code ? renderAdminBookingTimelineRow("Promo", booking.promo_code) : ""}
           ${renderAdminBookingTimelineRow("Amount", formatMoney(booking.price_cents, booking.currency))}
           ${renderAdminBookingTimelineRow("Reference", paymentReference)}
         </div>
@@ -1033,6 +1273,147 @@ function renderAdminDaySchedule(currentState) {
         })
         .join("")
     }
+  `;
+}
+
+function getFilteredRoomCalendarBookings(currentState) {
+  const monthValue = safeMonthValue(selectedAdminCalendarMonth);
+  return (currentState.adminBookings || [])
+    .filter((booking) => getDateKey(booking.start_time).startsWith(monthValue))
+    .filter((booking) => selectedAdminCalendarRoomId === "all" || String(booking.room_id) === selectedAdminCalendarRoomId)
+    .sort((left, right) => new Date(left.start_time).getTime() - new Date(right.start_time).getTime());
+}
+
+function renderAdminRoomCalendarSummary(currentState) {
+  const summaryElement = getAdminRoomCalendarSummaryElement();
+  if (!summaryElement) {
+    return;
+  }
+
+  const bookings = getFilteredRoomCalendarBookings(currentState);
+  const bookedDays = new Set(bookings.map((booking) => getDateKey(booking.start_time))).size;
+  const pendingCount = bookings.filter((booking) => booking.status === "PendingPayment").length;
+  const settledCount = bookings.filter((booking) => ["Paid", "Completed"].includes(booking.status)).length;
+  const revenue = bookings
+    .filter((booking) => ["Paid", "Completed", "Refunded"].includes(booking.status))
+    .reduce((total, booking) => total + (booking.price_cents || 0), 0);
+  const cards = [
+    { label: "Month", value: formatMonthHeading(selectedAdminCalendarMonth) },
+    { label: "Room focus", value: getAdminRoomCalendarLabel(currentState) },
+    { label: "Booked days", value: bookedDays },
+    { label: "Sessions", value: bookings.length },
+    { label: "Pending", value: pendingCount },
+    { label: "Paid / completed", value: settledCount },
+    { label: "Booked revenue", value: formatMoney(revenue) },
+  ];
+
+  summaryElement.innerHTML = cards
+    .map(
+      (card) => `
+        <article class="metric-card">
+          <span class="metric-label">${card.label}</span>
+          <strong class="metric-value">${card.value}</strong>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function renderAdminRoomCalendar(currentState) {
+  const gridElement = getAdminRoomCalendarGridElement();
+  if (!gridElement) {
+    return;
+  }
+
+  const rooms = currentState.rooms || [];
+  if (!rooms.length) {
+    gridElement.innerHTML = '<div class="empty-state">Create a room first so the admin calendar has something to show.</div>';
+    return;
+  }
+
+  const bookings = getFilteredRoomCalendarBookings(currentState);
+  const bookingsByDate = bookings.reduce((accumulator, booking) => {
+    const key = getDateKey(booking.start_time);
+    accumulator[key] = accumulator[key] || [];
+    accumulator[key].push(booking);
+    return accumulator;
+  }, {});
+  const offset = getMonthStartOffset(selectedAdminCalendarMonth);
+  const dayCount = getMonthDayCount(selectedAdminCalendarMonth);
+  const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const roomLabel = getAdminRoomCalendarLabel(currentState);
+
+  const cells = Array.from({ length: offset }, () => '<div class="admin-room-calendar-spacer" aria-hidden="true"></div>');
+
+  for (let dayNumber = 1; dayNumber <= dayCount; dayNumber += 1) {
+    const dayKey = getMonthDateKey(selectedAdminCalendarMonth, dayNumber);
+    const dayBookings = bookingsByDate[dayKey] || [];
+    const pendingCount = dayBookings.filter((booking) => booking.status === "PendingPayment").length;
+    const activeCount = dayBookings.filter((booking) => ["PendingPayment", "Paid", "Completed"].includes(booking.status)).length;
+    const revenue = dayBookings
+      .filter((booking) => ["Paid", "Completed", "Refunded"].includes(booking.status))
+      .reduce((total, booking) => total + (booking.price_cents || 0), 0);
+    const roomHints = Array.from(new Set(dayBookings.map((booking) => booking.room_name).filter(Boolean))).slice(0, 2);
+    const classNames = ["admin-room-calendar-day"];
+    if (dayBookings.length) {
+      classNames.push("is-busy");
+    } else {
+      classNames.push("is-open");
+    }
+    if (pendingCount) {
+      classNames.push("is-pending");
+    }
+    if (dayBookings.length && dayBookings.every((booking) => ["Cancelled", "Refunded"].includes(booking.status))) {
+      classNames.push("is-closed");
+    }
+    if (dayKey === todayString()) {
+      classNames.push("is-today");
+    }
+    if (dayKey === selectedAdminScheduleDate) {
+      classNames.push("is-selected");
+    }
+
+    const metaLine = dayBookings.length
+      ? `${dayBookings.length} booking${dayBookings.length === 1 ? "" : "s"}`
+      : "Open day";
+    const supportLine = pendingCount
+      ? `${pendingCount} pending payment`
+      : activeCount
+        ? `${activeCount} active session${activeCount === 1 ? "" : "s"}`
+        : roomHints.join(" • ") || "No bookings yet";
+
+    cells.push(`
+      <button
+        class="${classNames.join(" ")}"
+        type="button"
+        data-admin-calendar-date="${dayKey}"
+        title="Open day board for ${dayKey}"
+      >
+        <strong>${dayNumber}</strong>
+        <span>${metaLine}</span>
+        <small>${supportLine}</small>
+        ${revenue ? `<small>${formatMoney(revenue)}</small>` : '<small>Tap to open day board</small>'}
+      </button>
+    `);
+  }
+
+  gridElement.innerHTML = `
+    <div class="admin-room-calendar-header">
+      <div>
+        <h4>${formatMonthHeading(selectedAdminCalendarMonth)}</h4>
+        <p>${roomLabel}. Click any day to jump into the detailed day board.</p>
+      </div>
+      <div class="room-meta">
+        <span class="pill">${roomLabel}</span>
+        <span class="pill">${bookings.length} booking${bookings.length === 1 ? "" : "s"} this month</span>
+      </div>
+    </div>
+    <div class="admin-room-calendar-weekdays">
+      ${weekdayLabels.map((label) => `<span>${label}</span>`).join("")}
+    </div>
+    <div class="admin-room-calendar-cells">
+      ${cells.join("")}
+    </div>
   `;
 }
 
@@ -1173,6 +1554,14 @@ export function initAdminView(actions) {
     renderManualBookingStaffOptions(actions.getState());
   });
 
+  getAdminPromoDiscountTypeSelect()?.addEventListener("change", () => {
+    syncAdminPromoDiscountFields();
+  });
+
+  document.getElementById("admin-promo-cancel-edit")?.addEventListener("click", () => {
+    resetAdminPromoForm();
+  });
+
   elements.adminScheduleDate?.addEventListener("change", () => {
     selectedAdminScheduleDate = elements.adminScheduleDate.value || todayString();
     renderAdminView(actions.getState());
@@ -1180,6 +1569,16 @@ export function initAdminView(actions) {
 
   elements.adminScheduleRoomFilter?.addEventListener("change", () => {
     selectedAdminScheduleRoomId = elements.adminScheduleRoomFilter.value || "all";
+    renderAdminView(actions.getState());
+  });
+
+  getAdminCalendarMonthInput()?.addEventListener("change", () => {
+    selectedAdminCalendarMonth = safeMonthValue(getAdminCalendarMonthInput()?.value);
+    renderAdminView(actions.getState());
+  });
+
+  getAdminCalendarRoomFilter()?.addEventListener("change", () => {
+    selectedAdminCalendarRoomId = getAdminCalendarRoomFilter()?.value || "all";
     renderAdminView(actions.getState());
   });
 
@@ -1368,6 +1767,7 @@ export function initAdminView(actions) {
         room_id: form.get("room_id"),
         start_time: toIsoStringFromLocal(form.get("start_time")),
         duration_minutes: Number(form.get("duration_minutes")),
+        promo_code: String(form.get("promo_code") || "").trim() || null,
         note: form.get("note") || null,
         staff_assignments: getSelectedManualStaffIds(),
       });
@@ -1379,6 +1779,26 @@ export function initAdminView(actions) {
       renderManualBookingStaffOptions(actions.getState());
       setActiveAdminSubpage("bookings", "queue");
       await actions.refreshAll("Manual booking created.");
+    } catch (error) {
+      setState({ message: error.message });
+    }
+  });
+
+  getAdminPromoForm()?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const promoCodeId = getAdminPromoIdInput()?.value || "";
+
+    try {
+      setState({ message: promoCodeId ? "Updating promo code..." : "Creating promo code..." });
+      const payload = buildAdminPromoPayload();
+      if (promoCodeId) {
+        await api.adminUpdatePromoCode(promoCodeId, payload);
+      } else {
+        await api.adminCreatePromoCode(payload);
+      }
+      resetAdminPromoForm();
+      setActiveAdminSubpage("bookings", "promos");
+      await actions.refreshAll("Promo code saved.");
     } catch (error) {
       setState({ message: error.message });
     }
@@ -1490,6 +1910,41 @@ export function initAdminView(actions) {
     }
   });
 
+  getAdminPromoList()?.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-admin-action]");
+    if (!button) {
+      return;
+    }
+
+    const currentState = actions.getState();
+    const promoCode = (currentState.adminPromoCodes || []).find(
+      (item) => String(item.id) === button.dataset.promoCodeId,
+    );
+    if (!promoCode) {
+      setState({ message: "Promo code not found." });
+      return;
+    }
+
+    try {
+      if (button.dataset.adminAction === "edit-promo") {
+        populateAdminPromoForm(promoCode);
+        setActiveAdminSubpage("bookings", "promos");
+        setState({ message: `Editing ${promoCode.code}.` });
+        return;
+      }
+
+      if (button.dataset.adminAction === "toggle-promo") {
+        setState({ message: promoCode.active ? "Deactivating promo code..." : "Activating promo code..." });
+        await api.adminUpdatePromoCode(promoCode.id, {
+          active: button.dataset.nextActive === "true",
+        });
+        await actions.refreshAll(promoCode.active ? "Promo code deactivated." : "Promo code activated.");
+      }
+    } catch (error) {
+      setState({ message: error.message });
+    }
+  });
+
   elements.adminRoomStaffList?.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-admin-action='save-room-staff']");
     if (!button) {
@@ -1511,6 +1966,25 @@ export function initAdminView(actions) {
     } catch (error) {
       setState({ message: error.message });
     }
+  });
+
+  getAdminRoomCalendarGridElement()?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-admin-calendar-date]");
+    if (!button) {
+      return;
+    }
+
+    selectedAdminScheduleDate = button.dataset.adminCalendarDate || todayString();
+    selectedAdminScheduleRoomId = selectedAdminCalendarRoomId || "all";
+    if (elements.adminScheduleDate) {
+      elements.adminScheduleDate.value = selectedAdminScheduleDate;
+    }
+    if (elements.adminScheduleRoomFilter) {
+      elements.adminScheduleRoomFilter.value = selectedAdminScheduleRoomId;
+    }
+    setActiveAdminSubpage("bookings", "schedule");
+    renderAdminView(actions.getState());
+    setState({ message: `Showing day board for ${selectedAdminScheduleDate}.` });
   });
 
   window.addEventListener("admin-subpage-request", (event) => {
@@ -1551,6 +2025,9 @@ export function renderAdminView(currentState) {
   );
   const previousRoomId = elements.adminRoomSelect.value;
   const previousScheduleRoomId = elements.adminScheduleRoomFilter?.value || selectedAdminScheduleRoomId;
+  const calendarRoomFilter = getAdminCalendarRoomFilter();
+  const previousCalendarRoomId = calendarRoomFilter?.value || selectedAdminCalendarRoomId;
+  const calendarMonthInput = getAdminCalendarMonthInput();
   elements.adminRoomSelect.innerHTML = roomOptions.length
     ? roomOptions.join("")
     : '<option value="">No active rooms</option>';
@@ -1574,6 +2051,19 @@ export function renderAdminView(currentState) {
   if (elements.adminScheduleDate && elements.adminScheduleDate.value !== selectedAdminScheduleDate) {
     elements.adminScheduleDate.value = selectedAdminScheduleDate;
   }
+  if (calendarRoomFilter) {
+    const calendarRoomOptions = ['<option value="all">All rooms</option>'].concat(
+      (currentState.rooms || []).map((room) => `<option value="${room.id}">${room.name}</option>`),
+    );
+    calendarRoomFilter.innerHTML = calendarRoomOptions.join("");
+    selectedAdminCalendarRoomId = (currentState.rooms || []).some((room) => String(room.id) === previousCalendarRoomId)
+      ? previousCalendarRoomId
+      : "all";
+    calendarRoomFilter.value = selectedAdminCalendarRoomId;
+  }
+  if (calendarMonthInput && calendarMonthInput.value !== selectedAdminCalendarMonth) {
+    calendarMonthInput.value = safeMonthValue(selectedAdminCalendarMonth);
+  }
 
   if (!isAdmin) {
     setActiveAdminTab("overview");
@@ -1592,6 +2082,9 @@ export function renderAdminView(currentState) {
     elements.adminManualStaffOptions && (elements.adminManualStaffOptions.innerHTML = "");
     elements.adminDaySummary && (elements.adminDaySummary.innerHTML = "");
     elements.adminDaySchedule && (elements.adminDaySchedule.innerHTML = "");
+    getAdminPromoList() && (getAdminPromoList().innerHTML = "");
+    getAdminRoomCalendarSummaryElement() && (getAdminRoomCalendarSummaryElement().innerHTML = "");
+    getAdminRoomCalendarGridElement() && (getAdminRoomCalendarGridElement().innerHTML = "");
     elements.adminBookingResults.innerHTML = "";
     elements.adminBookingQuickSummary && (elements.adminBookingQuickSummary.innerHTML = "");
     elements.adminBookingQuickFilters && (elements.adminBookingQuickFilters.innerHTML = "");
@@ -1609,6 +2102,10 @@ export function renderAdminView(currentState) {
   });
   renderAdminDaySummary(currentState);
   renderAdminDaySchedule(currentState);
+  renderAdminRoomCalendarSummary(currentState);
+  renderAdminRoomCalendar(currentState);
+  renderAdminPromoCodes(currentState);
+  syncAdminPromoDiscountFields();
 
   if (elements.adminAnalyticsGrid) {
     const analytics = currentState.adminAnalytics;

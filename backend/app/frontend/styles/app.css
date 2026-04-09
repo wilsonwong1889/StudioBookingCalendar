@@ -1443,6 +1443,45 @@ select:focus {
   text-align: right;
 }
 
+.booking-promo-shell {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(16, 13, 14, 0.08);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.booking-promo-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.booking-promo-field {
+  width: 100%;
+}
+
+.booking-promo-feedback {
+  min-height: 0;
+}
+
+.booking-promo-feedback strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.booking-promo-feedback-success {
+  border-color: rgba(46, 107, 103, 0.26);
+  background: rgba(241, 249, 248, 0.92);
+}
+
+.booking-promo-feedback-error {
+  border-color: rgba(168, 73, 33, 0.28);
+  background: rgba(255, 245, 240, 0.92);
+}
+
 .room-card-rich {
   display: grid;
   gap: 14px;
@@ -1570,9 +1609,25 @@ select:focus {
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.76), rgba(235, 227, 229, 0.66));
 }
 
+.admin-room-calendar-shell {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.8), rgba(233, 226, 228, 0.68));
+}
+
 .admin-bookings-toolbar {
   display: grid;
   grid-template-columns: repeat(2, minmax(180px, 240px)) 1fr;
+  gap: 14px;
+  align-items: end;
+}
+
+.admin-room-calendar-toolbar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 240px));
   gap: 14px;
   align-items: end;
 }
@@ -1582,6 +1637,115 @@ select:focus {
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.admin-room-calendar-grid {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.admin-room-calendar-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.admin-room-calendar-header h4,
+.admin-room-calendar-header p {
+  margin: 0;
+}
+
+.admin-room-calendar-header p {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.admin-room-calendar-weekdays,
+.admin-room-calendar-cells {
+  min-width: 720px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-room-calendar-weekdays span {
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.admin-room-calendar-spacer,
+.admin-room-calendar-day {
+  min-height: 132px;
+  border-radius: var(--radius-md);
+}
+
+.admin-room-calendar-spacer {
+  border: 1px dashed rgba(16, 13, 14, 0.08);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.admin-room-calendar-day {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 14px;
+  text-align: left;
+  border: 1px solid rgba(16, 13, 14, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(239, 233, 234, 0.84));
+  cursor: pointer;
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.admin-room-calendar-day:hover,
+.admin-room-calendar-day:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(119, 35, 38, 0.28);
+  box-shadow: 0 14px 24px rgba(16, 13, 14, 0.08);
+}
+
+.admin-room-calendar-day strong {
+  font-size: 1.2rem;
+  font-family: "Charter", "Iowan Old Style", Georgia, serif;
+}
+
+.admin-room-calendar-day span,
+.admin-room-calendar-day small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.admin-room-calendar-day.is-busy {
+  border-color: rgba(36, 29, 31, 0.2);
+  background: linear-gradient(180deg, rgba(255, 252, 247, 0.96), rgba(242, 233, 235, 0.9));
+}
+
+.admin-room-calendar-day.is-pending {
+  border-color: rgba(198, 40, 40, 0.28);
+  background: linear-gradient(180deg, rgba(255, 244, 244, 0.96), rgba(247, 223, 223, 0.92));
+}
+
+.admin-room-calendar-day.is-closed {
+  background: linear-gradient(180deg, rgba(239, 233, 234, 0.92), rgba(225, 218, 220, 0.88));
+}
+
+.admin-room-calendar-day.is-today {
+  box-shadow: inset 0 0 0 2px rgba(198, 40, 40, 0.2);
+}
+
+.admin-room-calendar-day.is-selected {
+  border-color: rgba(142, 20, 20, 0.48);
+  box-shadow: inset 0 0 0 2px rgba(142, 20, 20, 0.18);
 }
 
 .admin-day-schedule {
@@ -1823,6 +1987,46 @@ select:focus {
   background: linear-gradient(160deg, rgba(244, 242, 242, 0.96), rgba(255, 255, 255, 0.9));
   border-color: rgba(113, 107, 108, 0.24);
   color: var(--ink);
+}
+
+.admin-promo-form,
+.admin-promo-codes-list {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-promo-codes-list {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.admin-promo-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(16, 13, 14, 0.1);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 14px 26px rgba(16, 13, 14, 0.05);
+}
+
+.admin-promo-card.is-inactive {
+  background: rgba(247, 244, 245, 0.86);
+}
+
+.admin-promo-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-promo-card-header h4,
+.admin-promo-card-header p {
+  margin: 0;
+}
+
+.admin-promo-card-header p {
+  color: var(--muted);
 }
 
 .admin-booking-header {
@@ -2281,6 +2485,7 @@ select:focus {
   .admin-workspace-nav,
   .admin-subpage-nav,
   .admin-bookings-toolbar,
+  .admin-room-calendar-toolbar,
   .admin-bookings-workbench,
   .admin-booking-summary-grid,
   .admin-booking-primary-grid,
@@ -2296,6 +2501,10 @@ select:focus {
   }
 
   .booking-toolbar-form {
+    grid-template-columns: 1fr;
+  }
+
+  .booking-promo-toolbar {
     grid-template-columns: 1fr;
   }
 
@@ -2322,7 +2531,9 @@ select:focus {
 
   .admin-schedule-hours,
   .admin-day-row,
+  .admin-room-calendar-header,
   .admin-booking-header,
+  .admin-promo-card-header,
   .admin-account-detail-header,
   .admin-account-stats,
   .admin-test-case-header,

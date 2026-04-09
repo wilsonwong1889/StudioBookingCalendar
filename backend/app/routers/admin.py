@@ -26,6 +26,7 @@ from app.schemas.booking import (
 )
 from app.schemas.admin import AdminTestCaseOut
 from app.schemas.admin import AdminSuiteDashMetaOut, AdminSuiteDashStatusOut
+from app.schemas.promo_code import PromoCodeCreate, PromoCodeOut, PromoCodeUpdate
 from app.schemas.staff import StaffPhotoUploadOut, StaffProfileCreate, StaffProfileOut, StaffProfileUpdate
 from app.schemas.user import AdminUserAccountOut
 from app.schemas.user import AdminUserDeleteConfirm
@@ -48,6 +49,7 @@ from app.services.booking_service import (
     clear_past_bookings_for_admin,
 )
 from app.services.payment_service import PaymentBackendError
+from app.services.promo_code_service import PromoCodeError, create_promo_code, list_promo_codes, update_promo_code
 from app.services.staff_service import (
     create_staff_profile,
     delete_staff_profile,
@@ -301,6 +303,61 @@ def admin_bookings(
         email=email,
         booking_code=booking_code,
     )
+
+
+@router.get("/promo-codes", response_model=List[PromoCodeOut])
+def admin_list_promo_codes(
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+    _: None = Depends(admin_rate_limit),
+):
+    return list_promo_codes(db)
+
+
+@router.post("/promo-codes", response_model=PromoCodeOut, status_code=201)
+def admin_create_promo_code(
+    payload: PromoCodeCreate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+    _: None = Depends(admin_rate_limit),
+):
+    try:
+        promo_code = create_promo_code(db, payload)
+        create_audit_log(
+            db,
+            actor_id=admin.id,
+            booking_id=None,
+            action="promo_code_created",
+            details={"code": promo_code["code"]},
+        )
+        db.commit()
+        return promo_code
+    except PromoCodeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.put("/promo-codes/{promo_code_id}", response_model=PromoCodeOut)
+def admin_update_promo_code(
+    promo_code_id: str,
+    payload: PromoCodeUpdate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+    _: None = Depends(admin_rate_limit),
+):
+    try:
+        promo_code = update_promo_code(db, promo_code_id, payload)
+        create_audit_log(
+            db,
+            actor_id=admin.id,
+            booking_id=None,
+            action="promo_code_updated",
+            details={"promo_code_id": promo_code_id, "updated_fields": sorted(payload.model_dump(exclude_unset=True).keys())},
+        )
+        db.commit()
+        return promo_code
+    except PromoCodeError as exc:
+        status_code = 404 if "not found" in str(exc).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
 
 
 @router.post("/bookings/clear-day", response_model=AdminBookingBulkClearResultOut)

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260408q" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260409c" />
   </head>
   <body data-page="admin">
     <div class="site-frame">
@@ -195,18 +195,22 @@
               <div class="admin-subpage-nav" data-admin-subpage-group="bookings">
                 <div class="auth-switcher admin-subpage-switcher" role="tablist" aria-label="Booking tools">
                   <button class="tab-button active" type="button" data-admin-subpage-button="bookings" data-admin-subpage="schedule">Day board</button>
+                  <button class="tab-button" type="button" data-admin-subpage-button="bookings" data-admin-subpage="calendar">Room calendar</button>
                   <button class="tab-button" type="button" data-admin-subpage-button="bookings" data-admin-subpage="queue">Queue</button>
                   <button class="tab-button" type="button" data-admin-subpage-button="bookings" data-admin-subpage="lookup">Lookup</button>
                   <button class="tab-button" type="button" data-admin-subpage-button="bookings" data-admin-subpage="manual">Manual booking</button>
+                  <button class="tab-button" type="button" data-admin-subpage-button="bookings" data-admin-subpage="promos">Promos</button>
                   <button class="tab-button" type="button" data-admin-subpage-button="bookings" data-admin-subpage="cleanup">Cleanup</button>
                 </div>
                 <label class="inline-field admin-subpage-picker">
                   <span>View</span>
                   <select data-admin-subpage-select="bookings">
                     <option value="schedule">Day board</option>
+                    <option value="calendar">Room calendar</option>
                     <option value="queue">Queue</option>
                     <option value="lookup">Lookup</option>
                     <option value="manual">Manual booking</option>
+                    <option value="promos">Promos</option>
                     <option value="cleanup">Cleanup</option>
                   </select>
                 </label>
@@ -237,20 +241,44 @@
                 <div id="admin-day-schedule" class="admin-day-schedule"></div>
               </section>
 
+              <section class="admin-room-calendar-shell admin-subpage-panel hidden" data-admin-subpage-panel="bookings" data-admin-subpage="calendar">
+                <div class="panel-header">
+                  <p class="panel-kicker">Room calendar</p>
+                  <h3>See the month room by room</h3>
+                  <p class="panel-copy">Pick a month and room, then click a day to jump straight into the detailed day board for that date.</p>
+                </div>
+
+                <div class="admin-room-calendar-toolbar">
+                  <label class="inline-field">
+                    <span>Month</span>
+                    <input id="admin-calendar-month" type="month" />
+                  </label>
+                  <label class="inline-field">
+                    <span>Room focus</span>
+                    <select id="admin-calendar-room-filter">
+                      <option value="all">All rooms</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div id="admin-room-calendar-summary" class="admin-summary-grid"></div>
+                <div id="admin-room-calendar-grid" class="admin-room-calendar-grid"></div>
+              </section>
+
               <div id="admin-booking-quick-summary" class="admin-summary-grid admin-booking-summary-grid"></div>
 
               <section class="admin-bookings-results-shell admin-subpage-panel hidden" data-admin-subpage-panel="bookings" data-admin-subpage="queue">
-                  <div class="panel-header">
-                    <p class="panel-kicker">Records</p>
-                    <h3>Live booking queue</h3>
-                    <p id="admin-booking-results-copy" class="panel-copy">See who booked, who cancelled, room details, staff add-ons, and booking notes in one organized list.</p>
-                  </div>
-                  <div id="admin-booking-quick-filters" class="admin-booking-quick-filters"></div>
-                  <div id="admin-booking-results" class="booking-list hidden admin-booking-results-board"></div>
+                <div class="panel-header">
+                  <p class="panel-kicker">Records</p>
+                  <h3>Live booking queue</h3>
+                  <p id="admin-booking-results-copy" class="panel-copy">See who booked, who cancelled, room details, staff add-ons, and booking notes in one organized list.</p>
+                </div>
+                <div id="admin-booking-quick-filters" class="admin-booking-quick-filters"></div>
+                <div id="admin-booking-results" class="booking-list hidden admin-booking-results-board"></div>
               </section>
 
               <section class="admin-subpage-stack">
-                  <form id="admin-booking-lookup-form" class="stack-form hidden admin-subpanel admin-subpage-panel" data-admin-subpage-panel="bookings" data-admin-subpage="lookup">
+                <form id="admin-booking-lookup-form" class="stack-form hidden admin-subpanel admin-subpage-panel" data-admin-subpage-panel="bookings" data-admin-subpage="lookup">
                     <div class="panel-header">
                       <p class="panel-kicker">Lookup</p>
                       <h3>Find a booking fast</h3>
@@ -279,9 +307,9 @@
                       <button class="ghost-button" type="submit">Search bookings</button>
                       <button id="admin-booking-clear" class="ghost-button" type="button">Clear search</button>
                     </div>
-                  </form>
+                </form>
 
-                  <form id="admin-manual-booking-form" class="stack-form hidden admin-subpanel admin-subpage-panel" data-admin-subpage-panel="bookings" data-admin-subpage="manual">
+                <form id="admin-manual-booking-form" class="stack-form hidden admin-subpanel admin-subpage-panel" data-admin-subpage-panel="bookings" data-admin-subpage="manual">
                     <div class="panel-header">
                       <p class="panel-kicker">Manual</p>
                       <h3>Create a walk-in or staff booking</h3>
@@ -313,6 +341,10 @@
                         <option value="300">5 hours</option>
                       </select>
                     </label>
+                    <label>
+                      <span>Promo code</span>
+                      <input type="text" name="promo_code" placeholder="FOUNDATION10" />
+                    </label>
                     <div id="admin-manual-staff-section" class="profile-span-2 hidden">
                       <span>Optional staff</span>
                       <p class="field-help">Attach room staff add-ons to this manual booking when needed.</p>
@@ -323,9 +355,64 @@
                       <textarea name="note" rows="3" placeholder="Walk-in details, setup notes, or access instructions"></textarea>
                     </label>
                     <button class="primary-button" type="submit">Create manual booking</button>
-                  </form>
+                </form>
 
-                  <section class="stack-form hidden admin-subpanel admin-bulk-danger admin-subpage-panel" data-admin-subpage-panel="bookings" data-admin-subpage="cleanup">
+                <section class="stack-form hidden admin-subpanel admin-subpage-panel" data-admin-subpage-panel="bookings" data-admin-subpage="promos">
+                    <div class="panel-header">
+                      <p class="panel-kicker">Promos</p>
+                      <h3>Discount codes</h3>
+                      <p class="panel-copy">Create fixed-dollar or percent-off codes, control live windows, and review active redemptions in one place.</p>
+                    </div>
+                    <form id="admin-promo-form" class="stack-form admin-promo-form">
+                      <input id="admin-promo-id" type="hidden" name="promo_code_id" />
+                      <label>
+                        <span>Code</span>
+                        <input id="admin-promo-code" type="text" name="code" required placeholder="FOUNDATION10" />
+                      </label>
+                      <label>
+                        <span>Description</span>
+                        <textarea id="admin-promo-description" name="description" rows="2" placeholder="10% off first-time studio bookings"></textarea>
+                      </label>
+                      <label>
+                        <span>Discount type</span>
+                        <select id="admin-promo-discount-type" name="discount_type">
+                          <option value="percent">Percent off</option>
+                          <option value="amount">Fixed amount off</option>
+                        </select>
+                      </label>
+                      <label>
+                        <span>Percent off</span>
+                        <input id="admin-promo-percent-off" type="number" name="percent_off" min="1" max="100" placeholder="10" />
+                      </label>
+                      <label>
+                        <span>Amount off (cents)</span>
+                        <input id="admin-promo-amount-off-cents" type="number" name="amount_off_cents" min="1" placeholder="1500" />
+                      </label>
+                      <label>
+                        <span>Max redemptions</span>
+                        <input id="admin-promo-max-redemptions" type="number" name="max_redemptions" min="1" placeholder="25" />
+                      </label>
+                      <label>
+                        <span>Starts at</span>
+                        <input id="admin-promo-starts-at" type="datetime-local" name="starts_at" />
+                      </label>
+                      <label>
+                        <span>Expires at</span>
+                        <input id="admin-promo-expires-at" type="datetime-local" name="expires_at" />
+                      </label>
+                      <label class="checkbox-row">
+                        <input id="admin-promo-active" type="checkbox" name="active" checked />
+                        <span>Promo code is active</span>
+                      </label>
+                      <div class="room-actions">
+                        <button class="primary-button" type="submit">Save promo code</button>
+                        <button id="admin-promo-cancel-edit" class="ghost-button" type="button">Clear form</button>
+                      </div>
+                    </form>
+                    <div id="admin-promo-codes-list" class="admin-promo-codes-list"></div>
+                </section>
+
+                <section class="stack-form hidden admin-subpanel admin-bulk-danger admin-subpage-panel" data-admin-subpage-panel="bookings" data-admin-subpage="cleanup">
                     <div class="panel-header">
                       <p class="panel-kicker">Bulk</p>
                       <h3>Danger zone</h3>
@@ -333,7 +420,7 @@
                     </div>
                     <button id="admin-clear-day-button" class="ghost-button room-action-danger" type="button">Clear bookings for selected day</button>
                     <button id="admin-clear-past-button" class="ghost-button room-action-danger" type="button">Clear past bookings</button>
-                  </section>
+                </section>
               </section>
             </section>
 
@@ -532,6 +619,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260408q"></script>
+    <script type="module" src="/assets/js/main.js?v=20260409c"></script>
   </body>
 </html>

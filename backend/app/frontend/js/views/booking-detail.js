@@ -1,5 +1,6 @@
 import { api } from "../api.js?v=20260401r";
 import { downloadBookingCalendarFile } from "../calendar.js?v=20260408k";
+import { downloadBookingReceiptPdf } from "../receipt.js?v=20260409a";
 import { elements, toggleHidden } from "../dom.js?v=20260401r";
 import { setState } from "../state.js?v=20260401r";
 
@@ -336,6 +337,13 @@ export function initBookingDetailView(actions) {
         setState({ message: "Calendar file downloaded." });
         return;
       }
+
+      if (action === "download-receipt") {
+        const booking = await api.getBooking(button.dataset.bookingId);
+        await downloadBookingReceiptPdf(booking.id, booking.booking_code);
+        setState({ message: "Receipt PDF downloaded." });
+        return;
+      }
     } catch (error) {
       setState({ message: error.message });
     }
@@ -382,6 +390,7 @@ export function renderBookingDetailView(state) {
   const canCancel = booking.status === "PendingPayment" || booking.status === "Paid";
   const canPay = booking.status === "PendingPayment";
   const canAddToCalendar = !["Cancelled", "Refunded"].includes(booking.status);
+  const canDownloadReceipt = ["Paid", "Completed", "Refunded"].includes(booking.status);
   const settlementPill = isAdminWaivedPayment(booking)
     ? '<span class="pill">Admin free booking</span>'
     : isAdminManualPayment(booking)
@@ -389,6 +398,7 @@ export function renderBookingDetailView(state) {
       : "";
   elements.bookingDetailActions.innerHTML = `
     ${canAddToCalendar ? `<button class="ghost-button" type="button" data-booking-detail-action="download-calendar" data-booking-id="${booking.id}">Add to calendar</button>` : ""}
+    ${canDownloadReceipt ? `<button class="ghost-button" type="button" data-booking-detail-action="download-receipt" data-booking-id="${booking.id}">Download receipt PDF</button>` : ""}
     ${canCancel ? `<button class="ghost-button" type="button" data-booking-detail-action="cancel" data-booking-id="${booking.id}">Cancel booking</button>` : ""}
     ${canPay ? `<button class="ghost-button" type="button" data-booking-detail-action="load-payment" data-booking-id="${booking.id}">Continue payment</button>` : ""}
   `;

@@ -28,6 +28,7 @@ class BookingCreate(BaseModel):
     duration_minutes: int
     payment_method_id: Optional[str] = None
     reservation_token: Optional[str] = None
+    promo_code: Optional[str] = None
     note: Optional[str] = None
     staff_assignments: List[str] = Field(default_factory=list)
 
@@ -57,6 +58,9 @@ class BookingOut(BaseModel):
     start_time: datetime
     end_time: datetime
     duration_minutes: int
+    original_price_cents: Optional[int] = None
+    discount_cents: int = 0
+    promo_code: Optional[str] = None
     price_cents: int
     currency: str
     status: str
