@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Booking Detail | StudioBookingSoftware</title>
+    <title>Payment Status | StudioBookingSoftware</title>
     <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
   </head>
-  <body data-page="booking">
+  <body data-page="payment-success">
     <div class="site-frame">
       <header class="site-header">
         <a class="brand-mark" href="/">StudioBookingSoftware</a>
@@ -44,41 +44,27 @@
 
       <main class="page-grid">
         <section class="hero-card hero-card-wide">
-          <p class="eyebrow">Booking detail</p>
-          <h1>See the full booking state on its own page.</h1>
-          <p class="hero-copy">This keeps confirmation, cancellation, and payment state readable instead of burying it in the booking list.</p>
+          <p class="eyebrow">Payment</p>
+          <h1>Your payment is on its way through.</h1>
+          <p class="hero-copy">This page confirms the checkout step and keeps watching the booking status until payment lands on the booking.</p>
         </section>
 
         <section class="panel panel-wide">
-          <div id="booking-detail-empty" class="empty-state">
-            Log in and open a booking from the bookings page to view its full details.
+          <div id="payment-success-empty" class="empty-state">
+            Open this page from a booking payment return so the booking status can load.
           </div>
 
-          <article id="booking-detail-card" class="detail-card hidden">
+          <article id="payment-success-card" class="detail-card hidden">
             <div class="detail-card-header">
               <div>
-                <p class="panel-kicker">Booking</p>
-                <h2 id="booking-detail-title">Booking</h2>
+                <p class="panel-kicker">Payment status</p>
+                <h2 id="payment-success-title">Processing payment</h2>
               </div>
               <a class="ghost-button ghost-link" href="/bookings">Back to bookings</a>
             </div>
-            <p id="booking-detail-window" class="panel-copy"></p>
-            <div id="booking-detail-meta" class="room-meta"></div>
-            <p id="booking-detail-note" class="panel-copy"></p>
-            <section class="detail-section">
-              <h3>Booked staff</h3>
-              <div id="booking-detail-staff-list" class="detail-stack"></div>
-            </section>
-            <div id="booking-detail-actions" class="room-actions"></div>
-            <section id="booking-payment-panel" class="detail-section hidden">
-              <h3>Payment</h3>
-              <p id="booking-payment-deadline" class="panel-copy hidden"></p>
-              <p id="booking-payment-copy" class="panel-copy">
-                Load the payment session to continue checkout.
-              </p>
-              <div id="booking-payment-element" class="hidden"></div>
-              <div id="booking-payment-controls" class="room-actions"></div>
-            </section>
+            <p id="payment-success-copy" class="panel-copy"></p>
+            <div id="payment-success-meta" class="room-meta"></div>
+            <div id="payment-success-actions" class="room-actions"></div>
           </article>
         </section>
       </main>
@@ -102,7 +88,6 @@
       </section>
     </div>
 
-    <script src="https://js.stripe.com/v3/"></script>
     <script type="module" src="/assets/js/main.js?v=20260408c"></script>
   </body>
 </html>

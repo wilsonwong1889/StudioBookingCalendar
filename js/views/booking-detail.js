@@ -35,6 +35,12 @@ function formatDuration(minutes) {
   return `${hours} hour${hours === 1 ? "" : "s"}`;
 }
 
+function buildPaymentSuccessUrl(bookingId) {
+  const successUrl = new URL("/payment-success", window.location.origin);
+  successUrl.searchParams.set("id", bookingId);
+  return successUrl;
+}
+
 function renderStaffImage(photoUrl, label) {
   if (photoUrl) {
     return `<img class="staff-profile-image" src="${photoUrl}" alt="${label}" loading="lazy" />`;
@@ -247,6 +253,7 @@ export function initBookingDetailView(actions) {
           throw new Error("Load the payment session first");
         }
         setState({ message: "Confirming payment..." });
+        const successUrl = buildPaymentSuccessUrl(activePaymentSession.booking_id);
         const submitResult = await stripeElements.submit();
         if (submitResult?.error) {
           throw new Error(submitResult.error.message || "Payment details are incomplete");
@@ -255,17 +262,14 @@ export function initBookingDetailView(actions) {
           elements: stripeElements,
           clientSecret: activePaymentSession.payment_client_secret,
           confirmParams: {
-            return_url: window.location.href,
+            return_url: successUrl.toString(),
           },
           redirect: "if_required",
         });
         if (result.error) {
           throw new Error(result.error.message || "Payment confirmation failed");
         }
-        if (actions?.reloadBookingDetail) {
-          await actions.reloadBookingDetail("Payment submitted. Refreshing booking detail...");
-        }
-        setState({ message: "Payment submitted. Check the updated booking state." });
+        window.location.assign(successUrl.toString());
       }
     } catch (error) {
       setState({ message: error.message });

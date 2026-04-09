@@ -167,7 +167,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertNotIn('id="rooms-grid"', response.text)
         self.assertIn("20260401s", response.text)
 
-        for path in ("/account", "/rooms", "/room", "/reserve", "/bookings", "/booking", "/admin"):
+        for path in ("/account", "/rooms", "/room", "/reserve", "/bookings", "/booking", "/payment-success", "/admin"):
             page_response = self.client.get(path)
             self.assertEqual(page_response.status_code, 200, page_response.text)
 
@@ -222,6 +222,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn('./state.js?v=20260401r', response.text)
         self.assertIn("views/admin.js?v=20260401x", response.text)
         self.assertIn("views/booking-detail.js?v=", response.text)
+        self.assertIn("views/payment-success.js?v=", response.text)
         self.assertIn("views/bookings.js?v=20260401w", response.text)
         self.assertIn("views/room-booking.js?v=20260401u", response.text)
         self.assertIn("views/rooms.js?v=20260401r", response.text)
@@ -239,6 +240,12 @@ class AppSmokeTest(unittest.TestCase):
         response = self.client.get("/assets/js/views/booking-detail.js")
         self.assertEqual(response.status_code, 200, response.text)
         self.assertIn("stripeElements.submit()", response.text)
+        self.assertIn('new URL("/payment-success"', response.text)
+
+        response = self.client.get("/assets/js/views/payment-success.js")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIn("Payment successful", response.text)
+        self.assertIn("Refresh status", response.text)
 
         response = self.client.get("/assets/js/views/rooms.js")
         self.assertEqual(response.status_code, 200, response.text)
