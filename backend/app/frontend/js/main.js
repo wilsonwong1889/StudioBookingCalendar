@@ -49,6 +49,45 @@ function renderApp(currentState) {
   renderStaffDirectoryView(currentState);
 }
 
+function initRevealAnimations() {
+  const revealNodes = Array.from(document.querySelectorAll("[data-reveal]"));
+  if (!revealNodes.length) {
+    return;
+  }
+
+  const stagedNodes = revealNodes.filter((node) => !node.dataset.reveal.startsWith("hero"));
+  if (!stagedNodes.length) {
+    return;
+  }
+
+  if (!("IntersectionObserver" in window)) {
+    stagedNodes.forEach((node) => node.classList.add("is-visible"));
+    return;
+  }
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) {
+          return;
+        }
+
+        entry.target.classList.add("is-visible");
+        observer.unobserve(entry.target);
+      });
+    },
+    {
+      threshold: 0.18,
+      rootMargin: "0px 0px -8% 0px",
+    },
+  );
+
+  stagedNodes.forEach((node, index) => {
+    node.style.transitionDelay = `${Math.min(index * 0.08, 0.28)}s`;
+    observer.observe(node);
+  });
+}
+
 function resetScopedData() {
   const requirements = currentRequirements();
   const patch = {};
@@ -442,5 +481,6 @@ initStaffDirectoryView();
 
 renderApp(state);
 resetScopedData();
+initRevealAnimations();
 await loadHealth();
 await refreshSession("Frontend ready.");
