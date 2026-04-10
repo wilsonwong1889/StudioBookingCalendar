@@ -26,7 +26,7 @@ if config.config_file_name is not None:
 
 # Import your models so autogenerate can detect them
 from app.database import Base
-from app.models import user, room, booking
+from app.models import user, room, booking, promo_code
 
 target_metadata = Base.metadata
 

@@ -42,6 +42,7 @@ class AppSmokeTest(unittest.TestCase):
         from app.database import Base, SessionLocal, engine
         from app.main import app
         from app.models.booking import AuditLog, Booking, BookingSlot, NotificationLog, Refund
+        from app.models.promo_code import PromoCode
         from app.models.room import Room
         from app.models.staff_profile import StaffProfile
         from app.models.user import User
@@ -55,6 +56,7 @@ class AppSmokeTest(unittest.TestCase):
         cls.BookingSlot = BookingSlot
         cls.NotificationLog = NotificationLog
         cls.Refund = Refund
+        cls.PromoCode = PromoCode
         cls.Room = Room
         cls.StaffProfile = StaffProfile
         cls.User = User
@@ -79,6 +81,7 @@ class AppSmokeTest(unittest.TestCase):
                 self.AuditLog,
                 self.NotificationLog,
                 self.Refund,
+                self.PromoCode,
                 self.BookingSlot,
                 self.Booking,
                 self.Room,
@@ -194,17 +197,38 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn("Complete your saved bookings", bookings_page.text)
         self.assertIn("recent-bookings-shell", bookings_page.text)
         self.assertIn("pending-bookings-list", bookings_page.text)
-        self.assertIn("20260408g", bookings_page.text)
+        self.assertIn("booking-promo-code-input", bookings_page.text)
+        self.assertIn("booking-promo-preview-button", bookings_page.text)
+        self.assertIn("booking-promo-feedback", bookings_page.text)
+        self.assertIn("20260409c", bookings_page.text)
+        self.assertIn("recent-bookings-search", bookings_page.text)
+        self.assertIn("recent-bookings-status-filter", bookings_page.text)
+
+        reserve_page = self.client.get("/reserve")
+        self.assertIn("reserve-promo-code-input", reserve_page.text)
+        self.assertIn("reserve-promo-preview-button", reserve_page.text)
+        self.assertIn("reserve-promo-feedback", reserve_page.text)
 
         admin_page = self.client.get("/admin")
         self.assertIn("Accounts", admin_page.text)
         self.assertIn("Backend test cases", admin_page.text)
         self.assertIn("admin-panel-accounts", admin_page.text)
         self.assertIn("admin-panel-qa", admin_page.text)
+        self.assertIn("admin-booking-quick-summary", admin_page.text)
+        self.assertIn("admin-booking-quick-filters", admin_page.text)
+        self.assertIn('data-admin-subpage-group="bookings"', admin_page.text)
+        self.assertIn('data-admin-subpage-group="staff"', admin_page.text)
+        self.assertIn('data-admin-subpage-group="rooms"', admin_page.text)
+        self.assertIn("Room calendar", admin_page.text)
+        self.assertIn("admin-calendar-month", admin_page.text)
+        self.assertIn("admin-room-calendar-grid", admin_page.text)
+        self.assertIn("Promos", admin_page.text)
+        self.assertIn("admin-promo-form", admin_page.text)
+        self.assertIn("admin-promo-codes-list", admin_page.text)
         self.assertIn("admin-accounts-list", admin_page.text)
         self.assertIn("admin-test-case-summary", admin_page.text)
         self.assertIn("admin-test-cases-list", admin_page.text)
-        self.assertIn("20260408f", admin_page.text)
+        self.assertIn("20260409c", admin_page.text)
         self.assertLess(admin_page.text.index("Room management"), admin_page.text.index("Backend test cases"))
 
         response = self.client.get("/assets/styles/app.css")
@@ -220,15 +244,15 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn("refreshSession", response.text)
         self.assertIn('./api.js?v=20260401r', response.text)
         self.assertIn('./state.js?v=20260401r', response.text)
-        self.assertIn("views/admin.js?v=20260408f", response.text)
+        self.assertIn("views/admin.js?v=20260409c", response.text)
         self.assertIn("views/booking-detail.js?v=", response.text)
         self.assertIn("views/payment-success.js?v=", response.text)
-        self.assertIn("views/bookings.js?v=20260408g", response.text)
-        self.assertIn("views/room-booking.js?v=20260401u", response.text)
-        self.assertIn("views/rooms.js?v=20260408e", response.text)
+        self.assertIn("views/bookings.js?v=20260409c", response.text)
+        self.assertIn("views/room-booking.js?v=20260409c", response.text)
+        self.assertIn("views/rooms.js?v=20260408q", response.text)
         self.assertIn("views/room-detail.js?v=20260401r", response.text)
         self.assertIn("views/auth.js?v=20260401ab", response.text)
-        self.assertIn("views/profile.js?v=20260401ab", response.text)
+        self.assertIn("views/profile.js?v=20260408m", response.text)
         self.assertNotIn("views/admin.js?v=20260401x", response.text)
 
         response = self.client.get("/assets/js/views/bookings.js")
@@ -238,6 +262,17 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn("const MAX_DURATION_MINUTES = 300;", response.text)
         self.assertIn("Completed / checked in", response.text)
         self.assertIn("Cancelled bookings stay at the bottom.", response.text)
+        self.assertIn("No recent bookings match the current search or status filter.", response.text)
+        self.assertIn('api.previewPromoCode(code, context.amountCents)', response.text)
+        self.assertIn("booking-promo-preview-button", response.text)
+        self.assertIn("promo_code: getBookingPromoInputValue() || null", response.text)
+        self.assertIn('window.confirm("Are you sure you want to cancel this booking?")', response.text)
+
+        response = self.client.get("/assets/js/views/room-booking.js")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIn('api.previewPromoCode(code, context.amountCents)', response.text)
+        self.assertIn("reserve-promo-preview-button", response.text)
+        self.assertIn("promo_code: getReservePromoInputValue() || null", response.text)
 
         response = self.client.get("/assets/js/views/booking-detail.js")
         self.assertEqual(response.status_code, 200, response.text)
@@ -245,14 +280,52 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn('new URL("/payment-success"', response.text)
         self.assertIn("Skip Stripe as admin", response.text)
         self.assertIn('api.adminWaiveBookingPayment(button.dataset.bookingId)', response.text)
+        self.assertIn("Mark paid manually as admin", response.text)
+        self.assertIn('api.adminMarkBookingPaid(button.dataset.bookingId)', response.text)
+        self.assertIn('window.confirm("Are you sure you want to cancel this booking?")', response.text)
+        self.assertIn("Add to calendar", response.text)
+        self.assertIn("downloadBookingCalendarFile(booking)", response.text)
+        self.assertIn("Download receipt PDF", response.text)
+        self.assertIn("downloadBookingReceiptPdf(booking.id, booking.booking_code)", response.text)
 
         response = self.client.get("/assets/js/views/payment-success.js")
         self.assertEqual(response.status_code, 200, response.text)
         self.assertIn("Payment successful", response.text)
+        self.assertIn("Booking confirmed without Stripe", response.text)
+        self.assertIn("Booking marked paid", response.text)
         self.assertIn("Refresh status", response.text)
+        self.assertIn("Add to calendar", response.text)
+        self.assertIn("downloadBookingCalendarFile(currentPaymentSuccessBooking)", response.text)
+        self.assertIn("Download receipt PDF", response.text)
+        self.assertIn("downloadBookingReceiptPdf(currentPaymentSuccessBooking.id, currentPaymentSuccessBooking.booking_code)", response.text)
+
+        response = self.client.get("/assets/js/views/profile.js")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIn('window.prompt("Enter your password to delete this account.")', response.text)
+        self.assertIn('api.deleteProfile({ password: deletePassword })', response.text)
+
+        response = self.client.get("/assets/js/views/admin.js")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIn("setActiveAdminSubpage", response.text)
+        self.assertIn('document.querySelectorAll("[data-admin-subpage-button]")', response.text)
+        self.assertIn('setActiveAdminSubpage("bookings", "queue")', response.text)
+        self.assertIn('setActiveAdminSubpage("accounts", "detail")', response.text)
+        self.assertIn('data-admin-calendar-date', response.text)
+        self.assertIn('Showing day board for ${selectedAdminScheduleDate}.', response.text)
+        self.assertIn("formatMonthHeading(selectedAdminCalendarMonth)", response.text)
+        self.assertIn("Showing ${filteredBookings.length} of ${baseBookings.length}", response.text)
+        self.assertIn("Live booking queue", admin_page.text)
+        self.assertIn("Needs attention", response.text)
+        self.assertIn("admin-promo-form", response.text)
+        self.assertIn("renderAdminPromoCodes(currentState)", response.text)
+        self.assertIn("api.adminCreatePromoCode(payload)", response.text)
+        self.assertIn('setActiveAdminSubpage("bookings", "promos")', response.text)
+        self.assertIn('window.prompt("Enter your admin password to delete this account.")', response.text)
+        self.assertIn("api.adminDeleteUser(button.dataset.userId, { admin_password: adminPassword })", response.text)
 
         response = self.client.get("/assets/js/views/rooms.js")
         self.assertEqual(response.status_code, 200, response.text)
+        self.assertIn('detail: { group: "rooms", subpage: "editor" }', response.text)
         self.assertIn('href="/bookings?room=${room.id}"', response.text)
 
         signup_payload = {
@@ -342,6 +415,33 @@ class AppSmokeTest(unittest.TestCase):
 
         response = self.client.get("/api/rooms?include_inactive=true")
         self.assertEqual(response.status_code, 403, response.text)
+
+        response = self.client.post(
+            "/api/admin/promo-codes",
+            headers=admin_headers,
+            json={
+                "code": "FOUNDATION10",
+                "description": "10% off first booking",
+                "percent_off": 10,
+                "active": True,
+            },
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+        self.assertEqual(response.json()["code"], "FOUNDATION10")
+        self.assertEqual(response.json()["percent_off"], 10)
+
+        response = self.client.get("/api/admin/promo-codes", headers=admin_headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(len(response.json()), 1)
+        self.assertEqual(response.json()[0]["code"], "FOUNDATION10")
+
+        response = self.client.post(
+            "/api/public/promo-codes/preview",
+            json={"code": "FOUNDATION10", "amount_cents": 5000},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["discount_cents"], 500)
+        self.assertEqual(response.json()["final_amount_cents"], 4500)
 
         response = self.client.post(
             "/api/admin/rooms/photo",
@@ -1193,6 +1293,16 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["status"], "Paid")
         self.assertIsNotNone(response.json()["confirmed_at"])
+        paid_booking = response.json()
+
+        response = self.client.get(f"/api/bookings/{pending_booking['id']}/receipt", headers=user_headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.headers["content-type"], "application/pdf")
+        self.assertIn(
+            f'studio-booking-receipt-{paid_booking["booking_code"]}.pdf',
+            response.headers["content-disposition"],
+        )
+        self.assertTrue(response.content.startswith(b"%PDF-1.4"))
 
         response = self.client.get("/api/admin/bookings?email=paying-user@example.com", headers=admin_headers)
         self.assertEqual(response.status_code, 200, response.text)
@@ -1495,7 +1605,21 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(response.status_code, 201, response.text)
         booking = response.json()
 
-        response = self.client.delete("/api/users/me", headers=history_headers)
+        response = self.client.request(
+            "DELETE",
+            "/api/users/me",
+            headers=history_headers,
+            json={"password": "WrongPassword123!"},
+        )
+        self.assertEqual(response.status_code, 400, response.text)
+        self.assertEqual(response.json()["detail"], "Password is incorrect")
+
+        response = self.client.request(
+            "DELETE",
+            "/api/users/me",
+            headers=history_headers,
+            json={"password": "Password123!"},
+        )
         self.assertEqual(response.status_code, 204, response.text)
 
         response = self.client.get("/api/auth/me", headers=history_headers)
@@ -1527,7 +1651,21 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(response.status_code, 201, response.text)
         removable_user_id = response.json()["id"]
 
-        response = self.client.delete(f"/api/admin/users/{removable_user_id}", headers=admin_headers)
+        response = self.client.request(
+            "DELETE",
+            f"/api/admin/users/{removable_user_id}",
+            headers=admin_headers,
+            json={"admin_password": "WrongPassword123!"},
+        )
+        self.assertEqual(response.status_code, 400, response.text)
+        self.assertEqual(response.json()["detail"], "Admin password is incorrect")
+
+        response = self.client.request(
+            "DELETE",
+            f"/api/admin/users/{removable_user_id}",
+            headers=admin_headers,
+            json={"admin_password": "Password123!"},
+        )
         self.assertEqual(response.status_code, 204, response.text)
 
         response = self.client.get("/api/admin/users", headers=admin_headers)

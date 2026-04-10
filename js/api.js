@@ -77,9 +77,10 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
-  deleteProfile() {
+  deleteProfile(payload) {
     return request("/api/users/me", {
       method: "DELETE",
+      body: JSON.stringify(payload),
     });
   },
   updatePassword(payload) {
@@ -113,6 +114,15 @@ export const api = {
     return request("/api/bookings", {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+  },
+  previewPromoCode(code, amountCents) {
+    return request("/api/public/promo-codes/preview", {
+      method: "POST",
+      body: JSON.stringify({
+        code,
+        amount_cents: amountCents,
+      }),
     });
   },
   cancelBooking(bookingId, payload) {
@@ -178,6 +188,21 @@ export const api = {
   getAdminStaffProfiles() {
     return request("/api/admin/staff");
   },
+  getAdminPromoCodes() {
+    return request("/api/admin/promo-codes");
+  },
+  adminCreatePromoCode(payload) {
+    return request("/api/admin/promo-codes", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  adminUpdatePromoCode(promoCodeId, payload) {
+    return request(`/api/admin/promo-codes/${promoCodeId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
   adminCreateStaffProfile(payload) {
     return request("/api/admin/staff", {
       method: "POST",
@@ -233,9 +258,15 @@ export const api = {
       method: "POST",
     });
   },
-  adminDeleteUser(userId) {
+  adminMarkBookingPaid(bookingId) {
+    return request(`/api/admin/bookings/${bookingId}/mark-paid`, {
+      method: "POST",
+    });
+  },
+  adminDeleteUser(userId, payload) {
     return request(`/api/admin/users/${userId}`, {
       method: "DELETE",
+      body: JSON.stringify(payload),
     });
   },
   adminUpdateRoom(roomId, payload) {

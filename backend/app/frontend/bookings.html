@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bookings | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260409c" />
   </head>
   <body data-page="bookings">
     <div class="site-frame">
@@ -103,6 +103,16 @@
               <span>Booking notes</span>
               <textarea id="booking-note-input" name="note" rows="3" placeholder="Session details, guests, or special requests"></textarea>
             </label>
+            <div class="profile-span-2 booking-promo-shell">
+              <div class="booking-promo-toolbar">
+                <label class="inline-field booking-promo-field">
+                  <span>Promo code</span>
+                  <input id="booking-promo-code-input" type="text" name="promo_code" placeholder="FOUNDATION10" autocomplete="off" />
+                </label>
+                <button id="booking-promo-preview-button" class="ghost-button" type="button">Apply code</button>
+              </div>
+              <div id="booking-promo-feedback" class="empty-state hidden"></div>
+            </div>
             <button class="primary-button" type="submit">Save 5-minute spot hold</button>
           </form>
         </section>
@@ -140,6 +150,22 @@
                 </div>
                 <span id="recent-bookings-count" class="pill">0 bookings</span>
               </summary>
+              <div class="booking-history-toolbar">
+                <label class="inline-field">
+                  <span>Search</span>
+                  <input id="recent-bookings-search" type="search" placeholder="Booking code, room, note" />
+                </label>
+                <label class="inline-field">
+                  <span>Status</span>
+                  <select id="recent-bookings-status-filter">
+                    <option value="all">All recent statuses</option>
+                    <option value="Completed">Completed / checked in</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Refunded">Refunded</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </label>
+              </div>
               <div id="recent-bookings-list" class="booking-list booking-list-secondary"></div>
             </details>
           </div>
@@ -165,6 +191,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260408g"></script>
+    <script type="module" src="/assets/js/main.js?v=20260409c"></script>
   </body>
 </html>

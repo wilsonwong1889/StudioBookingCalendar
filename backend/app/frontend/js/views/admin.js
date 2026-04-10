@@ -1,13 +1,24 @@
 import { api } from "../api.js?v=20260401r";
-import { elements } from "../dom.js?v=20260401x";
+import { elements } from "../dom.js?v=20260408p";
 import { setState } from "../state.js?v=20260401r";
 
 let editingStaffProfileId = null;
 let activeAdminTab = "overview";
 let selectedAdminScheduleDate = new Date().toISOString().slice(0, 10);
 let selectedAdminScheduleRoomId = "all";
+let selectedAdminCalendarMonth = new Date().toISOString().slice(0, 7);
+let selectedAdminCalendarRoomId = "all";
 let selectedAdminAccountId = null;
 let adminSearchResults = null;
+let selectedAdminBookingQuickFilter = "all";
+const DEFAULT_ADMIN_SUBPAGES = {
+  overview: "dashboard",
+  accounts: "directory",
+  bookings: "schedule",
+  staff: "editor",
+  rooms: "editor",
+};
+const activeAdminSubpages = { ...DEFAULT_ADMIN_SUBPAGES };
 
 const TEST_CASE_HEALTH_META = {
   working: {
@@ -27,6 +38,34 @@ const TEST_CASE_HEALTH_META = {
   },
 };
 
+const ADMIN_BOOKING_GROUPS = [
+  {
+    key: "PendingPayment",
+    label: "Pending payment",
+    description: "These bookings still need payment or an admin decision.",
+  },
+  {
+    key: "Paid",
+    label: "Ready for arrival",
+    description: "Paid bookings that may still need check-in.",
+  },
+  {
+    key: "Completed",
+    label: "Completed sessions",
+    description: "Checked-in bookings already finished or in progress.",
+  },
+  {
+    key: "Cancelled",
+    label: "Cancelled",
+    description: "Cancelled bookings stay here for follow-up and refund review.",
+  },
+  {
+    key: "Refunded",
+    label: "Refunded",
+    description: "Refunded bookings remain visible for audit history.",
+  },
+];
+
 function setActiveAdminTab(tab) {
   activeAdminTab = tab;
   elements.adminTabs?.forEach((button) => {
@@ -41,6 +80,26 @@ function setActiveAdminTab(tab) {
   }
 }
 
+function setActiveAdminSubpage(group, subpage) {
+  const nextSubpage = subpage || DEFAULT_ADMIN_SUBPAGES[group] || "overview";
+  activeAdminSubpages[group] = nextSubpage;
+
+  document.querySelectorAll(`[data-admin-subpage-button="${group}"]`).forEach((button) => {
+    const isActive = button.dataset.adminSubpage === nextSubpage;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-selected", isActive ? "true" : "false");
+  });
+
+  const select = document.querySelector(`[data-admin-subpage-select="${group}"]`);
+  if (select && select.value !== nextSubpage) {
+    select.value = nextSubpage;
+  }
+
+  document.querySelectorAll(`[data-admin-subpage-panel="${group}"]`).forEach((panel) => {
+    panel.classList.toggle("hidden", panel.dataset.adminSubpage !== nextSubpage);
+  });
+}
+
 function toIsoStringFromLocal(value) {
   const localDate = new Date(value);
   return localDate.toISOString();
@@ -48,6 +107,47 @@ function toIsoStringFromLocal(value) {
 
 function todayString() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function safeMonthValue(value) {
+  return /^\d{4}-\d{2}$/.test(String(value || "").trim()) ? String(value).trim() : todayString().slice(0, 7);
+}
+
+function getMonthDateKey(monthValue, dayNumber) {
+  return `${safeMonthValue(monthValue)}-${String(dayNumber).padStart(2, "0")}`;
+}
+
+function getMonthStartOffset(monthValue) {
+  const [year, month] = safeMonthValue(monthValue).split("-").map(Number);
+  return new Date(year, month - 1, 1).getDay();
+}
+
+function getMonthDayCount(monthValue) {
+  const [year, month] = safeMonthValue(monthValue).split("-").map(Number);
+  return new Date(year, month, 0).getDate();
+}
+
+function formatMonthHeading(monthValue) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+  }).format(new Date(`${safeMonthValue(monthValue)}-01T12:00:00`));
+}
+
+function getAdminCalendarMonthInput() {
+  return document.getElementById("admin-calendar-month");
+}
+
+function getAdminCalendarRoomFilter() {
+  return document.getElementById("admin-calendar-room-filter");
+}
+
+function getAdminRoomCalendarSummaryElement() {
+  return document.getElementById("admin-room-calendar-summary");
+}
+
+function getAdminRoomCalendarGridElement() {
+  return document.getElementById("admin-room-calendar-grid");
 }
 
 function formatBookingDate(value) {
@@ -113,8 +213,277 @@ function getDateKey(value) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+function getAdminRoomCalendarLabel(currentState) {
+  if (selectedAdminCalendarRoomId === "all") {
+    return "All rooms";
+  }
+
+  const room = (currentState.rooms || []).find((item) => String(item.id) === selectedAdminCalendarRoomId);
+  return room?.name || "Selected room";
+}
+
 function getStatusClass(status) {
   return `status-${String(status || "").toLowerCase()}`;
+}
+
+function getStatusLabel(status) {
+  const normalized = String(status || "").trim();
+  return normalized === "PendingPayment" ? "Pending payment" : normalized || "Unknown";
+}
+
+function normalizePhoneHref(value) {
+  const digits = String(value || "").replace(/[^\d+]/g, "");
+  return digits ? `tel:${digits}` : null;
+}
+
+function isAdminBookingNeedsAttention(booking) {
+  if (booking.status === "PendingPayment") {
+    return true;
+  }
+  if (booking.status === "Paid" && !booking.checked_in_at) {
+    return true;
+  }
+  if (booking.status === "Cancelled" && booking.price_cents > 0) {
+    return true;
+  }
+  return false;
+}
+
+function matchesAdminBookingQuickFilter(booking, filterKey) {
+  switch (filterKey) {
+    case "needs_attention":
+      return isAdminBookingNeedsAttention(booking);
+    case "pending_payment":
+      return booking.status === "PendingPayment";
+    case "ready_for_arrival":
+      return booking.status === "Paid" && !booking.checked_in_at;
+    case "today":
+      return getDateKey(booking.start_time) === todayString();
+    case "completed":
+      return booking.status === "Completed";
+    case "cancelled":
+      return booking.status === "Cancelled" || booking.status === "Refunded";
+    case "all":
+    default:
+      return true;
+  }
+}
+
+function getAdminBookingFilterOptions(bookings) {
+  return [
+    {
+      key: "all",
+      label: "All bookings",
+      description: "Everything in the current queue or search result.",
+    },
+    {
+      key: "needs_attention",
+      label: "Needs attention",
+      description: "Pending payment, not checked in, or refund follow-up.",
+    },
+    {
+      key: "pending_payment",
+      label: "Pending payment",
+      description: "Waiting on Stripe or an admin override.",
+    },
+    {
+      key: "ready_for_arrival",
+      label: "Ready for arrival",
+      description: "Paid and not checked in yet.",
+    },
+    {
+      key: "today",
+      label: "Today",
+      description: "Sessions happening today.",
+    },
+    {
+      key: "completed",
+      label: "Completed",
+      description: "Checked in or finished sessions.",
+    },
+    {
+      key: "cancelled",
+      label: "Cancelled / refunded",
+      description: "Closed-out bookings and refund history.",
+    },
+  ].map((option) => ({
+    ...option,
+    count: bookings.filter((booking) => matchesAdminBookingQuickFilter(booking, option.key)).length,
+  }));
+}
+
+function getAdminBookingSortPriority(booking) {
+  switch (booking.status) {
+    case "PendingPayment":
+      return 0;
+    case "Paid":
+      return 1;
+    case "Completed":
+      return 2;
+    case "Cancelled":
+      return 3;
+    case "Refunded":
+      return 4;
+    default:
+      return 5;
+  }
+}
+
+function getAdminBookingReferenceTime(booking) {
+  if (booking.status === "PendingPayment") {
+    return new Date(booking.payment_expires_at || booking.start_time).getTime();
+  }
+  if (booking.status === "Paid") {
+    return new Date(booking.start_time).getTime();
+  }
+  if (booking.status === "Completed") {
+    return new Date(booking.checked_in_at || booking.confirmed_at || booking.updated_at || booking.start_time).getTime();
+  }
+  if (booking.status === "Cancelled") {
+    return new Date(booking.cancelled_at || booking.updated_at || booking.start_time).getTime();
+  }
+  return new Date(booking.updated_at || booking.cancelled_at || booking.start_time).getTime();
+}
+
+function compareAdminBookings(left, right) {
+  const leftPriority = getAdminBookingSortPriority(left);
+  const rightPriority = getAdminBookingSortPriority(right);
+  if (leftPriority !== rightPriority) {
+    return leftPriority - rightPriority;
+  }
+
+  const leftTime = getAdminBookingReferenceTime(left);
+  const rightTime = getAdminBookingReferenceTime(right);
+
+  if (left.status === "PendingPayment" || left.status === "Paid") {
+    if (leftTime !== rightTime) {
+      return leftTime - rightTime;
+    }
+  } else if (leftTime !== rightTime) {
+    return rightTime - leftTime;
+  }
+
+  return new Date(right.created_at || right.start_time).getTime() - new Date(left.created_at || left.start_time).getTime();
+}
+
+function getAdminBookingCollections(currentState) {
+  const sourceBookings = [...(adminSearchResults || currentState.adminBookings || [])];
+  const sortedBookings = sourceBookings.sort(compareAdminBookings);
+  const filteredBookings = sortedBookings.filter((booking) =>
+    matchesAdminBookingQuickFilter(booking, selectedAdminBookingQuickFilter),
+  );
+
+  return {
+    baseBookings: sortedBookings,
+    filteredBookings,
+    filterOptions: getAdminBookingFilterOptions(sortedBookings),
+    searchActive: Boolean(adminSearchResults),
+  };
+}
+
+function renderAdminBookingQuickSummary(bookings, filterOptions) {
+  if (!elements.adminBookingQuickSummary) {
+    return;
+  }
+
+  const cards = filterOptions
+    .filter((option) => ["all", "needs_attention", "pending_payment", "ready_for_arrival", "today"].includes(option.key))
+    .map(
+      (option) => `
+        <button
+          class="metric-card admin-booking-summary-card${selectedAdminBookingQuickFilter === option.key ? " is-active" : ""}"
+          type="button"
+          data-admin-booking-filter="${option.key}"
+        >
+          <span class="metric-label">${option.label}</span>
+          <strong class="metric-value">${option.count}</strong>
+          <span class="status-detail">${option.description}</span>
+        </button>
+      `,
+    );
+
+  elements.adminBookingQuickSummary.innerHTML = bookings.length
+    ? cards.join("")
+    : '<div class="empty-state">Booking summary cards will appear once records exist.</div>';
+}
+
+function renderAdminBookingQuickFilters(filterOptions) {
+  if (!elements.adminBookingQuickFilters) {
+    return;
+  }
+
+  elements.adminBookingQuickFilters.innerHTML = filterOptions
+    .map(
+      (option) => `
+        <button
+          class="pill admin-booking-filter-chip${selectedAdminBookingQuickFilter === option.key ? " is-active" : ""}"
+          type="button"
+          data-admin-booking-filter="${option.key}"
+        >
+          ${option.label}
+          <span>${option.count}</span>
+        </button>
+      `,
+    )
+    .join("");
+}
+
+function renderAdminBookingResultsCopy(baseBookings, filteredBookings, filterOptions, searchActive) {
+  if (!elements.adminBookingResultsCopy) {
+    return;
+  }
+
+  if (!baseBookings.length) {
+    elements.adminBookingResultsCopy.textContent = searchActive
+      ? "Search returned no bookings."
+      : "No admin bookings yet. Search by email, booking code, or status.";
+    return;
+  }
+
+  const activeFilter = filterOptions.find((option) => option.key === selectedAdminBookingQuickFilter) || filterOptions[0];
+  const baseLabel = searchActive ? "search result" : "booking";
+  elements.adminBookingResultsCopy.textContent = filteredBookings.length
+    ? `Showing ${filteredBookings.length} of ${baseBookings.length} ${baseLabel}${baseBookings.length === 1 ? "" : "s"} in ${activeFilter.label.toLowerCase()}.`
+    : `No ${baseLabel}${baseBookings.length === 1 ? "" : "s"} match ${activeFilter.label.toLowerCase()}.`;
+}
+
+function getAdminBookingUrgencyLabel(booking) {
+  if (booking.status === "PendingPayment") {
+    return "Needs payment";
+  }
+  if (booking.status === "Paid" && !booking.checked_in_at) {
+    return "Ready to check in";
+  }
+  if (booking.status === "Cancelled" && booking.price_cents > 0) {
+    return "Review refund";
+  }
+  return "";
+}
+
+function renderAdminBookingTimelineRow(label, value) {
+  return `
+    <div class="admin-booking-timeline-row">
+      <span>${label}</span>
+      <strong>${value}</strong>
+    </div>
+  `;
+}
+
+function renderAdminBookingGroup(groupMeta, bookings) {
+  return `
+    <section class="admin-booking-group">
+      <header class="admin-booking-group-header">
+        <div>
+          <h4>${groupMeta.label}</h4>
+          <p>${groupMeta.description}</p>
+        </div>
+        <span class="pill">${bookings.length} booking${bookings.length === 1 ? "" : "s"}</span>
+      </header>
+      <div class="admin-booking-group-list">
+        ${bookings.map(renderAdminBookingCard).join("")}
+      </div>
+    </section>
+  `;
 }
 
 function formatMoney(cents, currency = "CAD") {
@@ -123,6 +492,190 @@ function formatMoney(cents, currency = "CAD") {
     currency,
     minimumFractionDigits: 2,
   }).format((cents || 0) / 100);
+}
+
+function toDateTimeLocalValue(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const localTime = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localTime.toISOString().slice(0, 16);
+}
+
+function parseOptionalInteger(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return null;
+  }
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getAdminPromoForm() {
+  return document.getElementById("admin-promo-form");
+}
+
+function getAdminPromoList() {
+  return document.getElementById("admin-promo-codes-list");
+}
+
+function getAdminPromoIdInput() {
+  return document.getElementById("admin-promo-id");
+}
+
+function getAdminPromoDiscountTypeSelect() {
+  return document.getElementById("admin-promo-discount-type");
+}
+
+function getAdminPromoPercentInput() {
+  return document.getElementById("admin-promo-percent-off");
+}
+
+function getAdminPromoAmountInput() {
+  return document.getElementById("admin-promo-amount-off-cents");
+}
+
+function formatPromoWindowValue(value) {
+  return value ? formatBookingDate(value) : "No limit";
+}
+
+function formatPromoDiscountLabel(promoCode) {
+  if (promoCode.percent_off) {
+    return `${promoCode.percent_off}% off`;
+  }
+  if (promoCode.amount_off_cents) {
+    return `${formatMoney(promoCode.amount_off_cents)} off`;
+  }
+  return "No discount";
+}
+
+function resetAdminPromoForm() {
+  const form = getAdminPromoForm();
+  if (!form) {
+    return;
+  }
+
+  form.reset();
+  if (getAdminPromoIdInput()) {
+    getAdminPromoIdInput().value = "";
+  }
+  const activeCheckbox = document.getElementById("admin-promo-active");
+  if (activeCheckbox) {
+    activeCheckbox.checked = true;
+  }
+  if (getAdminPromoDiscountTypeSelect()) {
+    getAdminPromoDiscountTypeSelect().value = "percent";
+  }
+  syncAdminPromoDiscountFields();
+}
+
+function syncAdminPromoDiscountFields() {
+  const discountType = getAdminPromoDiscountTypeSelect()?.value || "percent";
+  const percentInput = getAdminPromoPercentInput();
+  const amountInput = getAdminPromoAmountInput();
+
+  if (percentInput) {
+    percentInput.disabled = discountType !== "percent";
+  }
+  if (amountInput) {
+    amountInput.disabled = discountType !== "amount";
+  }
+}
+
+function populateAdminPromoForm(promoCode) {
+  const form = getAdminPromoForm();
+  if (!form || !promoCode) {
+    return;
+  }
+
+  getAdminPromoIdInput().value = promoCode.id;
+  document.getElementById("admin-promo-code").value = promoCode.code || "";
+  document.getElementById("admin-promo-description").value = promoCode.description || "";
+  getAdminPromoDiscountTypeSelect().value = promoCode.percent_off ? "percent" : "amount";
+  getAdminPromoPercentInput().value = promoCode.percent_off || "";
+  getAdminPromoAmountInput().value = promoCode.amount_off_cents || "";
+  document.getElementById("admin-promo-max-redemptions").value = promoCode.max_redemptions || "";
+  document.getElementById("admin-promo-starts-at").value = toDateTimeLocalValue(promoCode.starts_at);
+  document.getElementById("admin-promo-expires-at").value = toDateTimeLocalValue(promoCode.expires_at);
+  document.getElementById("admin-promo-active").checked = Boolean(promoCode.active);
+  syncAdminPromoDiscountFields();
+}
+
+function buildAdminPromoPayload() {
+  const discountType = getAdminPromoDiscountTypeSelect()?.value || "percent";
+  const description = document.getElementById("admin-promo-description")?.value?.trim() || null;
+  const startsAt = document.getElementById("admin-promo-starts-at")?.value;
+  const expiresAt = document.getElementById("admin-promo-expires-at")?.value;
+
+  return {
+    code: document.getElementById("admin-promo-code")?.value?.trim(),
+    description,
+    percent_off: discountType === "percent" ? parseOptionalInteger(getAdminPromoPercentInput()?.value) : null,
+    amount_off_cents: discountType === "amount" ? parseOptionalInteger(getAdminPromoAmountInput()?.value) : null,
+    active: Boolean(document.getElementById("admin-promo-active")?.checked),
+    max_redemptions: parseOptionalInteger(document.getElementById("admin-promo-max-redemptions")?.value),
+    starts_at: startsAt ? new Date(startsAt).toISOString() : null,
+    expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+  };
+}
+
+function renderAdminPromoCodeCard(promoCode) {
+  const redemptionsLabel = promoCode.max_redemptions
+    ? `${promoCode.active_redemptions} / ${promoCode.max_redemptions} active redemptions`
+    : `${promoCode.active_redemptions} active redemption${promoCode.active_redemptions === 1 ? "" : "s"}`;
+
+  return `
+    <article class="admin-promo-card ${promoCode.active ? "is-active" : "is-inactive"}">
+      <div class="admin-promo-card-header">
+        <div>
+          <h4>${promoCode.code}</h4>
+          <p>${promoCode.description || "No description added yet."}</p>
+        </div>
+        <div class="room-meta">
+          <span class="pill">${formatPromoDiscountLabel(promoCode)}</span>
+          <span class="pill ${promoCode.active ? "" : "muted"}">${promoCode.active ? "Active" : "Inactive"}</span>
+        </div>
+      </div>
+      <div class="admin-detail-grid">
+        <div class="admin-detail-field">
+          <span>Redemptions</span>
+          <div class="admin-detail-value">${redemptionsLabel}</div>
+        </div>
+        <div class="admin-detail-field">
+          <span>Starts</span>
+          <div class="admin-detail-value">${formatPromoWindowValue(promoCode.starts_at)}</div>
+        </div>
+        <div class="admin-detail-field">
+          <span>Expires</span>
+          <div class="admin-detail-value">${formatPromoWindowValue(promoCode.expires_at)}</div>
+        </div>
+      </div>
+      <div class="room-actions">
+        <button class="ghost-button" type="button" data-admin-action="edit-promo" data-promo-code-id="${promoCode.id}">Edit</button>
+        <button class="ghost-button" type="button" data-admin-action="toggle-promo" data-promo-code-id="${promoCode.id}" data-next-active="${promoCode.active ? "false" : "true"}">
+          ${promoCode.active ? "Deactivate" : "Activate"}
+        </button>
+      </div>
+    </article>
+  `;
+}
+
+function renderAdminPromoCodes(currentState) {
+  const list = getAdminPromoList();
+  if (!list) {
+    return;
+  }
+
+  const promoCodes = currentState.adminPromoCodes || [];
+  list.innerHTML = promoCodes.length
+    ? promoCodes.map(renderAdminPromoCodeCard).join("")
+    : '<div class="empty-state">No promo codes yet. Create one above to start offering discounts.</div>';
 }
 
 function formatActivityAction(action) {
@@ -518,6 +1071,10 @@ function renderAdminBookingCard(booking) {
     (booking.status === "Paid" || booking.status === "Cancelled" || booking.status === "Completed")
       ? `<button class="ghost-button admin-booking-action" type="button" data-admin-action="refund" data-booking-id="${booking.id}" data-amount="${booking.price_cents}">Refund</button>`
       : "";
+  const manualPaidButton =
+    booking.status === "PendingPayment" && booking.price_cents > 0
+      ? `<button class="ghost-button admin-booking-action" type="button" data-admin-action="mark-paid" data-booking-id="${booking.id}">Mark paid manually</button>`
+      : "";
   const waivePaymentButton =
     booking.status === "PendingPayment"
       ? `<button class="ghost-button admin-booking-action" type="button" data-admin-action="waive-payment" data-booking-id="${booking.id}">Skip Stripe and mark free</button>`
@@ -529,39 +1086,78 @@ function renderAdminBookingCard(booking) {
   const staffAssignments = booking.staff_assignments || [];
   const guestName = booking.user_full_name || "Guest name not set";
   const guestPhone = booking.user_phone ? formatPhone(booking.user_phone) : "No phone";
+  const phoneHref = normalizePhoneHref(booking.user_phone);
+  const urgencyLabel = getAdminBookingUrgencyLabel(booking);
+  const bookedAt = booking.created_at ? formatBookingDate(booking.created_at) : "Booking time unavailable";
+  const paidAt = booking.confirmed_at ? formatBookingDate(booking.confirmed_at) : "Not paid yet";
+  const checkedInAt = booking.checked_in_at ? formatBookingDate(booking.checked_in_at) : "Not checked in";
+  const cancelledAt = booking.cancelled_at ? formatBookingDate(booking.cancelled_at) : "Not cancelled";
+  const paymentReference = booking.payment_intent_id || "No payment reference yet";
+  const originalAmount = booking.original_price_cents ?? booking.price_cents;
+  const staffMarkup = staffAssignments.length
+    ? staffAssignments.map((assignment) => `<span class="pill">${assignment.name}</span>`).join("")
+    : '<span class="pill muted">No staff attached</span>';
 
   return `
     <article class="booking-card admin-booking-record ${getStatusClass(booking.status)}">
       <div class="admin-booking-header">
-        <div>
-          <h4>${booking.room_name || "Room"} • ${booking.booking_code}</h4>
+        <div class="admin-booking-heading">
+          <div class="admin-booking-topline">
+            <span class="admin-booking-code">${booking.booking_code}</span>
+            ${urgencyLabel ? `<span class="pill admin-booking-urgency">${urgencyLabel}</span>` : ""}
+          </div>
+          <h4>${booking.room_name || "Room"}</h4>
           <p>${formatBookingDate(booking.start_time)} to ${formatBookingDate(booking.end_time)}</p>
         </div>
-        <div class="room-meta">
-          <span class="pill ${getStatusClass(booking.status)}">${booking.status}</span>
+        <div class="room-meta admin-booking-pill-stack">
+          <span class="pill ${getStatusClass(booking.status)}">${getStatusLabel(booking.status)}</span>
           <span class="pill">${formatDuration(booking.duration_minutes)}</span>
           <span class="pill">${formatMoney(booking.price_cents, booking.currency)}</span>
         </div>
       </div>
-      <div class="admin-booking-detail-grid">
-        <div class="availability-preview">
+      <div class="admin-booking-primary-grid">
+        <div class="availability-preview admin-booking-panel-card">
           <span class="availability-label">Guest</span>
           <p><strong>${guestName}</strong></p>
-          <p>${booking.user_email || "No email"}</p>
-          <p>${guestPhone}</p>
+          <div class="admin-booking-contact-links">
+            ${booking.user_email ? `<a class="ghost-link" href="mailto:${booking.user_email}">${booking.user_email}</a>` : "<span>No email</span>"}
+            ${phoneHref ? `<a class="ghost-link" href="${phoneHref}">${guestPhone}</a>` : `<span>${guestPhone}</span>`}
+          </div>
+          <div class="room-meta">
+            <span class="pill">${booking.user_id ? "Existing account" : "Snapshot only"}</span>
+          </div>
         </div>
-        <div class="availability-preview">
-          <span class="availability-label">Booking status</span>
-          <p>${booking.status}</p>
-          <p>${booking.created_at ? `Booked at ${formatBookingDate(booking.created_at)}` : "Booking time unavailable"}</p>
-          <p>${booking.checked_in_at ? `Checked in ${formatBookingDate(booking.checked_in_at)}` : "Not checked in yet"}</p>
-          <p>${booking.cancelled_at ? `Cancelled ${formatBookingDate(booking.cancelled_at)}` : "Active or completed booking"}</p>
+        <div class="availability-preview admin-booking-panel-card">
+          <span class="availability-label">Timeline</span>
+          ${renderAdminBookingTimelineRow("Booked", bookedAt)}
+          ${renderAdminBookingTimelineRow("Paid", paidAt)}
+          ${renderAdminBookingTimelineRow("Checked in", checkedInAt)}
+          ${renderAdminBookingTimelineRow("Cancelled", cancelledAt)}
+        </div>
+        <div class="availability-preview admin-booking-panel-card">
+          <span class="availability-label">Payment</span>
+          ${renderAdminBookingTimelineRow("Status", getStatusLabel(booking.status))}
+          ${renderAdminBookingTimelineRow("Original", formatMoney(originalAmount, booking.currency))}
+          ${booking.discount_cents ? renderAdminBookingTimelineRow("Discount", `-${formatMoney(booking.discount_cents, booking.currency)}`) : ""}
+          ${booking.promo_code ? renderAdminBookingTimelineRow("Promo", booking.promo_code) : ""}
+          ${renderAdminBookingTimelineRow("Amount", formatMoney(booking.price_cents, booking.currency))}
+          ${renderAdminBookingTimelineRow("Reference", paymentReference)}
         </div>
       </div>
-      ${staffAssignments.length ? `<p><strong>Staff:</strong> ${staffAssignments.map((assignment) => assignment.name).join(", ")}</p>` : '<p><strong>Staff:</strong> None attached</p>'}
-      ${booking.cancellation_reason ? `<p><strong>Cancellation reason:</strong> ${booking.cancellation_reason}</p>` : ""}
-      ${booking.note ? `<p><strong>Notes:</strong> ${booking.note}</p>` : ""}
-      ${(waivePaymentButton || checkInButton || refundButton) ? `<div class="room-actions">${waivePaymentButton}${checkInButton}${refundButton}</div>` : ""}
+      <div class="admin-booking-secondary-grid">
+        <div class="admin-booking-info-block">
+          <span class="availability-label">Staff</span>
+          <div class="preview-pill-row">${staffMarkup}</div>
+        </div>
+        ${booking.note ? `<div class="admin-booking-info-block"><span class="availability-label">Notes</span><p>${booking.note}</p></div>` : ""}
+        ${booking.cancellation_reason ? `<div class="admin-booking-info-block"><span class="availability-label">Cancellation reason</span><p>${booking.cancellation_reason}</p></div>` : ""}
+      </div>
+      <div class="admin-booking-actions">
+        ${manualPaidButton}
+        ${waivePaymentButton}
+        ${checkInButton}
+        ${refundButton}
+      </div>
     </article>
   `;
 }
@@ -621,10 +1217,10 @@ function renderScheduleBlocks(bookings) {
       const left = ((clampedStart - businessStart) / (businessEnd - businessStart)) * 100;
       const guestLabel = booking.user_full_name || booking.user_email || "Guest";
       return `
-        <article class="admin-schedule-block ${getStatusClass(booking.status)}" style="left:${left}%;width:${width}%;">
+        <article class="admin-schedule-block ${getStatusClass(booking.status)}" style="left:${left}%;width:${width}%;" title="${guestLabel} • ${booking.booking_code}">
           <strong>${formatTimeOnly(booking.start_time)} to ${formatTimeOnly(booking.end_time)}</strong>
           <span>${guestLabel}</span>
-          <span>${booking.status}</span>
+          <span>${booking.booking_code}</span>
         </article>
       `;
     })
@@ -677,6 +1273,147 @@ function renderAdminDaySchedule(currentState) {
         })
         .join("")
     }
+  `;
+}
+
+function getFilteredRoomCalendarBookings(currentState) {
+  const monthValue = safeMonthValue(selectedAdminCalendarMonth);
+  return (currentState.adminBookings || [])
+    .filter((booking) => getDateKey(booking.start_time).startsWith(monthValue))
+    .filter((booking) => selectedAdminCalendarRoomId === "all" || String(booking.room_id) === selectedAdminCalendarRoomId)
+    .sort((left, right) => new Date(left.start_time).getTime() - new Date(right.start_time).getTime());
+}
+
+function renderAdminRoomCalendarSummary(currentState) {
+  const summaryElement = getAdminRoomCalendarSummaryElement();
+  if (!summaryElement) {
+    return;
+  }
+
+  const bookings = getFilteredRoomCalendarBookings(currentState);
+  const bookedDays = new Set(bookings.map((booking) => getDateKey(booking.start_time))).size;
+  const pendingCount = bookings.filter((booking) => booking.status === "PendingPayment").length;
+  const settledCount = bookings.filter((booking) => ["Paid", "Completed"].includes(booking.status)).length;
+  const revenue = bookings
+    .filter((booking) => ["Paid", "Completed", "Refunded"].includes(booking.status))
+    .reduce((total, booking) => total + (booking.price_cents || 0), 0);
+  const cards = [
+    { label: "Month", value: formatMonthHeading(selectedAdminCalendarMonth) },
+    { label: "Room focus", value: getAdminRoomCalendarLabel(currentState) },
+    { label: "Booked days", value: bookedDays },
+    { label: "Sessions", value: bookings.length },
+    { label: "Pending", value: pendingCount },
+    { label: "Paid / completed", value: settledCount },
+    { label: "Booked revenue", value: formatMoney(revenue) },
+  ];
+
+  summaryElement.innerHTML = cards
+    .map(
+      (card) => `
+        <article class="metric-card">
+          <span class="metric-label">${card.label}</span>
+          <strong class="metric-value">${card.value}</strong>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function renderAdminRoomCalendar(currentState) {
+  const gridElement = getAdminRoomCalendarGridElement();
+  if (!gridElement) {
+    return;
+  }
+
+  const rooms = currentState.rooms || [];
+  if (!rooms.length) {
+    gridElement.innerHTML = '<div class="empty-state">Create a room first so the admin calendar has something to show.</div>';
+    return;
+  }
+
+  const bookings = getFilteredRoomCalendarBookings(currentState);
+  const bookingsByDate = bookings.reduce((accumulator, booking) => {
+    const key = getDateKey(booking.start_time);
+    accumulator[key] = accumulator[key] || [];
+    accumulator[key].push(booking);
+    return accumulator;
+  }, {});
+  const offset = getMonthStartOffset(selectedAdminCalendarMonth);
+  const dayCount = getMonthDayCount(selectedAdminCalendarMonth);
+  const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const roomLabel = getAdminRoomCalendarLabel(currentState);
+
+  const cells = Array.from({ length: offset }, () => '<div class="admin-room-calendar-spacer" aria-hidden="true"></div>');
+
+  for (let dayNumber = 1; dayNumber <= dayCount; dayNumber += 1) {
+    const dayKey = getMonthDateKey(selectedAdminCalendarMonth, dayNumber);
+    const dayBookings = bookingsByDate[dayKey] || [];
+    const pendingCount = dayBookings.filter((booking) => booking.status === "PendingPayment").length;
+    const activeCount = dayBookings.filter((booking) => ["PendingPayment", "Paid", "Completed"].includes(booking.status)).length;
+    const revenue = dayBookings
+      .filter((booking) => ["Paid", "Completed", "Refunded"].includes(booking.status))
+      .reduce((total, booking) => total + (booking.price_cents || 0), 0);
+    const roomHints = Array.from(new Set(dayBookings.map((booking) => booking.room_name).filter(Boolean))).slice(0, 2);
+    const classNames = ["admin-room-calendar-day"];
+    if (dayBookings.length) {
+      classNames.push("is-busy");
+    } else {
+      classNames.push("is-open");
+    }
+    if (pendingCount) {
+      classNames.push("is-pending");
+    }
+    if (dayBookings.length && dayBookings.every((booking) => ["Cancelled", "Refunded"].includes(booking.status))) {
+      classNames.push("is-closed");
+    }
+    if (dayKey === todayString()) {
+      classNames.push("is-today");
+    }
+    if (dayKey === selectedAdminScheduleDate) {
+      classNames.push("is-selected");
+    }
+
+    const metaLine = dayBookings.length
+      ? `${dayBookings.length} booking${dayBookings.length === 1 ? "" : "s"}`
+      : "Open day";
+    const supportLine = pendingCount
+      ? `${pendingCount} pending payment`
+      : activeCount
+        ? `${activeCount} active session${activeCount === 1 ? "" : "s"}`
+        : roomHints.join(" • ") || "No bookings yet";
+
+    cells.push(`
+      <button
+        class="${classNames.join(" ")}"
+        type="button"
+        data-admin-calendar-date="${dayKey}"
+        title="Open day board for ${dayKey}"
+      >
+        <strong>${dayNumber}</strong>
+        <span>${metaLine}</span>
+        <small>${supportLine}</small>
+        ${revenue ? `<small>${formatMoney(revenue)}</small>` : '<small>Tap to open day board</small>'}
+      </button>
+    `);
+  }
+
+  gridElement.innerHTML = `
+    <div class="admin-room-calendar-header">
+      <div>
+        <h4>${formatMonthHeading(selectedAdminCalendarMonth)}</h4>
+        <p>${roomLabel}. Click any day to jump into the detailed day board.</p>
+      </div>
+      <div class="room-meta">
+        <span class="pill">${roomLabel}</span>
+        <span class="pill">${bookings.length} booking${bookings.length === 1 ? "" : "s"} this month</span>
+      </div>
+    </div>
+    <div class="admin-room-calendar-weekdays">
+      ${weekdayLabels.map((label) => `<span>${label}</span>`).join("")}
+    </div>
+    <div class="admin-room-calendar-cells">
+      ${cells.join("")}
+    </div>
   `;
 }
 
@@ -795,6 +1532,7 @@ export function initAdminView(actions) {
         booking_code: form.get("booking_code"),
         status: form.get("status"),
       });
+      setActiveAdminSubpage("bookings", "queue");
       renderAdminView(actions.getState());
       setState({ message: "Admin booking results loaded." });
     } catch (error) {
@@ -804,6 +1542,8 @@ export function initAdminView(actions) {
 
   elements.adminBookingClearButton?.addEventListener("click", () => {
       adminSearchResults = null;
+      selectedAdminBookingQuickFilter = "all";
+      setActiveAdminSubpage("bookings", "queue");
       elements.adminBookingLookupForm?.reset();
       renderAdminView(actions.getState());
       setState({ message: "Booking filters cleared." });
@@ -814,6 +1554,14 @@ export function initAdminView(actions) {
     renderManualBookingStaffOptions(actions.getState());
   });
 
+  getAdminPromoDiscountTypeSelect()?.addEventListener("change", () => {
+    syncAdminPromoDiscountFields();
+  });
+
+  document.getElementById("admin-promo-cancel-edit")?.addEventListener("click", () => {
+    resetAdminPromoForm();
+  });
+
   elements.adminScheduleDate?.addEventListener("change", () => {
     selectedAdminScheduleDate = elements.adminScheduleDate.value || todayString();
     renderAdminView(actions.getState());
@@ -822,6 +1570,37 @@ export function initAdminView(actions) {
   elements.adminScheduleRoomFilter?.addEventListener("change", () => {
     selectedAdminScheduleRoomId = elements.adminScheduleRoomFilter.value || "all";
     renderAdminView(actions.getState());
+  });
+
+  getAdminCalendarMonthInput()?.addEventListener("change", () => {
+    selectedAdminCalendarMonth = safeMonthValue(getAdminCalendarMonthInput()?.value);
+    renderAdminView(actions.getState());
+  });
+
+  getAdminCalendarRoomFilter()?.addEventListener("change", () => {
+    selectedAdminCalendarRoomId = getAdminCalendarRoomFilter()?.value || "all";
+    renderAdminView(actions.getState());
+  });
+
+  const applyAdminBookingQuickFilter = (filterKey) => {
+    selectedAdminBookingQuickFilter = filterKey || "all";
+    renderAdminView(actions.getState());
+  };
+
+  elements.adminBookingQuickSummary?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-admin-booking-filter]");
+    if (!button) {
+      return;
+    }
+    applyAdminBookingQuickFilter(button.dataset.adminBookingFilter);
+  });
+
+  elements.adminBookingQuickFilters?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-admin-booking-filter]");
+    if (!button) {
+      return;
+    }
+    applyAdminBookingQuickFilter(button.dataset.adminBookingFilter);
   });
 
   elements.adminClearDayButton?.addEventListener("click", async () => {
@@ -839,6 +1618,7 @@ export function initAdminView(actions) {
       setState({ message: "Clearing bookings for selected day..." });
       const result = await api.adminClearBookingsForDay({ date: targetDate });
       adminSearchResults = null;
+      setActiveAdminSubpage("bookings", "schedule");
       await actions.refreshAll(`${result.deleted_count} booking${result.deleted_count === 1 ? "" : "s"} cleared for ${targetDate}.`);
     } catch (error) {
       setState({ message: error.message });
@@ -855,6 +1635,7 @@ export function initAdminView(actions) {
       setState({ message: "Clearing past bookings..." });
       const result = await api.adminClearPastBookings();
       adminSearchResults = null;
+      setActiveAdminSubpage("bookings", "cleanup");
       await actions.refreshAll(`${result.deleted_count} past booking${result.deleted_count === 1 ? "" : "s"} cleared.`);
     } catch (error) {
       setState({ message: error.message });
@@ -864,6 +1645,18 @@ export function initAdminView(actions) {
   elements.adminTabs?.forEach((button) => {
     button.addEventListener("click", () => {
       setActiveAdminTab(button.dataset.adminTab);
+    });
+  });
+
+  document.querySelectorAll("[data-admin-subpage-button]").forEach((button) => {
+    button.addEventListener("click", () => {
+      setActiveAdminSubpage(button.dataset.adminSubpageButton, button.dataset.adminSubpage);
+    });
+  });
+
+  document.querySelectorAll("[data-admin-subpage-select]").forEach((select) => {
+    select.addEventListener("change", () => {
+      setActiveAdminSubpage(select.dataset.adminSubpageSelect, select.value);
     });
   });
 
@@ -878,6 +1671,7 @@ export function initAdminView(actions) {
     }
 
     selectedAdminAccountId = button.dataset.userId;
+    setActiveAdminSubpage("accounts", "detail");
     renderAdminView(actions.getState());
   });
 
@@ -893,9 +1687,15 @@ export function initAdminView(actions) {
       return;
     }
 
+    const adminPassword = window.prompt("Enter your admin password to delete this account.");
+    if (!adminPassword) {
+      setState({ message: "Account deletion cancelled." });
+      return;
+    }
+
     try {
       setState({ message: "Deleting account..." });
-      await api.adminDeleteUser(button.dataset.userId);
+      await api.adminDeleteUser(button.dataset.userId, { admin_password: adminPassword });
       if (selectedAdminAccountId === button.dataset.userId) {
         selectedAdminAccountId = null;
       }
@@ -949,6 +1749,7 @@ export function initAdminView(actions) {
       }
 
       resetStaffProfileForm();
+      setActiveAdminSubpage("staff", "editor");
       await actions.refreshAll("Staff profile saved.");
     } catch (error) {
       setState({ message: error.message });
@@ -966,6 +1767,7 @@ export function initAdminView(actions) {
         room_id: form.get("room_id"),
         start_time: toIsoStringFromLocal(form.get("start_time")),
         duration_minutes: Number(form.get("duration_minutes")),
+        promo_code: String(form.get("promo_code") || "").trim() || null,
         note: form.get("note") || null,
         staff_assignments: getSelectedManualStaffIds(),
       });
@@ -975,7 +1777,28 @@ export function initAdminView(actions) {
       }
       adminSearchResults = null;
       renderManualBookingStaffOptions(actions.getState());
+      setActiveAdminSubpage("bookings", "queue");
       await actions.refreshAll("Manual booking created.");
+    } catch (error) {
+      setState({ message: error.message });
+    }
+  });
+
+  getAdminPromoForm()?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const promoCodeId = getAdminPromoIdInput()?.value || "";
+
+    try {
+      setState({ message: promoCodeId ? "Updating promo code..." : "Creating promo code..." });
+      const payload = buildAdminPromoPayload();
+      if (promoCodeId) {
+        await api.adminUpdatePromoCode(promoCodeId, payload);
+      } else {
+        await api.adminCreatePromoCode(payload);
+      }
+      resetAdminPromoForm();
+      setActiveAdminSubpage("bookings", "promos");
+      await actions.refreshAll("Promo code saved.");
     } catch (error) {
       setState({ message: error.message });
     }
@@ -996,7 +1819,21 @@ export function initAdminView(actions) {
         setState({ message: "Marking booking free..." });
         await api.adminWaiveBookingPayment(button.dataset.bookingId);
         adminSearchResults = null;
+        setActiveAdminSubpage("bookings", "queue");
         await actions.refreshAll("Booking marked paid without Stripe.");
+        return;
+      }
+
+      if (button.dataset.adminAction === "mark-paid") {
+        const confirmed = window.confirm("Mark this booking paid manually?");
+        if (!confirmed) {
+          return;
+        }
+        setState({ message: "Marking booking paid manually..." });
+        await api.adminMarkBookingPaid(button.dataset.bookingId);
+        adminSearchResults = null;
+        setActiveAdminSubpage("bookings", "queue");
+        await actions.refreshAll("Booking marked paid manually.");
         return;
       }
 
@@ -1007,6 +1844,7 @@ export function initAdminView(actions) {
           reason: "Admin refund",
         });
         adminSearchResults = null;
+        setActiveAdminSubpage("bookings", "queue");
         await actions.refreshAll("Refund processed.");
         return;
       }
@@ -1015,6 +1853,7 @@ export function initAdminView(actions) {
         setState({ message: "Marking guest as arrived..." });
         await api.adminCheckInBooking(button.dataset.bookingId);
         adminSearchResults = null;
+        setActiveAdminSubpage("bookings", "queue");
         await actions.refreshAll("Guest checked in.");
       }
     } catch (error) {
@@ -1038,6 +1877,7 @@ export function initAdminView(actions) {
           return;
         }
         populateStaffProfileForm(profile);
+        setActiveAdminSubpage("staff", "editor");
         setState({ message: `Editing ${profile.name}.` });
         return;
       }
@@ -1070,6 +1910,41 @@ export function initAdminView(actions) {
     }
   });
 
+  getAdminPromoList()?.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-admin-action]");
+    if (!button) {
+      return;
+    }
+
+    const currentState = actions.getState();
+    const promoCode = (currentState.adminPromoCodes || []).find(
+      (item) => String(item.id) === button.dataset.promoCodeId,
+    );
+    if (!promoCode) {
+      setState({ message: "Promo code not found." });
+      return;
+    }
+
+    try {
+      if (button.dataset.adminAction === "edit-promo") {
+        populateAdminPromoForm(promoCode);
+        setActiveAdminSubpage("bookings", "promos");
+        setState({ message: `Editing ${promoCode.code}.` });
+        return;
+      }
+
+      if (button.dataset.adminAction === "toggle-promo") {
+        setState({ message: promoCode.active ? "Deactivating promo code..." : "Activating promo code..." });
+        await api.adminUpdatePromoCode(promoCode.id, {
+          active: button.dataset.nextActive === "true",
+        });
+        await actions.refreshAll(promoCode.active ? "Promo code deactivated." : "Promo code activated.");
+      }
+    } catch (error) {
+      setState({ message: error.message });
+    }
+  });
+
   elements.adminRoomStaffList?.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-admin-action='save-room-staff']");
     if (!button) {
@@ -1091,6 +1966,34 @@ export function initAdminView(actions) {
     } catch (error) {
       setState({ message: error.message });
     }
+  });
+
+  getAdminRoomCalendarGridElement()?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-admin-calendar-date]");
+    if (!button) {
+      return;
+    }
+
+    selectedAdminScheduleDate = button.dataset.adminCalendarDate || todayString();
+    selectedAdminScheduleRoomId = selectedAdminCalendarRoomId || "all";
+    if (elements.adminScheduleDate) {
+      elements.adminScheduleDate.value = selectedAdminScheduleDate;
+    }
+    if (elements.adminScheduleRoomFilter) {
+      elements.adminScheduleRoomFilter.value = selectedAdminScheduleRoomId;
+    }
+    setActiveAdminSubpage("bookings", "schedule");
+    renderAdminView(actions.getState());
+    setState({ message: `Showing day board for ${selectedAdminScheduleDate}.` });
+  });
+
+  window.addEventListener("admin-subpage-request", (event) => {
+    const detail = event.detail || {};
+    if (!detail.group || !detail.subpage) {
+      return;
+    }
+    setActiveAdminTab(detail.group);
+    setActiveAdminSubpage(detail.group, detail.subpage);
   });
 }
 
@@ -1122,6 +2025,9 @@ export function renderAdminView(currentState) {
   );
   const previousRoomId = elements.adminRoomSelect.value;
   const previousScheduleRoomId = elements.adminScheduleRoomFilter?.value || selectedAdminScheduleRoomId;
+  const calendarRoomFilter = getAdminCalendarRoomFilter();
+  const previousCalendarRoomId = calendarRoomFilter?.value || selectedAdminCalendarRoomId;
+  const calendarMonthInput = getAdminCalendarMonthInput();
   elements.adminRoomSelect.innerHTML = roomOptions.length
     ? roomOptions.join("")
     : '<option value="">No active rooms</option>';
@@ -1145,9 +2051,23 @@ export function renderAdminView(currentState) {
   if (elements.adminScheduleDate && elements.adminScheduleDate.value !== selectedAdminScheduleDate) {
     elements.adminScheduleDate.value = selectedAdminScheduleDate;
   }
+  if (calendarRoomFilter) {
+    const calendarRoomOptions = ['<option value="all">All rooms</option>'].concat(
+      (currentState.rooms || []).map((room) => `<option value="${room.id}">${room.name}</option>`),
+    );
+    calendarRoomFilter.innerHTML = calendarRoomOptions.join("");
+    selectedAdminCalendarRoomId = (currentState.rooms || []).some((room) => String(room.id) === previousCalendarRoomId)
+      ? previousCalendarRoomId
+      : "all";
+    calendarRoomFilter.value = selectedAdminCalendarRoomId;
+  }
+  if (calendarMonthInput && calendarMonthInput.value !== selectedAdminCalendarMonth) {
+    calendarMonthInput.value = safeMonthValue(selectedAdminCalendarMonth);
+  }
 
   if (!isAdmin) {
     setActiveAdminTab("overview");
+    Object.assign(activeAdminSubpages, DEFAULT_ADMIN_SUBPAGES);
     adminSearchResults = null;
     elements.adminAnalyticsGrid && (elements.adminAnalyticsGrid.innerHTML = "");
     elements.adminRoomBreakdown && (elements.adminRoomBreakdown.innerHTML = "");
@@ -1162,14 +2082,30 @@ export function renderAdminView(currentState) {
     elements.adminManualStaffOptions && (elements.adminManualStaffOptions.innerHTML = "");
     elements.adminDaySummary && (elements.adminDaySummary.innerHTML = "");
     elements.adminDaySchedule && (elements.adminDaySchedule.innerHTML = "");
+    getAdminPromoList() && (getAdminPromoList().innerHTML = "");
+    getAdminRoomCalendarSummaryElement() && (getAdminRoomCalendarSummaryElement().innerHTML = "");
+    getAdminRoomCalendarGridElement() && (getAdminRoomCalendarGridElement().innerHTML = "");
     elements.adminBookingResults.innerHTML = "";
+    elements.adminBookingQuickSummary && (elements.adminBookingQuickSummary.innerHTML = "");
+    elements.adminBookingQuickFilters && (elements.adminBookingQuickFilters.innerHTML = "");
+    if (elements.adminBookingResultsCopy) {
+      elements.adminBookingResultsCopy.textContent =
+        "See who booked, who cancelled, room details, staff add-ons, and booking notes in one organized list.";
+    }
     selectedAdminAccountId = null;
     return;
   }
 
   setActiveAdminTab(activeAdminTab);
+  Object.entries(activeAdminSubpages).forEach(([group, subpage]) => {
+    setActiveAdminSubpage(group, subpage);
+  });
   renderAdminDaySummary(currentState);
   renderAdminDaySchedule(currentState);
+  renderAdminRoomCalendarSummary(currentState);
+  renderAdminRoomCalendar(currentState);
+  renderAdminPromoCodes(currentState);
+  syncAdminPromoDiscountFields();
 
   if (elements.adminAnalyticsGrid) {
     const analytics = currentState.adminAnalytics;
@@ -1304,12 +2240,23 @@ export function renderAdminView(currentState) {
       : '<div class="empty-state">No backend test cases are registered yet.</div>';
   }
 
-  const bookingResults = adminSearchResults || currentState.adminBookings;
-  elements.adminBookingResults.innerHTML = bookingResults.length
-    ? bookingResults.map(renderAdminBookingCard).join("")
+  const { baseBookings, filteredBookings, filterOptions, searchActive } = getAdminBookingCollections(currentState);
+  renderAdminBookingQuickSummary(baseBookings, filterOptions);
+  renderAdminBookingQuickFilters(filterOptions);
+  renderAdminBookingResultsCopy(baseBookings, filteredBookings, filterOptions, searchActive);
+
+  const groupedBookings = ADMIN_BOOKING_GROUPS
+    .map((group) => ({
+      ...group,
+      bookings: filteredBookings.filter((booking) => booking.status === group.key),
+    }))
+    .filter((group) => group.bookings.length);
+
+  elements.adminBookingResults.innerHTML = filteredBookings.length
+    ? groupedBookings.map((group) => renderAdminBookingGroup(group, group.bookings)).join("")
     : `
         <div class="empty-state">
-          No admin booking results yet. Search by email, booking code, or status.
+          ${searchActive ? "No bookings matched your search and quick filter." : "No bookings match the current quick filter yet."}
         </div>
       `;
 

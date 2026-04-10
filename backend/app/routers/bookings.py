@@ -2,6 +2,7 @@ from datetime import date
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
@@ -17,6 +18,7 @@ from app.schemas.booking import (
     ReservationCreate,
     ReservationOut,
 )
+from app.schemas.promo_code import PromoCodePreviewIn, PromoCodePreviewOut
 from app.services.booking_service import (
     BookingConflictError,
     DailyBookingLimitError,
@@ -33,6 +35,12 @@ from app.services.booking_service import (
 )
 from app.config import settings
 from app.services.payment_service import PaymentBackendError
+from app.services.promo_code_service import PromoCodeError, calculate_discount_for_amount
+from app.services.receipt_service import (
+    booking_receipt_available,
+    build_booking_receipt_filename,
+    build_booking_receipt_pdf,
+)
 
 
 router = APIRouter(prefix="/api", tags=["Bookings"])
@@ -84,6 +92,8 @@ def create_booking_endpoint(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except StaffAvailabilityError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except PromoCodeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except PaymentBackendError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ValueError as exc:
@@ -110,6 +120,49 @@ def get_my_booking(
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
     return booking
+
+
+@router.post("/public/promo-codes/preview", response_model=PromoCodePreviewOut, include_in_schema=False)
+def preview_promo_code(
+    payload: PromoCodePreviewIn,
+    db: Session = Depends(get_db),
+):
+    try:
+        result = calculate_discount_for_amount(db, payload.code, payload.amount_cents)
+    except PromoCodeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    promo_code = result["promo_code"]
+    return {
+        "code": promo_code.code,
+        "description": promo_code.description,
+        "amount_cents": payload.amount_cents,
+        "discount_cents": result["discount_cents"],
+        "final_amount_cents": result["final_amount_cents"],
+        "percent_off": promo_code.percent_off,
+        "amount_off_cents": promo_code.amount_off_cents,
+    }
+
+
+@router.get("/bookings/{booking_id}/receipt")
+def download_my_booking_receipt(
+    booking_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    booking = get_booking_for_user(db, booking_id, current_user)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if not booking_receipt_available(booking):
+        raise HTTPException(status_code=400, detail="Receipt is only available after payment is settled")
+
+    return Response(
+        content=build_booking_receipt_pdf(db, booking),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{build_booking_receipt_filename(booking)}"'
+        },
+    )
 
 
 @router.post("/bookings/{booking_id}/payment-session", response_model=PaymentSessionOut)

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Reserve Room | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260409c" />
   </head>
   <body data-page="reserve">
     <div class="site-frame">
@@ -90,6 +90,16 @@
               <span>Booking notes</span>
               <textarea id="reserve-note-input" name="note" rows="3" placeholder="Session details, guests, or special requests"></textarea>
             </label>
+            <div class="profile-span-2 booking-promo-shell">
+              <div class="booking-promo-toolbar">
+                <label class="inline-field booking-promo-field">
+                  <span>Promo code</span>
+                  <input id="reserve-promo-code-input" type="text" name="promo_code" placeholder="FOUNDATION10" autocomplete="off" />
+                </label>
+                <button id="reserve-promo-preview-button" class="ghost-button" type="button">Apply code</button>
+              </div>
+              <div id="reserve-promo-feedback" class="empty-state hidden"></div>
+            </div>
             <div id="reserve-staff-section" class="profile-span-2 hidden">
               <span>Additional staff</span>
               <p class="field-help">Select any staff profiles you'd like to add to this booking.</p>
@@ -152,6 +162,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260401u"></script>
+    <script type="module" src="/assets/js/main.js?v=20260409c"></script>
   </body>
 </html>

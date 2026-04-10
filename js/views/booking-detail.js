@@ -1,4 +1,6 @@
 import { api } from "../api.js?v=20260401r";
+import { downloadBookingCalendarFile } from "../calendar.js?v=20260408k";
+import { downloadBookingReceiptPdf } from "../receipt.js?v=20260409a";
 import { elements, toggleHidden } from "../dom.js?v=20260401r";
 import { setState } from "../state.js?v=20260401r";
 
@@ -33,6 +35,14 @@ function formatCountdown(seconds) {
 function formatDuration(minutes) {
   const hours = minutes / 60;
   return `${hours} hour${hours === 1 ? "" : "s"}`;
+}
+
+function isAdminWaivedPayment(booking) {
+  return booking.price_cents === 0 && String(booking.payment_intent_id || "").startsWith("admin_waived_");
+}
+
+function isAdminManualPayment(booking) {
+  return String(booking.payment_intent_id || "").startsWith("admin_manual_paid_");
 }
 
 function buildPaymentSuccessUrl(bookingId) {
@@ -145,6 +155,7 @@ function renderPaymentPanel(state, booking) {
 
   const isPending = booking.status === "PendingPayment";
   const canAdminWaivePayment = isPending && Boolean(state.currentUser?.is_admin);
+  const canAdminMarkPaid = canAdminWaivePayment && booking.price_cents > 0;
   toggleHidden(elements.bookingPaymentPanel, !isPending);
   if (!isPending) {
     clearPaymentElement();
@@ -156,6 +167,13 @@ function renderPaymentPanel(state, booking) {
     <button class="ghost-button" type="button" data-booking-detail-action="load-payment" data-booking-id="${booking.id}">
       Load payment
     </button>
+    ${
+      canAdminMarkPaid
+        ? `<button class="ghost-button" type="button" data-booking-detail-action="mark-paid" data-booking-id="${booking.id}">
+      Mark paid manually as admin
+    </button>`
+        : ""
+    }
     ${
       canAdminWaivePayment
         ? `<button class="ghost-button" type="button" data-booking-detail-action="waive-payment" data-booking-id="${booking.id}">
@@ -229,6 +247,10 @@ export function initBookingDetailView(actions) {
 
     try {
       if (action === "cancel") {
+        const confirmed = window.confirm("Are you sure you want to cancel this booking?");
+        if (!confirmed) {
+          return;
+        }
         setState({ message: "Cancelling booking..." });
         const booking = await api.cancelBooking(button.dataset.bookingId, { reason: "Cancelled by user" });
         clearPaymentElement();
@@ -291,6 +313,34 @@ export function initBookingDetailView(actions) {
         clearPaymentElement();
         setState({ selectedBooking: booking, message: "Booking marked free." });
         window.location.assign(buildPaymentSuccessUrl(booking.id).toString());
+        return;
+      }
+
+      if (action === "mark-paid") {
+        const confirmed = window.confirm("Mark this booking paid manually?");
+        if (!confirmed) {
+          return;
+        }
+        setState({ message: "Marking booking paid manually..." });
+        const booking = await api.adminMarkBookingPaid(button.dataset.bookingId);
+        clearPaymentElement();
+        setState({ selectedBooking: booking, message: "Booking marked paid manually." });
+        window.location.assign(buildPaymentSuccessUrl(booking.id).toString());
+        return;
+      }
+
+      if (action === "download-calendar") {
+        const booking = await api.getBooking(button.dataset.bookingId);
+        downloadBookingCalendarFile(booking);
+        setState({ message: "Calendar file downloaded." });
+        return;
+      }
+
+      if (action === "download-receipt") {
+        const booking = await api.getBooking(button.dataset.bookingId);
+        await downloadBookingReceiptPdf(booking.id, booking.booking_code);
+        setState({ message: "Receipt PDF downloaded." });
+        return;
       }
     } catch (error) {
       setState({ message: error.message });
@@ -337,10 +387,22 @@ export function renderBookingDetailView(state) {
 
   const canCancel = booking.status === "PendingPayment" || booking.status === "Paid";
   const canPay = booking.status === "PendingPayment";
+  const canAddToCalendar = !["Cancelled", "Refunded"].includes(booking.status);
+  const canDownloadReceipt = ["Paid", "Completed", "Refunded"].includes(booking.status);
+  const settlementPill = isAdminWaivedPayment(booking)
+    ? '<span class="pill">Admin free booking</span>'
+    : isAdminManualPayment(booking)
+      ? '<span class="pill">Manual payment noted</span>'
+      : "";
   elements.bookingDetailActions.innerHTML = `
+    ${canAddToCalendar ? `<button class="ghost-button" type="button" data-booking-detail-action="download-calendar" data-booking-id="${booking.id}">Add to calendar</button>` : ""}
+    ${canDownloadReceipt ? `<button class="ghost-button" type="button" data-booking-detail-action="download-receipt" data-booking-id="${booking.id}">Download receipt PDF</button>` : ""}
     ${canCancel ? `<button class="ghost-button" type="button" data-booking-detail-action="cancel" data-booking-id="${booking.id}">Cancel booking</button>` : ""}
     ${canPay ? `<button class="ghost-button" type="button" data-booking-detail-action="load-payment" data-booking-id="${booking.id}">Continue payment</button>` : ""}
   `;
+  if (settlementPill) {
+    elements.bookingDetailMeta.insertAdjacentHTML("beforeend", settlementPill);
+  }
 
   renderPaymentPanel(state, booking);
 }

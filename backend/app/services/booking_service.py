@@ -33,6 +33,7 @@ from app.services.payment_service import (
     create_refund,
     get_payment_intent_session,
 )
+from app.services.promo_code_service import apply_promo_code_to_amount
 from app.services.reservation_service import ReservationHold, create_hold, release_hold, validate_hold
 
 
@@ -334,6 +335,7 @@ def create_booking(db: Session, user: User, payload: BookingCreate) -> Booking:
         duration_minutes=payload.duration_minutes,
         status="PendingPayment",
         reservation_token=payload.reservation_token,
+        promo_code=payload.promo_code,
         note=payload.note,
         selected_staff_ids=payload.staff_assignments,
         enforce_daily_limit=not user.is_admin,
@@ -351,6 +353,7 @@ def _create_booking_record(
     payment_intent_id: Optional[str] = None,
     mark_confirmed: bool = False,
     reservation_token: Optional[str] = None,
+    promo_code: Optional[str] = None,
     note: Optional[str] = None,
     selected_staff_ids: Optional[list[str]] = None,
     enforce_daily_limit: bool = True,
@@ -371,6 +374,12 @@ def _create_booking_record(
     except ValueError as exc:
         raise StaffSelectionError(str(exc)) from exc
     ensure_staff_assignments_available(db, staff_assignments, normalized_start, end_time)
+    original_price_cents = calculate_booking_total_cents(
+        room.hourly_rate_cents,
+        duration_minutes,
+        staff_assignments,
+    )
+    promo_result = apply_promo_code_to_amount(db, promo_code, original_price_cents)
 
     if reservation_token and not validate_hold(slot_keys, reservation_token):
         raise ValueError("Reservation hold is invalid or expired")
@@ -381,11 +390,10 @@ def _create_booking_record(
         start_time=normalized_start,
         end_time=end_time,
         duration_minutes=duration_minutes,
-        price_cents=calculate_booking_total_cents(
-            room.hourly_rate_cents,
-            duration_minutes,
-            staff_assignments,
-        ),
+        original_price_cents=original_price_cents,
+        discount_cents=promo_result["discount_cents"],
+        promo_code=promo_result["promo_code"].code if promo_result["promo_code"] else None,
+        price_cents=promo_result["final_amount_cents"],
         currency=settings.DEFAULT_CURRENCY,
         status=status,
         booking_code=generate_booking_code(),
@@ -440,6 +448,8 @@ def _create_booking_record(
         status="Queued",
         details={
             "booking_code": booking.booking_code,
+            "promo_code": booking.promo_code,
+            "discount_cents": booking.discount_cents,
             "queued_tasks": [
                 "send_booking_created_email",
                 "send_booking_created_sms",
@@ -564,6 +574,7 @@ def create_manual_booking(db: Session, admin: User, payload: ManualBookingCreate
         duration_minutes=payload.duration_minutes,
         status="Paid",
         mark_confirmed=True,
+        promo_code=payload.promo_code,
         note=payload.note,
         selected_staff_ids=payload.staff_assignments,
         enforce_daily_limit=False,
@@ -756,6 +767,31 @@ def waive_booking_payment(db: Session, booking_id: str, admin: User) -> Booking:
             "original_price_cents": original_price_cents,
             "payment_intent_id": waived_payment_reference,
             "reason": "Admin skipped Stripe payment for testing",
+        },
+    )
+    db.commit()
+    db.refresh(booking)
+    return booking
+
+
+def mark_booking_paid_manually(db: Session, booking_id: str, admin: User) -> Booking:
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if not booking:
+        raise ValueError("Booking not found")
+    if booking.status != "PendingPayment":
+        raise ValueError("Only pending bookings can be marked paid manually")
+
+    manual_payment_reference = f"admin_manual_paid_{uuid4().hex[:24]}"
+    booking = mark_booking_paid(db, booking, manual_payment_reference)
+    create_audit_log(
+        db,
+        actor_id=admin.id,
+        booking_id=booking.id,
+        action="payment_marked_paid_by_admin",
+        details={
+            "price_cents": booking.price_cents,
+            "payment_intent_id": manual_payment_reference,
+            "reason": "Admin marked booking paid without Stripe checkout",
         },
     )
     db.commit()
@@ -1026,6 +1062,9 @@ def serialize_admin_booking(
         "start_time": booking.start_time,
         "end_time": booking.end_time,
         "duration_minutes": booking.duration_minutes,
+        "original_price_cents": booking.original_price_cents,
+        "discount_cents": booking.discount_cents,
+        "promo_code": booking.promo_code,
         "price_cents": booking.price_cents,
         "currency": booking.currency,
         "status": booking.status,
