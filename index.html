@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260408f" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260410a" />
   </head>
   <body data-page="home">
     <div class="site-frame">
@@ -29,28 +29,65 @@
 
       <main class="home-layout home-layout-refined">
         <section class="hero-card hero-card-wide home-hero-shell">
-          <div class="home-hero-media">
-            <img
-              class="home-hero-image"
-              src="/assets/media/studio-building-exterior.jpg"
-              alt="Studio exterior"
-              loading="eager"
-            />
-            <div class="home-hero-overlay home-hero-overlay-primary"></div>
-            <div class="home-hero-overlay home-hero-overlay-secondary"></div>
+          <div class="home-carousel" data-home-carousel>
+            <div class="home-carousel-slides-container">
+              <div class="home-carousel-slide is-active" data-home-slide>
+                <img class="home-hero-image" src="/assets/media/studio-building-exterior.jpg" alt="Studio exterior" loading="eager" />
+              </div>
+              <div class="home-carousel-slide" data-home-slide>
+                <img class="home-hero-image" src="/assets/media/studio-building-lobby.svg" alt="Studio lobby" loading="lazy" />
+              </div>
+              <div class="home-carousel-slide" data-home-slide>
+                <img class="home-hero-image" src="/assets/media/studio-building-signature-room.svg" alt="Signature studio room" loading="lazy" />
+              </div>
+            </div>
+
+            <div class="home-carousel-controls">
+              <button data-home-prev class="home-carousel-button" type="button">Previous</button>
+              <div class="home-carousel-progress">
+                <div class="home-carousel-counter" data-home-counter>1 / 3</div>
+                <div class="home-carousel-dots">
+                  <button class="home-carousel-dot is-active" type="button" data-home-dot aria-current="true"></button>
+                  <button class="home-carousel-dot" type="button" data-home-dot aria-current="false"></button>
+                  <button class="home-carousel-dot" type="button" data-home-dot aria-current="false"></button>
+                </div>
+              </div>
+              <button data-home-next class="home-carousel-button" type="button">Next</button>
+            </div>
+          </div>
+
+          <div class="home-carousel-captions">
+            <button class="home-carousel-caption is-active" type="button" data-home-caption>
+              <span class="home-carousel-caption-kicker">Arrival</span>
+              <strong>Welcoming exterior and arrival point</strong>
+              <p>Start with how the studio feels from the street and where to park.</p>
+            </button>
+            <button class="home-carousel-caption" type="button" data-home-caption>
+              <span class="home-carousel-caption-kicker">Lobby</span>
+              <strong>Warm guest check-in area</strong>
+              <p>See the lobby style and client welcome space before booking.</p>
+            </button>
+            <button class="home-carousel-caption" type="button" data-home-caption>
+              <span class="home-carousel-caption-kicker">Studio</span>
+              <strong>Signature room atmosphere</strong>
+              <p>Visualize the shoot space and the studio mood before choosing a room.</p>
+            </button>
+          </div>
+        </section>
+
+        <section class="panel panel-wide" data-reveal>
+          <div class="panel-header">
+            <p class="panel-kicker">Studio booking made simple</p>
+            <h2>Plan your session after you see the space</h2>
+            <p class="panel-copy">
+              A cleaner front door for your Lethbridge studio: explore the space, understand how bookings work, and get to the right page without landing in a room catalog first.
+            </p>
           </div>
           <div class="home-hero-grid">
-            <div class="home-hero-copy" data-reveal="hero">
+            <div class="home-hero-copy">
               <div>
-                <p class="eyebrow hero-badge-glow">Studio booking made simple</p>
-                <h1>Plan your session before you book it.</h1>
                 <p class="hero-copy">
-                  A cleaner front door for your Lethbridge studio: explore the space, understand how
-                  bookings work, and get to the right page without landing in a room catalog first.
-                </p>
-                <p class="hero-copy">
-                  Use the public pages to learn about the studio, view staff, and then move into room
-                  selection only when you are ready.
+                  Use the public pages to learn about the studio, view staff, and then move into room selection only when you are ready.
                 </p>
               </div>
               <div class="hero-actions">
@@ -65,7 +102,7 @@
               </div>
             </div>
 
-            <div class="home-hero-side" data-reveal="hero-soft">
+            <div class="home-hero-side">
               <div class="home-side-card card-hover">
                 <span class="panel-kicker">Start Here</span>
                 <h2>What the homepage should do</h2>
