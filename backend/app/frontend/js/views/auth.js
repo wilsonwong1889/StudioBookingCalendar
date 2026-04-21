@@ -1,10 +1,17 @@
-import { api } from "../api.js?v=20260401r";
-import { API_BASE_URL, getSearchParam } from "../config.js?v=20260401r";
-import { elements, toggleHidden } from "../dom.js?v=20260401ab";
-import { persistToken, setState } from "../state.js?v=20260401r";
+import { api } from "../api.js?v=20260421a";
+import { API_BASE_URL, getSearchParam } from "../config.js?v=20260421a";
+import { elements, toggleHidden } from "../dom.js?v=20260421a";
+import {
+  exchangeSupabaseSession,
+  hasSupabaseConfig,
+  signOutSupabase,
+  startGoogleSignIn,
+} from "../supabase.js?v=20260410b";
+import { persistToken, setState } from "../state.js?v=20260421a";
 
 let pendingTwoFactorToken = null;
 let pendingTwoFactorMethod = "email";
+let googleButtonBusy = false;
 
 function currentResetToken() {
   return getSearchParam("reset_token");
@@ -116,6 +123,68 @@ function activateTab(tab) {
   setAuthMode(tab === "signup" ? "signup" : "login");
 }
 
+function setGoogleButtonsDisabled(isDisabled) {
+  [elements.googleLoginButton, elements.googleSignupButton].forEach((button) => {
+    if (!button) {
+      return;
+    }
+    button.disabled = isDisabled;
+    button.textContent = isDisabled ? "Redirecting to Google..." : button.dataset.defaultLabel;
+  });
+}
+
+async function handleGoogleSignIn() {
+  if (googleButtonBusy) {
+    return;
+  }
+  googleButtonBusy = true;
+  setGoogleButtonsDisabled(true);
+  hideAuthFeedback();
+
+  try {
+    await startGoogleSignIn();
+    showAuthFeedback("Redirecting to Google...", "success");
+    setState({ message: "Redirecting to Google..." });
+  } catch (error) {
+    googleButtonBusy = false;
+    setGoogleButtonsDisabled(false);
+    showAuthFeedback(error.message || "Google sign-in failed.", "error");
+    setState({ message: error.message || "Google sign-in failed." });
+  }
+}
+
+async function finalizeGoogleSignIn(actions) {
+  const supabaseReady = await hasSupabaseConfig();
+  if (!supabaseReady || state.token) {
+    return;
+  }
+
+  const accessToken = await exchangeSupabaseSession();
+  if (!accessToken) {
+    return;
+  }
+
+  googleButtonBusy = true;
+  setGoogleButtonsDisabled(true);
+  showAuthFeedback("Finishing Google sign-in...", "success");
+  setState({ message: "Finishing Google sign-in..." });
+
+  try {
+    const session = await api.loginWithGoogle(accessToken);
+    persistToken(session.access_token);
+    clearTwoFactorStep();
+    await actions.refreshSession("Logged in with Google.");
+    hideAuthFeedback();
+    window.history.replaceState({}, "", "/account");
+  } catch (error) {
+    showAuthFeedback(error.message || "Google sign-in failed.", "error");
+    setState({ message: error.message || "Google sign-in failed." });
+  } finally {
+    googleButtonBusy = false;
+    setGoogleButtonsDisabled(false);
+  }
+}
+
 function setTwoFactorStep(method) {
   pendingTwoFactorMethod = method || "email";
   setAuthMode("two-factor");
@@ -175,6 +244,23 @@ function applyLoginError(message) {
 }
 
 export function initAuthView(actions) {
+  [elements.googleLoginButton, elements.googleSignupButton].forEach((button) => {
+    if (!button) {
+      return;
+    }
+    button.dataset.defaultLabel = button.textContent;
+    button.addEventListener("click", handleGoogleSignIn);
+  });
+
+  hasSupabaseConfig().then((ready) => {
+    [elements.googleLoginButton, elements.googleSignupButton].forEach((button) => {
+      toggleHidden(button, !ready);
+    });
+    toggleHidden(elements.googleAuthNote, !ready);
+  });
+
+  finalizeGoogleSignIn(actions);
+
   elements.authTabs.forEach((button) => {
     button.addEventListener("click", () => activateTab(button.dataset.authTab));
   });
@@ -440,6 +526,7 @@ export function initAuthView(actions) {
   const handleLogout = async () => {
     clearTwoFactorStep();
     hideAuthFeedback();
+    await signOutSupabase();
     persistToken(null);
     await actions.clearSession();
   };

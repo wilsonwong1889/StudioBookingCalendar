@@ -1,4 +1,4 @@
-import { elements } from "../dom.js?v=20260401r";
+import { elements } from "../dom.js?v=20260421a";
 
 const FOUNDERS = [
   {
@@ -13,23 +13,117 @@ const FOUNDERS = [
   },
 ];
 
+const USE_CASES = [
+  {
+    badge: "1",
+    title: "Podcast and interview sessions",
+    copy: "A clean, structured room for hosts, guests, and small production teams who need a focused place to record.",
+  },
+  {
+    badge: "2",
+    title: "Branded photo and video shoots",
+    copy: "Useful for content teams that need a studio backdrop, controlled environment, and a fast setup window.",
+  },
+  {
+    badge: "3",
+    title: "Creative planning and client meetings",
+    copy: "A professional setting for strategy sessions, presentations, and in-person collaboration without distraction.",
+  },
+  {
+    badge: "4",
+    title: "Music and voice capture",
+    copy: "Made for artists and creators who want a straightforward space for tracking, rehearsal, and production work.",
+  },
+];
+
+const AMENITIES = [
+  {
+    label: "Flexible booking flow",
+    value: "Choose a room, reserve the time, and continue as a guest when you do not want to create an account.",
+  },
+  {
+    label: "Support options",
+    value: "Add staff help where the room setup calls for it so the session starts with the right level of guidance.",
+  },
+  {
+    label: "Clear pricing",
+    value: "Review the room and support details before confirming so the final total is easy to understand.",
+  },
+  {
+    label: "Guest-friendly arrival",
+    value: "Arrive with enough buffer to park, check in, and get settled before your booked time begins.",
+  },
+];
+
+const EXPECTATIONS = [
+  {
+    badge: "A",
+    step: "Start simple",
+    copy: "Pick a room that matches the session, then move through the booking without extra steps or friction.",
+  },
+  {
+    badge: "B",
+    step: "Know what comes next",
+    copy: "The page explains the studio, the booking flow, and the arrival details before you ever leave home.",
+  },
+  {
+    badge: "C",
+    step: "Show up prepared",
+    copy: "Bring the people and gear you need, then use the setup time you planned for in the booking.",
+  },
+  {
+    badge: "D",
+    step: "Leave cleanly",
+    copy: "Wrap on time, clear the room, and hand the space back in good shape for the next booking.",
+  },
+];
+
 const BUILDING_GALLERY = [
   {
     title: "Full building exterior",
     image: "/assets/media/studio-building-exterior.jpg",
-    copy: "A dedicated place for your outside building photo so clients know what to look for on arrival.",
+    copy: "Use this card for the main exterior shot so guests can recognize the building instantly.",
   },
   {
     title: "Lobby and reception",
     image: "/assets/media/studio-building-lobby.svg",
-    copy: "Use this image area for your front desk, waiting lounge, or guest entry experience.",
+    copy: "A good spot for the front desk, entry lounge, or the first impression people see when they walk in.",
   },
   {
     title: "Signature studio room",
     image: "/assets/media/studio-building-signature-room.svg",
-    copy: "Use this feature slot for the room, hallway, or branded corner that best captures the overall studio atmosphere.",
+    copy: "Feature the room or branded corner that best represents the studio atmosphere and lighting.",
   },
 ];
+
+function renderUseCaseCard(item) {
+  return `
+    <article class="story-card">
+      <span>${item.badge}</span>
+      <strong>${item.title}</strong>
+      <p>${item.copy}</p>
+    </article>
+  `;
+}
+
+function renderAmenityLine(item) {
+  return `
+    <div class="summary-line">
+      <span>${item.label}</span>
+      <strong>${item.value}</strong>
+    </div>
+  `;
+}
+
+function renderExpectationCard(item) {
+  return `
+    <article class="story-card">
+      <span>${item.badge}</span>
+      <strong>${item.step}</strong>
+      <p>${item.copy}</p>
+    </article>
+  `;
+}
 
 function renderFounderCard(founder) {
   return `
@@ -65,6 +159,19 @@ function renderBuildingCard(item) {
 export function initInfoView() {}
 
 export function renderInfoView() {
+  const infoUseCasesGrid = document.getElementById("info-use-cases-grid");
+  const infoAmenitiesGrid = document.getElementById("info-amenities-grid");
+  const infoExpectationsGrid = document.getElementById("info-expectations-grid");
+
+  if (infoUseCasesGrid) {
+    infoUseCasesGrid.innerHTML = USE_CASES.map(renderUseCaseCard).join("");
+  }
+  if (infoAmenitiesGrid) {
+    infoAmenitiesGrid.innerHTML = AMENITIES.map(renderAmenityLine).join("");
+  }
+  if (infoExpectationsGrid) {
+    infoExpectationsGrid.innerHTML = EXPECTATIONS.map(renderExpectationCard).join("");
+  }
   if (elements.infoFoundersGrid) {
     elements.infoFoundersGrid.innerHTML = FOUNDERS.map(renderFounderCard).join("");
   }

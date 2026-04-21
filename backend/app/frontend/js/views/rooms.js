@@ -1,6 +1,6 @@
-import { api } from "../api.js?v=20260408e";
-import { elements } from "../dom.js?v=20260401r";
-import { setState, state } from "../state.js?v=20260401r";
+import { api } from "../api.js?v=20260421a";
+import { elements } from "../dom.js?v=20260421a";
+import { setState, state } from "../state.js?v=20260421a";
 
 let editingRoomId = null;
 let selectedCreateStaffIds = new Set();
@@ -19,6 +19,11 @@ function formatPreviewTimes(availableStartTimes) {
       minute: "2-digit",
     }).format(new Date(startTime)),
   );
+}
+
+function extractStudioTime(startTime) {
+  const match = String(startTime || "").match(/T(\d{2}:\d{2})/);
+  return match ? match[1] : "";
 }
 
 function formatDuration(minutes) {
@@ -189,11 +194,13 @@ function renderAvailabilityPreview(roomId) {
   }
 
   const preview = state.roomAvailabilityPreview?.[roomId];
+  const previewHelpCopy =
+    'Pick a date and press "Preview live openings" to see the first few available start times. This is a live snapshot, not a reservation.';
   if (!preview) {
     return `
       <div class="availability-preview">
         <span class="availability-label">Availability preview</span>
-        <p>Choose a date and click "Show availability" to preview open start times.</p>
+        <p>${previewHelpCopy}</p>
       </div>
     `;
   }
@@ -202,7 +209,7 @@ function renderAvailabilityPreview(roomId) {
     return `
       <div class="availability-preview">
         <span class="availability-label">Availability preview</span>
-        <p>No available start times for ${preview.date}.</p>
+        <p>No live openings were returned for ${preview.date}. Try another date or open the booking flow for a different room.</p>
       </div>
     `;
   }
@@ -213,6 +220,7 @@ function renderAvailabilityPreview(roomId) {
   return `
     <div class="availability-preview">
       <span class="availability-label">${preview.available_start_times.length} starts open on ${preview.date}</span>
+      <p>Times are shown in local studio time and update from the live availability feed.</p>
       <div class="preview-pill-row">${previewTimes}</div>
     </div>
   `;
@@ -261,8 +269,8 @@ function renderRoomCard(room, canManageRooms) {
       </div>
       ${renderAvailabilityPreview(room.id)}
       <div class="room-actions">
-        <a class="ghost-button ghost-link" href="/room?id=${room.id}">View details</a>
-        <a class="primary-button" href="/bookings?room=${room.id}">Book this room</a>
+        <a class="ghost-button ghost-link" href="/room?id=${room.id}">See details</a>
+        <a class="primary-button" href="/bookings?room=${room.id}">Start booking</a>
         ${managementActions}
       </div>
     </article>
@@ -276,12 +284,12 @@ async function previewRoomsAvailability() {
 
   const previewDate = elements.roomsPreviewDate.value;
   if (!previewDate) {
-    setState({ message: "Choose a date to preview room availability." });
+    setState({ message: "Choose a date to preview live openings." });
     return;
   }
 
   try {
-    setState({ message: "Loading room availability..." });
+    setState({ message: "Loading live room availability..." });
     const previews = await Promise.all(
       state.rooms
         .filter((room) => room.active)
@@ -290,11 +298,67 @@ async function previewRoomsAvailability() {
     setState({
       roomPreviewDate: previewDate,
       roomAvailabilityPreview: Object.fromEntries(previews),
-      message: "Room availability loaded.",
+      message: "Live availability loaded.",
     });
   } catch (error) {
     setState({ message: error.message });
   }
+}
+
+async function searchRoomsByAvailability() {
+  const searchDate = elements.roomsSearchDate?.value;
+  const searchTime = elements.roomsSearchTime?.value;
+  const duration = Number(elements.roomsSearchDuration?.value || 60);
+  if (!searchDate || !searchTime) {
+    setState({ message: "Choose a date and start time to search for rooms." });
+    return;
+  }
+
+  try {
+    setState({ message: "Searching rooms for that exact time..." });
+    const availabilityRows = await Promise.all(
+      state.rooms
+        .filter((room) => room.active)
+        .map(async (room) => [room.id, await api.getAvailability(room.id, searchDate)]),
+    );
+    const matchingRoomIds = availabilityRows
+      .filter(([, availability]) =>
+        (availability.available_start_times || []).some(
+          (startTime) =>
+            extractStudioTime(startTime) === searchTime &&
+            Number(availability.max_duration_minutes_by_start?.[startTime] || 0) >= duration,
+        ),
+      )
+      .map(([roomId]) => String(roomId));
+
+    setState({
+      roomAvailabilitySearch: {
+        date: searchDate,
+        time: searchTime,
+        duration,
+        matchingRoomIds,
+        hasSearched: true,
+      },
+      message: matchingRoomIds.length
+        ? `Found ${matchingRoomIds.length} matching room${matchingRoomIds.length === 1 ? "" : "s"}.`
+        : "No rooms matched that time.",
+    });
+  } catch (error) {
+    setState({ message: error.message });
+  }
+}
+
+function clearRoomAvailabilitySearch() {
+  setState({
+    roomAvailabilitySearch: {
+      date: elements.roomsSearchDate?.value || state.roomAvailabilitySearch.date,
+      time: elements.roomsSearchTime?.value || "15:00",
+      duration: Number(elements.roomsSearchDuration?.value || 60),
+      matchingRoomIds: [],
+      hasSearched: false,
+    },
+    message: "Room search cleared.",
+  });
 }
 
 export function initRoomsView(actions) {
@@ -312,12 +376,27 @@ export function initRoomsView(actions) {
   if (elements.roomsPreviewDate) {
     elements.roomsPreviewDate.value = state.roomPreviewDate;
   }
+  if (elements.roomsSearchDate) {
+    elements.roomsSearchDate.value = state.roomAvailabilitySearch.date;
+  }
+  if (elements.roomsSearchTime) {
+    elements.roomsSearchTime.value = state.roomAvailabilitySearch.time;
+  }
+  if (elements.roomsSearchDuration) {
+    elements.roomsSearchDuration.value = String(state.roomAvailabilitySearch.duration);
+  }
 
   if (elements.roomsPreviewButton) {
     elements.roomsPreviewButton.addEventListener("click", async () => {
       await previewRoomsAvailability();
     });
   }
+  elements.roomsSearchButton?.addEventListener("click", async () => {
+    await searchRoomsByAvailability();
+  });
+  elements.roomsSearchClearButton?.addEventListener("click", () => {
+    clearRoomAvailabilitySearch();
+  });
 
   if (elements.roomForm) {
     elements.roomFormCancel?.addEventListener("click", () => {
@@ -479,6 +558,15 @@ export function renderRoomsView(currentState) {
   if (elements.roomsPreviewDate && elements.roomsPreviewDate.value !== currentState.roomPreviewDate) {
     elements.roomsPreviewDate.value = currentState.roomPreviewDate;
   }
+  if (elements.roomsSearchDate && elements.roomsSearchDate.value !== currentState.roomAvailabilitySearch.date) {
+    elements.roomsSearchDate.value = currentState.roomAvailabilitySearch.date;
+  }
+  if (elements.roomsSearchTime && elements.roomsSearchTime.value !== currentState.roomAvailabilitySearch.time) {
+    elements.roomsSearchTime.value = currentState.roomAvailabilitySearch.time;
+  }
+  if (elements.roomsSearchDuration && elements.roomsSearchDuration.value !== String(currentState.roomAvailabilitySearch.duration)) {
+    elements.roomsSearchDuration.value = String(currentState.roomAvailabilitySearch.duration);
+  }
 
   renderCreateRoomStaffOptions(currentState);
 
@@ -486,14 +574,42 @@ export function renderRoomsView(currentState) {
     return;
   }
 
-  if (!currentState.rooms.length) {
+  if (elements.roomsSearchSummary) {
+    const search = currentState.roomAvailabilitySearch;
+    if (!search.hasSearched) {
+      elements.roomsSearchSummary.classList.add("hidden");
+      elements.roomsSearchSummary.innerHTML = "";
+    } else if (!search.matchingRoomIds.length) {
+      elements.roomsSearchSummary.classList.remove("hidden");
+      elements.roomsSearchSummary.innerHTML = `
+        <strong>No rooms available</strong>
+        <span>No active rooms are open on ${search.date} at ${search.time} for ${formatDuration(search.duration)}.</span>
+      `;
+    } else {
+      elements.roomsSearchSummary.classList.remove("hidden");
+      elements.roomsSearchSummary.innerHTML = `
+        <strong>${search.matchingRoomIds.length} matching room${search.matchingRoomIds.length === 1 ? "" : "s"}</strong>
+        <span>Showing rooms available on ${search.date} at ${search.time} for ${formatDuration(search.duration)}.</span>
+      `;
+    }
+  }
+
+  const visibleRooms = currentState.roomAvailabilitySearch.hasSearched
+    ? currentState.rooms.filter((room) => currentState.roomAvailabilitySearch.matchingRoomIds.includes(String(room.id)))
+    : currentState.rooms;
+
+  if (!visibleRooms.length) {
     elements.roomsGrid.innerHTML = `
       <div class="empty-state">
-        No rooms match this view yet. Create one from the admin panel or change the inactive filter.
+        ${
+          currentState.roomAvailabilitySearch.hasSearched
+            ? "No rooms match the current availability search. Change the date, time, or duration and try again."
+            : "No rooms match this view yet. Turn off the inactive filter or create a room from the admin panel."
+        }
       </div>
     `;
   } else {
-    elements.roomsGrid.innerHTML = currentState.rooms
+    elements.roomsGrid.innerHTML = visibleRooms
       .map((room) => renderRoomCard(room, canManageRooms))
       .join("");
   }

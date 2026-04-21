@@ -1,4 +1,4 @@
-import { elements } from "../dom.js?v=20260401r";
+import { elements } from "../dom.js?v=20260421a";
 
 function formatCurrency(cents) {
   return new Intl.NumberFormat("en-US", {
@@ -64,6 +64,41 @@ function renderRoomStaffList(room) {
     : '<div class="empty-state">This room does not have extra staff add-ons configured yet.</div>';
 }
 
+function renderRoomReviews(currentState) {
+  if (!elements.roomDetailReviewsSummary || !elements.roomDetailReviewsList) {
+    return;
+  }
+
+  const summary = currentState.selectedRoomReviewSummary;
+  const reviews = currentState.selectedRoomReviews || [];
+  if (!summary || !summary.review_count) {
+    elements.roomDetailReviewsSummary.textContent =
+      "No public reviews yet. Completed sessions can add ratings here once the room has hosted guests.";
+    elements.roomDetailReviewsList.innerHTML =
+      '<div class="empty-state">The first finished session review will appear here.</div>';
+    return;
+  }
+
+  const averageLabel =
+    typeof summary.average_rating === "number" ? summary.average_rating.toFixed(1) : summary.average_rating;
+  elements.roomDetailReviewsSummary.textContent = `${averageLabel}/5 from ${summary.review_count} review${summary.review_count === 1 ? "" : "s"}.`;
+  elements.roomDetailReviewsList.innerHTML = reviews.length
+    ? reviews
+        .map(
+          (review) => `
+            <article class="review-card">
+              <div class="review-card-top">
+                <strong>${review.reviewer_name || "Guest"}</strong>
+                <span class="pill">${"★".repeat(review.rating)}${"☆".repeat(5 - review.rating)}</span>
+              </div>
+              <p>${review.comment || "Rated this room without a written comment."}</p>
+            </article>
+          `,
+        )
+        .join("")
+    : '<div class="empty-state">Review summary is available, but no recent comments were returned.</div>';
+}
+
 export function initRoomDetailView() {}
 
 export function renderRoomDetailView(state) {
@@ -90,6 +125,7 @@ export function renderRoomDetailView(state) {
     <span class="pill ${room.active ? "" : "muted"}">${room.active ? "Active" : "Inactive"}</span>
   `;
   renderRoomStaffList(room);
+  renderRoomReviews(state);
 
   const photos = Array.isArray(room.photos) ? room.photos : [];
   elements.roomDetailPhotos.innerHTML = photos.length

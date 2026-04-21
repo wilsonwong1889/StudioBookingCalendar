@@ -1,7 +1,7 @@
-import { api } from "../api.js?v=20260401r";
-import { getSearchParam } from "../config.js?v=20260401r";
-import { elements } from "../dom.js?v=20260401r";
-import { setState, state } from "../state.js?v=20260401r";
+import { api } from "../api.js?v=20260421a";
+import { getSearchParam } from "../config.js?v=20260421a";
+import { elements } from "../dom.js?v=20260421a";
+import { persistToken, setState, state } from "../state.js?v=20260421a";
 
 const MIN_DURATION_MINUTES = 60;
 const MAX_DURATION_MINUTES = 300;
@@ -301,6 +301,18 @@ function getFilteredRecentBookings(bookings) {
       .toLowerCase();
     return searchBlob.includes(normalizedQuery);
   });
+}
+
+function getBookingGuestFields() {
+  return document.getElementById("booking-guest-fields");
+}
+
+function getBookingGuestNameInput() {
+  return document.getElementById("booking-guest-name");
+}
+
+function getBookingGuestPhoneInput() {
+  return document.getElementById("booking-guest-phone");
 }
 
 function buildDurationValues(limitMinutes = MAX_DURATION_MINUTES) {
@@ -617,7 +629,7 @@ function renderBookingSummary(currentState) {
           `
           : `<div class="summary-line"><span>Estimated total</span><strong>${formatCurrency(estimatedPrice)} CAD</strong></div>`
       }
-      <div class="summary-line"><span>Booking access</span><strong>${currentState.currentUser ? "Ready to submit" : "Log in required"}</strong></div>
+      <div class="summary-line"><span>Booking access</span><strong>${currentState.currentUser ? "Ready to submit" : "Guest checkout ready"}</strong></div>
     </div>
   `;
 }
@@ -794,11 +806,6 @@ export function initBookingsView(actions) {
 
   elements.bookingForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (!state.currentUser) {
-      setState({ message: "Log in to complete a booking." });
-      return;
-    }
-
     const roomId = elements.bookingRoomSelect.value;
     const startTime = elements.bookingStartSelect.value;
     const duration = Number(elements.bookingDurationSelect.value);
@@ -810,16 +817,40 @@ export function initBookingsView(actions) {
 
     try {
       setState({ message: "Creating booking..." });
-      const booking = await api.createBooking({
+      const payload = {
         room_id: roomId,
         start_time: startTime,
         duration_minutes: duration,
         promo_code: getBookingPromoInputValue() || null,
         note: elements.bookingNoteInput?.value?.trim() || null,
         staff_assignments: [...selectedStaffIds],
-      });
+      };
+      let booking = null;
+      if (state.currentUser) {
+        booking = await api.createBooking(payload);
+      } else {
+        const guestName = getBookingGuestNameInput()?.value?.trim() || "";
+        const guestPhone = getBookingGuestPhoneInput()?.value?.trim() || "";
+        if (!guestName || !guestPhone) {
+          setState({ message: "Enter your name and phone number to continue as guest." });
+          return;
+        }
+        const guestSession = await api.createGuestBooking({
+          ...payload,
+          guest_name: guestName,
+          guest_phone: guestPhone,
+        });
+        booking = guestSession.booking;
+        persistToken(guestSession.access_token);
+      }
       if (elements.bookingNoteInput) {
         elements.bookingNoteInput.value = "";
+      }
+      if (getBookingGuestNameInput()) {
+        getBookingGuestNameInput().value = "";
+      }
+      if (getBookingGuestPhoneInput()) {
+        getBookingGuestPhoneInput().value = "";
       }
       if (getBookingPromoCodeInput()) {
         getBookingPromoCodeInput().value = "";
@@ -909,9 +940,10 @@ export function renderBookingsView(currentState) {
 
   const bookingSubmitButton = elements.bookingForm.querySelector("button[type='submit']");
   if (bookingSubmitButton) {
-    bookingSubmitButton.disabled = !isSignedIn;
-    bookingSubmitButton.textContent = isSignedIn ? "Save 5-minute spot hold" : "Log in to book";
+    bookingSubmitButton.disabled = !elements.bookingStartSelect?.value;
+    bookingSubmitButton.textContent = isSignedIn ? "Save 5-minute spot hold" : "Continue as guest";
   }
+  getBookingGuestFields()?.classList.toggle("hidden", isSignedIn);
 
   const pendingBookings = currentState.bookings
     .filter((booking) => booking.status === "PendingPayment")
@@ -941,7 +973,7 @@ export function renderBookingsView(currentState) {
   if (!isSignedIn) {
     elements.pendingBookingsList.innerHTML = `
       <div class="empty-state">
-        Log in to view your booking history and complete a booking after checking availability.
+        Continue as a guest to save a booking, or sign in to unlock booking history and account-based management.
       </div>
     `;
     elements.recentBookingsShell.classList.add("hidden");

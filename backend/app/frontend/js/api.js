@@ -1,5 +1,5 @@
-import { API_BASE_URL } from "./config.js?v=20260401r";
-import { state } from "./state.js?v=20260401r";
+import { API_BASE_URL } from "./config.js?v=20260421a";
+import { state } from "./state.js?v=20260421a";
 
 async function request(path, options = {}) {
   const headers = new Headers(options.headers || {});
@@ -56,6 +56,12 @@ export const api = {
       body: formData,
     });
   },
+  loginWithGoogle(accessToken) {
+    return request("/api/auth/google/exchange", {
+      method: "POST",
+      body: JSON.stringify({ access_token: accessToken }),
+    });
+  },
   verifyTwoFactor(payload) {
     return request("/api/auth/verify-2fa", {
       method: "POST",
@@ -75,6 +81,14 @@ export const api = {
     return request("/api/users/me", {
       method: "PUT",
       body: JSON.stringify(payload),
+    });
+  },
+  uploadProfileAvatar(file) {
+    const formData = new FormData();
+    formData.append("photo", file);
+    return request("/api/users/me/avatar", {
+      method: "POST",
+      body: formData,
     });
   },
   deleteProfile(payload) {
@@ -105,6 +119,15 @@ export const api = {
   getBooking(bookingId) {
     return request(`/api/bookings/${bookingId}`);
   },
+  getBookingReview(bookingId) {
+    return request(`/api/bookings/${bookingId}/review`);
+  },
+  saveBookingReview(bookingId, payload) {
+    return request(`/api/bookings/${bookingId}/review`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
   getBookingPaymentSession(bookingId) {
     return request(`/api/bookings/${bookingId}/payment-session`, {
       method: "POST",
@@ -112,6 +135,12 @@ export const api = {
   },
   createBooking(payload) {
     return request("/api/bookings", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  createGuestBooking(payload) {
+    return request("/api/bookings/guest", {
       method: "POST",
       body: JSON.stringify(payload),
     });
@@ -130,6 +159,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     });
+  },
+  rescheduleBooking(bookingId, payload) {
+    return request(`/api/bookings/${bookingId}/reschedule`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  getRoomReviews(roomId, limit = 6) {
+    return request(`/api/rooms/${roomId}/reviews?limit=${limit}`);
   },
   createRoom(payload) {
     return request("/api/rooms", {

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Account | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401ab" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260421a" />
   </head>
   <body data-page="account">
     <div class="site-frame">
@@ -78,6 +78,11 @@
               <span id="login-password-feedback" class="field-help auth-field-feedback hidden"></span>
             </label>
             <button class="primary-button" type="submit">Log in</button>
+            <div class="form-divider"><span>or</span></div>
+            <button id="google-login-button" class="google-auth-button hidden" type="button">
+              Continue with Google
+            </button>
+            <a class="ghost-button ghost-link" href="/rooms">Continue as guest</a>
             <div class="auth-inline-row">
               <button id="forgot-password-link" class="text-button" type="button">Forgot password?</button>
               <span class="field-help">We can send a reset link to your email.</span>
@@ -133,6 +138,9 @@
           </form>
 
           <form id="signup-form" class="stack-form hidden" data-auth-form="signup">
+            <div id="google-auth-note" class="form-note hidden">
+              Gmail sign-in creates your account automatically the first time.
+            </div>
             <label>
               <span>Full name</span>
               <input type="text" name="full_name" autocomplete="name" required />
@@ -155,6 +163,11 @@
               <input type="tel" name="phone" autocomplete="tel" />
             </label>
             <button class="primary-button" type="submit">Create account</button>
+            <div class="form-divider"><span>or</span></div>
+            <button id="google-signup-button" class="google-auth-button hidden" type="button">
+              Sign up with Google
+            </button>
+            <a class="ghost-button ghost-link" href="/rooms">Continue as guest</a>
           </form>
 
           <button id="logout-button" class="ghost-button hidden" type="button">Log out</button>
@@ -183,6 +196,25 @@
                 <button id="profile-save-button" class="primary-button" type="submit">Save profile</button>
               </div>
             </div>
+
+            <fieldset class="profile-fieldset profile-span-2">
+              <legend>Avatar</legend>
+              <div class="profile-avatar-shell">
+                <div id="profile-avatar-preview" class="profile-avatar-preview">
+                  <div class="profile-avatar-fallback">?</div>
+                </div>
+                <div class="stack-form">
+                  <p class="form-note">
+                    Upload a JPG avatar so your account has a recognizable identity across the booking flow.
+                  </p>
+                  <label>
+                    <span>Avatar image</span>
+                    <input id="profile-avatar-file" type="file" accept=".jpg,.jpeg,image/jpeg" />
+                  </label>
+                  <input type="hidden" name="avatar_url" />
+                </div>
+              </div>
+            </fieldset>
 
             <fieldset class="profile-fieldset profile-span-2">
               <legend>Personal details</legend>
@@ -310,6 +342,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260408m"></script>
+    <script type="module" src="/assets/js/main.js?v=20260421a"></script>
   </body>
 </html>

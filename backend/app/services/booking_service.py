@@ -8,24 +8,28 @@ from typing import Optional
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.core.security import hash_password
-from app.models.booking import AuditLog, Booking, BookingSlot, NotificationLog, Refund
+from app.core.security import create_access_token, hash_password
+from app.models.booking import AuditLog, Booking, BookingSlot, NotificationLog, Refund, Review
 from app.models.room import Room
 from app.models.staff_profile import StaffProfile
 from app.models.user import User
 from app.schemas.booking import (
     BOOKING_DURATION_STEP_MINUTES,
     BookingCreate,
+    BookingRescheduleIn,
+    GuestBookingCreate,
+    GuestBookingCreateOut,
     ManualBookingCreate,
     MAX_BOOKING_DURATION_MINUTES,
     MIN_BOOKING_DURATION_MINUTES,
     RefundCreate,
 )
+from app.schemas.review import ReviewCreate
 from app.staffing import normalize_staff_roles, resolve_staff_assignments, staff_add_on_total_cents
 from app.services.payment_service import (
     PaymentBackendError,
@@ -247,6 +251,8 @@ def ensure_staff_assignments_available(
     staff_assignments: list[dict],
     start_time: datetime,
     end_time: datetime,
+    *,
+    exclude_booking_id=None,
 ) -> None:
     selected_ids = {
         str(assignment.get("id")).strip()
@@ -261,8 +267,10 @@ def ensure_staff_assignments_available(
         .filter(Booking.start_time < end_time)
         .filter(Booking.end_time > start_time)
         .filter(Booking.status.in_(("PendingPayment", "Paid", "Completed")))
-        .all()
     )
+    if exclude_booking_id:
+        overlapping_bookings = overlapping_bookings.filter(Booking.id != exclude_booking_id)
+    overlapping_bookings = overlapping_bookings.all()
 
     conflicts: dict[str, str] = {}
     for booking in overlapping_bookings:
@@ -309,7 +317,13 @@ def get_booking_for_user(db: Session, booking_id: str, user: User) -> Optional[B
     return query.first()
 
 
-def ensure_single_booking_per_day(db: Session, user: User, booking_start: datetime) -> None:
+def ensure_single_booking_per_day(
+    db: Session,
+    user: User,
+    booking_start: datetime,
+    *,
+    exclude_booking_id=None,
+) -> None:
     business_timezone = get_business_timezone()
     local_booking_date = booking_start.astimezone(business_timezone).date()
     utc_start, utc_end = get_day_bounds(local_booking_date)
@@ -320,8 +334,10 @@ def ensure_single_booking_per_day(db: Session, user: User, booking_start: dateti
         .filter(Booking.start_time >= utc_start)
         .filter(Booking.start_time < utc_end)
         .filter(Booking.status.in_(("PendingPayment", "Paid", "Completed")))
-        .first()
     )
+    if exclude_booking_id:
+        existing_booking = existing_booking.filter(Booking.id != exclude_booking_id)
+    existing_booking = existing_booking.first()
     if existing_booking:
         raise DailyBookingLimitError("Only one booking per day is allowed for each account")
 
@@ -340,6 +356,34 @@ def create_booking(db: Session, user: User, payload: BookingCreate) -> Booking:
         selected_staff_ids=payload.staff_assignments,
         enforce_daily_limit=not user.is_admin,
     )
+
+
+def create_guest_booking(db: Session, payload: GuestBookingCreate) -> GuestBookingCreateOut:
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    guest_email = f"guest+{timestamp}-{uuid4().hex[:8]}@guest.studiobooking.local"
+    guest_user = User(
+        email=guest_email,
+        password_hash=hash_password(uuid4().hex),
+        full_name=payload.guest_name.strip(),
+        phone=payload.guest_phone.strip(),
+    )
+    db.add(guest_user)
+    db.flush()
+    booking = _create_booking_record(
+        db,
+        room_id=payload.room_id,
+        user=guest_user,
+        start_time=payload.start_time,
+        duration_minutes=payload.duration_minutes,
+        status="PendingPayment",
+        reservation_token=payload.reservation_token,
+        promo_code=payload.promo_code,
+        note=payload.note,
+        selected_staff_ids=payload.staff_assignments,
+        enforce_daily_limit=True,
+    )
+    token = create_access_token({"sub": str(guest_user.id)})
+    return GuestBookingCreateOut(access_token=token, booking=booking)
 
 
 def _create_booking_record(
@@ -686,6 +730,101 @@ def cancel_booking(db: Session, booking: Booking, actor: User, reason: Optional[
     return booking
 
 
+def reschedule_booking(
+    db: Session,
+    booking: Booking,
+    actor: User,
+    payload: BookingRescheduleIn,
+) -> Booking:
+    if booking.user_id != actor.id and not actor.is_admin:
+        raise ValueError("Booking not found")
+    if booking.status not in {"PendingPayment", "Paid"}:
+        raise ValueError("Only pending or paid bookings can be rescheduled")
+    if booking.checked_in_at:
+        raise ValueError("Checked-in bookings cannot be rescheduled")
+    if booking.status == "PendingPayment" and expire_pending_booking(db, booking):
+        db.commit()
+        db.refresh(booking)
+        raise ValueError("This payment window expired. Create a new booking instead.")
+
+    room = get_room_or_404(db, booking.room_id, include_inactive=True)
+    normalized_start = normalize_booking_start(payload.start_time)
+    if normalized_start == booking.start_time:
+        raise ValueError("Choose a different start time to reschedule")
+
+    ensure_single_booking_per_day(
+        db,
+        actor,
+        normalized_start,
+        exclude_booking_id=booking.id,
+    )
+    end_time = normalized_start + timedelta(minutes=booking.duration_minutes)
+    validate_booking_window(normalized_start, end_time)
+    ensure_room_duration_allowed(room, booking.duration_minutes)
+    ensure_staff_assignments_available(
+        db,
+        normalize_staff_roles(booking.staff_assignments),
+        normalized_start,
+        end_time,
+        exclude_booking_id=booking.id,
+    )
+
+    slot_starts = build_slot_starts(normalized_start, booking.duration_minutes)
+    try:
+        release_booking_slots(db, booking.id)
+        booking.start_time = normalized_start
+        booking.end_time = end_time
+        db.add_all(
+            [
+                BookingSlot(
+                    booking_id=booking.id,
+                    room_id=booking.room_id,
+                    slot_start=slot_start,
+                )
+                for slot_start in slot_starts
+            ]
+        )
+        create_audit_log(
+            db,
+            actor_id=actor.id,
+            booking_id=booking.id,
+            action="booking_rescheduled",
+            details={
+                "start_time": normalized_start.isoformat(),
+                "end_time": end_time.isoformat(),
+                "status": booking.status,
+            },
+        )
+        create_notification_log(
+            db,
+            user_id=booking.user_id,
+            booking_id=booking.id,
+            notification_type="booking_rescheduled",
+            status="Sent",
+            details={
+                "booking_code": booking.booking_code,
+                "queued_tasks": [
+                    "send_booking_confirmation_email",
+                    "send_booking_confirmation_sms",
+                ],
+            },
+        )
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise BookingConflictError("Selected time is no longer available") from exc
+
+    db.refresh(booking)
+    from app.tasks import (
+        send_booking_confirmation_email_task,
+        send_booking_confirmation_sms_task,
+    )
+
+    send_booking_confirmation_email_task.delay(str(booking.id))
+    send_booking_confirmation_sms_task.delay(str(booking.id))
+    return booking
+
+
 def process_refund(db: Session, booking_id: str, admin: User, payload: RefundCreate) -> Refund:
     booking = db.query(Booking).filter(Booking.id == booking_id).first()
     if not booking:
@@ -745,6 +884,131 @@ def process_refund(db: Session, booking_id: str, admin: User, payload: RefundCre
     send_refund_processed_email_task.delay(str(booking.id), payload.amount_cents)
     send_refund_processed_sms_task.delay(str(booking.id), payload.amount_cents)
     return refund
+
+
+def get_booking_review_for_user(db: Session, booking: Booking, user: User) -> Optional[dict]:
+    if booking.user_id != user.id and not user.is_admin:
+        raise ValueError("Booking not found")
+
+    review = db.query(Review).filter(Review.booking_id == booking.id).first()
+    if not review:
+        return None
+
+    reviewer_name = user.full_name or booking.user_full_name_snapshot or user.email
+    return {
+        "id": review.id,
+        "booking_id": review.booking_id,
+        "room_id": review.room_id,
+        "user_id": review.user_id,
+        "rating": review.rating,
+        "comment": review.comment,
+        "reviewer_name": reviewer_name,
+        "created_at": review.created_at,
+        "updated_at": review.updated_at,
+    }
+
+
+def create_or_update_booking_review(
+    db: Session,
+    booking: Booking,
+    user: User,
+    payload: ReviewCreate,
+) -> dict:
+    if booking.user_id != user.id and not user.is_admin:
+        raise ValueError("Booking not found")
+    if booking.status in {"PendingPayment", "Cancelled", "Refunded"}:
+        raise ValueError("Only completed sessions can be reviewed")
+    if booking.status != "Completed" and booking.end_time > datetime.now(timezone.utc):
+        raise ValueError("Reviews are available after the session ends")
+
+    review = db.query(Review).filter(Review.booking_id == booking.id).first()
+    if not review:
+        review = Review(
+            booking_id=booking.id,
+            room_id=booking.room_id,
+            user_id=booking.user_id,
+            rating=payload.rating,
+            comment=payload.comment,
+        )
+        db.add(review)
+        action = "booking_review_created"
+    else:
+        review.rating = payload.rating
+        review.comment = payload.comment
+        action = "booking_review_updated"
+
+    create_audit_log(
+        db,
+        actor_id=user.id,
+        booking_id=booking.id,
+        action=action,
+        details={"rating": payload.rating},
+    )
+    db.commit()
+    db.refresh(review)
+    return {
+        "id": review.id,
+        "booking_id": review.booking_id,
+        "room_id": review.room_id,
+        "user_id": review.user_id,
+        "rating": review.rating,
+        "comment": review.comment,
+        "reviewer_name": user.full_name or booking.user_full_name_snapshot or user.email,
+        "created_at": review.created_at,
+        "updated_at": review.updated_at,
+    }
+
+
+def list_room_reviews(db: Session, room_id: str, limit: int = 6) -> dict:
+    room = get_room_or_404(db, room_id)
+    summary_row = (
+        db.query(
+            func.count(Review.id),
+            func.avg(Review.rating),
+        )
+        .filter(Review.room_id == room.id)
+        .first()
+    )
+    review_count = int(summary_row[0] or 0)
+    average_rating = round(float(summary_row[1]), 1) if summary_row[1] is not None else None
+
+    rows = (
+        db.query(
+            Review,
+            User.full_name,
+            Booking.user_full_name_snapshot,
+        )
+        .outerjoin(User, Review.user_id == User.id)
+        .outerjoin(Booking, Review.booking_id == Booking.id)
+        .filter(Review.room_id == room.id)
+        .order_by(Review.updated_at.desc(), Review.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    reviews = [
+        {
+            "id": review.id,
+            "booking_id": review.booking_id,
+            "room_id": review.room_id,
+            "user_id": review.user_id,
+            "rating": review.rating,
+            "comment": review.comment,
+            "reviewer_name": full_name or booking_name or "Guest",
+            "created_at": review.created_at,
+            "updated_at": review.updated_at,
+        }
+        for review, full_name, booking_name in rows
+    ]
+
+    return {
+        "summary": {
+            "room_id": room.id,
+            "review_count": review_count,
+            "average_rating": average_rating,
+        },
+        "reviews": reviews,
+    }
 
 
 def waive_booking_payment(db: Session, booking_id: str, admin: User) -> Booking:
@@ -1202,10 +1466,26 @@ def handle_payment_webhook_event(db: Session, event: dict) -> dict:
         return {"received": True, "booking_id": str(updated_booking.id), "status": updated_booking.status}
 
     if event_type == "payment_intent.payment_failed":
+        if booking.status == "Cancelled" and booking.cancellation_reason == "Payment failed":
+            return {"received": True, "booking_id": str(booking.id), "status": booking.status}
         booking.status = "Cancelled"
         booking.cancelled_at = datetime.now(timezone.utc)
         booking.cancellation_reason = "Payment failed"
         release_booking_slots(db, booking.id)
+        create_notification_log(
+            db,
+            user_id=booking.user_id,
+            booking_id=booking.id,
+            notification_type="booking_cancelled",
+            status="Sent",
+            details={
+                "reason": booking.cancellation_reason,
+                "queued_tasks": [
+                    "send_booking_cancellation_email",
+                    "send_booking_cancellation_sms",
+                ],
+            },
+        )
         create_audit_log(
             db,
             actor_id=None,
@@ -1214,6 +1494,13 @@ def handle_payment_webhook_event(db: Session, event: dict) -> dict:
             details={"payment_intent_id": payment_intent_id},
         )
         db.commit()
+        from app.tasks import (
+            send_booking_cancellation_email_task,
+            send_booking_cancellation_sms_task,
+        )
+
+        send_booking_cancellation_email_task.delay(str(booking.id))
+        send_booking_cancellation_sms_task.delay(str(booking.id))
         return {"received": True, "booking_id": str(booking.id), "status": booking.status}
 
     if event_type == "charge.refunded":

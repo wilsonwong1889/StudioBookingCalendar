@@ -4,11 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260421b" />
   </head>
   <body data-page="home">
-    <div class="site-frame">
-      <header class="site-header site-header-simple">
+    <div class="site-frame site-frame-home">
+      <header class="site-header site-header-simple home-header">
         <a class="brand-mark" href="/">StudioBookingSoftware</a>
         <nav class="site-nav" aria-label="Primary">
           <a class="nav-link is-active" href="/">Home</a>
@@ -27,60 +27,80 @@
         </div>
       </header>
 
-      <main class="home-layout home-layout-refined">
-        <section class="hero-card hero-card-wide home-hero-shell">
+      <main class="home-layout home-layout-refined home-layout-full">
+        <section class="home-hero-shell">
           <div class="home-carousel" data-home-carousel>
             <div class="home-carousel-slides-container">
               <div class="home-carousel-slide is-active" data-home-slide>
-                <img class="home-hero-image" src="/assets/media/studio-room-2.heic" alt="Studio room" loading="eager" />
+                <img class="home-hero-image" src="/assets/media/studio-room-2.jpg" alt="Studio room" loading="eager" />
               </div>
               <div class="home-carousel-slide" data-home-slide>
-                <img class="home-hero-image" src="/assets/media/studio-lobby-2.heic" alt="Studio lobby" loading="lazy" />
+                <img class="home-hero-image" src="/assets/media/studio-lobby-2.jpg" alt="Studio lobby" loading="lazy" />
               </div>
               <div class="home-carousel-slide" data-home-slide>
-                <img class="home-hero-image" src="/assets/media/studio-exterior-2.heic" alt="Studio exterior" loading="lazy" />
+                <img class="home-hero-image" src="/assets/media/studio-exterior-2.jpg" alt="Studio exterior" loading="lazy" />
               </div>
-            </div>
-
-            <div class="home-carousel-controls">
-              <button data-home-prev class="home-carousel-button" type="button">Previous</button>
-              <div class="home-carousel-progress">
-                <div class="home-carousel-counter" data-home-counter>1 / 3</div>
-                <div class="home-carousel-dots">
-                  <button class="home-carousel-dot is-active" type="button" data-home-dot aria-current="true"></button>
-                  <button class="home-carousel-dot" type="button" data-home-dot aria-current="false"></button>
-                  <button class="home-carousel-dot" type="button" data-home-dot aria-current="false"></button>
+              <div class="home-hero-overlay home-hero-overlay-primary"></div>
+              <div class="home-hero-overlay home-hero-overlay-secondary"></div>
+              <div class="home-hero-stage">
+                <div class="home-hero-stage-copy">
+                  <span class="panel-kicker">Studio booking made simple</span>
+                  <h1>Plan your session after you see the space</h1>
+                  <p class="hero-copy">
+                    Walk through the studio visually first, compare rooms only when you are ready, and keep the booking flow clear from the first click.
+                  </p>
+                  <div class="hero-actions">
+                    <a class="primary-button hero-primary" href="/info">Explore the studio</a>
+                    <a class="ghost-button ghost-link" href="/rooms">See rooms</a>
+                    <a class="ghost-button ghost-link" href="/staff">Meet the team</a>
+                  </div>
+                  <div class="home-badge-row">
+                    <span class="pill">Lethbridge, Alberta</span>
+                    <span class="pill">Continue as guest</span>
+                    <span class="pill">Rooms + staff booking</span>
+                  </div>
+                </div>
+                <div class="home-carousel-controls">
+                  <button data-home-prev class="home-carousel-button" type="button">Previous</button>
+                  <div class="home-carousel-progress">
+                    <div class="home-carousel-counter" data-home-counter>1 / 3</div>
+                    <div class="home-carousel-dots">
+                      <button class="home-carousel-dot is-active" type="button" data-home-dot aria-current="true"></button>
+                      <button class="home-carousel-dot" type="button" data-home-dot aria-current="false"></button>
+                      <button class="home-carousel-dot" type="button" data-home-dot aria-current="false"></button>
+                    </div>
+                  </div>
+                  <button data-home-next class="home-carousel-button" type="button">Next</button>
                 </div>
               </div>
-              <button data-home-next class="home-carousel-button" type="button">Next</button>
             </div>
-          </div>
 
-          <div class="home-carousel-captions">
-            <button class="home-carousel-caption is-active" type="button" data-home-caption>
-              <span class="home-carousel-caption-kicker">Arrival</span>
-              <strong>Welcoming exterior and arrival point</strong>
-              <p>Start with how the studio feels from the street and where to park.</p>
-            </button>
-            <button class="home-carousel-caption" type="button" data-home-caption>
-              <span class="home-carousel-caption-kicker">Lobby</span>
-              <strong>Warm guest check-in area</strong>
-              <p>See the lobby style and client welcome space before booking.</p>
-            </button>
-            <button class="home-carousel-caption" type="button" data-home-caption>
-              <span class="home-carousel-caption-kicker">Studio</span>
-              <strong>Signature room atmosphere</strong>
-              <p>Visualize the shoot space and the studio mood before choosing a room.</p>
-            </button>
+            <div class="home-carousel-captions">
+              <button class="home-carousel-caption is-active" type="button" data-home-caption>
+                <span class="home-carousel-caption-kicker">Arrival</span>
+                <strong>Welcoming exterior and arrival point</strong>
+                <p>Start with how the studio feels from the street and where to park.</p>
+              </button>
+              <button class="home-carousel-caption" type="button" data-home-caption>
+                <span class="home-carousel-caption-kicker">Lobby</span>
+                <strong>Warm guest check-in area</strong>
+                <p>See the lobby style and client welcome space before booking.</p>
+              </button>
+              <button class="home-carousel-caption" type="button" data-home-caption>
+                <span class="home-carousel-caption-kicker">Studio</span>
+                <strong>Signature room atmosphere</strong>
+                <p>Visualize the shoot space and the studio mood before choosing a room.</p>
+              </button>
+            </div>
           </div>
         </section>
 
-        <section class="panel panel-wide">
+        <section class="panel panel-wide home-information-panel">
           <div class="panel-header">
-            <p class="panel-kicker">Studio booking made simple</p>
-            <h2>Plan your session after you see the space</h2>
+            <p class="panel-kicker">Below The Hero</p>
+            <h2>All the planning information sits underneath the photos</h2>
             <p class="panel-copy">
-              A cleaner front door for your Lethbridge studio: explore the space, understand how bookings work, and get to the right page without landing in a room catalog first.
+              The top of the page stays visual and immersive. Everything practical lives lower on the page so guests can scroll into details, directions, and next steps without losing the first impression.
             </p>
           </div>
           <div class="home-hero-grid">
@@ -223,6 +243,47 @@
             </article>
           </div>
         </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">Map</p>
+            <h2>Studio location on Google Maps</h2>
+            <p class="panel-copy">Confirm the route before your session, then jump out to Google Maps for directions when you are ready to head over.</p>
+          </div>
+          <div class="home-location-grid">
+            <article class="detail-card">
+              <h3>2525 36 St N, Lethbridge, AB T1H 5L1</h3>
+              <p>Use the landing page to see the space first, then open directions once you are ready to arrive.</p>
+              <div class="hero-actions">
+                <a
+                  class="primary-button"
+                  href="https://www.google.com/maps/dir/?api=1&destination=2525%2036%20St%20N%2C%20Lethbridge%2C%20AB%20T1H%205L1"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Get directions
+                </a>
+                <a
+                  class="ghost-button ghost-link"
+                  href="https://www.google.com/maps/search/?api=1&query=2525%2036%20St%20N%2C%20Lethbridge%2C%20AB%20T1H%205L1"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open in Google Maps
+                </a>
+              </div>
+            </article>
+            <div class="home-map-card">
+              <iframe
+                class="home-map-frame"
+                title="Studio location on Google Maps"
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+                src="https://www.google.com/maps?q=2525+36+St+N,+Lethbridge,+AB+T1H+5L1&z=15&output=embed"
+              ></iframe>
+            </div>
+          </div>
+        </section>
       </main>
 
       <footer class="signal-ribbon signal-ribbon-compact">
@@ -244,6 +305,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260401s"></script>
+    <script type="module" src="/assets/js/main.js?v=20260421a"></script>
   </body>
 </html>

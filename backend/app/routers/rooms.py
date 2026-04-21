@@ -4,9 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.room import Room
+from app.schemas.review import RoomReviewFeedOut
 from app.schemas.room import RoomCreate, RoomOut, RoomUpdate
 from app.core.dependencies import get_admin_user, get_optional_current_user
 from app.models.user import User
+from app.services.booking_service import list_room_reviews
 
 router = APIRouter(prefix="/api/rooms", tags=["Rooms"])
 
@@ -33,6 +35,18 @@ def get_room(
     if not room or (not room.active and not (current_user and current_user.is_admin)):
         raise HTTPException(status_code=404, detail="Room not found")
     return room
+
+
+@router.get("/{room_id}/reviews", response_model=RoomReviewFeedOut)
+def get_room_review_feed(
+    room_id: str,
+    limit: int = Query(default=6, ge=1, le=12),
+    db: Session = Depends(get_db),
+):
+    try:
+        return list_room_reviews(db, room_id, limit=limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 @router.post("", response_model=RoomOut, status_code=201)
 def create_room(

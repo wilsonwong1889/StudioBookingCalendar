@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     APP_BASE_URL: str = "http://127.0.0.1:8000"
     ALLOWED_CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
+    SUPABASE_URL: str = ""
+    SUPABASE_PUBLISHABLE_KEY: str = ""
+    SUPABASE_TIMEOUT_SECONDS: int = 20
 
     STRIPE_PUBLISHABLE_KEY: str = ""
     STRIPE_SECRET_KEY: str = Field(default="sk_test_placeholder", repr=False)
@@ -162,6 +165,17 @@ def get_stripe_configuration_status(settings_obj: Optional[Settings] = None) -> 
     }
 
 
+def get_supabase_configuration_status(settings_obj: Optional[Settings] = None) -> dict[str, bool]:
+    current = settings_obj or settings
+    url_ready = _is_configured(current.SUPABASE_URL)
+    publishable_key_ready = _is_configured(current.SUPABASE_PUBLISHABLE_KEY)
+    return {
+        "supabase_url_ready": url_ready,
+        "supabase_publishable_key_ready": publishable_key_ready,
+        "supabase_fully_ready": url_ready and publishable_key_ready,
+    }
+
+
 def validate_runtime_configuration(settings_obj: Optional[Settings] = None) -> None:
     current = settings_obj or settings
     environment = current.APP_ENV.lower().strip()
@@ -174,8 +188,8 @@ def validate_runtime_configuration(settings_obj: Optional[Settings] = None) -> N
         errors.append("SECRET_KEY must be a strong non-placeholder value in production")
     if not current.APP_BASE_URL.startswith("https://"):
         errors.append("APP_BASE_URL must use https in production")
-    if current.PAYMENT_BACKEND not in {"stripe", "stub"}:
-        errors.append("PAYMENT_BACKEND must be stripe or stub in production")
+    if current.PAYMENT_BACKEND != "stripe":
+        errors.append("PAYMENT_BACKEND must be stripe in production")
     if current.EMAIL_BACKEND not in {"disabled", "sendgrid", "smtp"}:
         errors.append("EMAIL_BACKEND must be disabled, sendgrid, or smtp in production")
     if current.CELERY_TASK_ALWAYS_EAGER and not getattr(current, "ALLOW_INLINE_TASKS_IN_PRODUCTION", False):
@@ -184,6 +198,13 @@ def validate_runtime_configuration(settings_obj: Optional[Settings] = None) -> N
         )
     if any("localhost" in origin or "127.0.0.1" in origin for origin in current.cors_origins):
         errors.append("ALLOWED_CORS_ORIGINS must not include localhost in production")
+    supabase_url = getattr(current, "SUPABASE_URL", "") or ""
+    supabase_publishable_key = getattr(current, "SUPABASE_PUBLISHABLE_KEY", "") or ""
+    if supabase_url or supabase_publishable_key:
+        if not supabase_url or _looks_placeholder(supabase_url):
+            errors.append("SUPABASE_URL must be configured when Supabase auth is enabled")
+        if not supabase_publishable_key or _looks_placeholder(supabase_publishable_key):
+            errors.append("SUPABASE_PUBLISHABLE_KEY must be configured when Supabase auth is enabled")
     if current.PAYMENT_BACKEND == "stripe":
         if not current.STRIPE_PUBLISHABLE_KEY or _looks_placeholder(current.STRIPE_PUBLISHABLE_KEY):
             errors.append("STRIPE_PUBLISHABLE_KEY must be configured when PAYMENT_BACKEND is stripe")

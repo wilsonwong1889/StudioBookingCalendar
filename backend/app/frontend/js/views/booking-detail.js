@@ -1,8 +1,8 @@
-import { api } from "../api.js?v=20260401r";
+import { api } from "../api.js?v=20260421a";
 import { downloadBookingCalendarFile } from "../calendar.js?v=20260408k";
-import { downloadBookingReceiptPdf } from "../receipt.js?v=20260409a";
-import { elements, toggleHidden } from "../dom.js?v=20260401r";
-import { setState } from "../state.js?v=20260401r";
+import { downloadBookingReceiptPdf } from "../receipt.js?v=20260421a";
+import { elements, toggleHidden } from "../dom.js?v=20260421a";
+import { setState, state } from "../state.js?v=20260421a";
 
 let stripeClient = null;
 let stripeElements = null;
@@ -10,6 +10,12 @@ let paymentElement = null;
 let activePaymentSession = null;
 let paymentDeadlineTimer = null;
 let reloadBookingDetailAction = null;
+let rescheduleAvailability = null;
+let rescheduleBookingId = null;
+let rescheduleDateValue = "";
+let rescheduleLoading = false;
+let rescheduleStatusMessage = "";
+let reviewFormFingerprint = null;
 
 function formatBookingDate(value) {
   return new Intl.DateTimeFormat("en-US", {
@@ -35,6 +41,10 @@ function formatCountdown(seconds) {
 function formatDuration(minutes) {
   const hours = minutes / 60;
   return `${hours} hour${hours === 1 ? "" : "s"}`;
+}
+
+function getDateInputValue(value) {
+  return String(value || "").split("T")[0] || new Date().toISOString().slice(0, 10);
 }
 
 function isAdminWaivedPayment(booking) {
@@ -202,6 +212,121 @@ function renderPaymentPanel(state, booking) {
   }
 }
 
+async function loadRescheduleAvailability(booking, targetDate) {
+  if (!booking || !targetDate) {
+    return;
+  }
+
+  rescheduleBookingId = booking.id;
+  rescheduleDateValue = targetDate;
+  rescheduleLoading = true;
+  rescheduleStatusMessage = "Loading available start times...";
+  setState({ message: state.message });
+
+  try {
+    rescheduleAvailability = await api.getAvailability(booking.room_id, targetDate);
+    const validStarts = (rescheduleAvailability.available_start_times || []).filter(
+      (startTime) =>
+        Number(rescheduleAvailability.max_duration_minutes_by_start?.[startTime] || 0) >= booking.duration_minutes &&
+        startTime !== booking.start_time,
+    );
+    rescheduleStatusMessage = validStarts.length
+      ? `Choose from ${validStarts.length} open start time${validStarts.length === 1 ? "" : "s"} on ${targetDate}.`
+      : "No alternate starts are open for this booking duration on that date.";
+  } catch (error) {
+    rescheduleAvailability = null;
+    rescheduleStatusMessage = error.message;
+  } finally {
+    rescheduleLoading = false;
+    setState({ message: state.message });
+  }
+}
+
+function renderReschedulePanel(booking) {
+  if (
+    !elements.bookingReschedulePanel ||
+    !elements.bookingRescheduleDate ||
+    !elements.bookingRescheduleStart ||
+    !elements.bookingRescheduleStatus ||
+    !elements.bookingRescheduleSubmit
+  ) {
+    return;
+  }
+
+  const canReschedule = ["PendingPayment", "Paid"].includes(booking.status) && !booking.checked_in_at;
+  toggleHidden(elements.bookingReschedulePanel, !canReschedule);
+  if (!canReschedule) {
+    return;
+  }
+
+  const nextDate = rescheduleDateValue || getDateInputValue(booking.start_time);
+  if (elements.bookingRescheduleDate.value !== nextDate) {
+    elements.bookingRescheduleDate.value = nextDate;
+  }
+
+  if (rescheduleBookingId !== booking.id || rescheduleDateValue !== nextDate) {
+    void loadRescheduleAvailability(booking, nextDate);
+  }
+
+  const validStarts = (rescheduleAvailability?.available_start_times || []).filter(
+    (startTime) =>
+      Number(rescheduleAvailability?.max_duration_minutes_by_start?.[startTime] || 0) >= booking.duration_minutes &&
+      startTime !== booking.start_time,
+  );
+  elements.bookingRescheduleStart.innerHTML = validStarts.length
+    ? validStarts
+        .map(
+          (startTime) => `
+            <option value="${startTime}">
+              ${formatBookingDate(startTime)}
+            </option>
+          `,
+        )
+        .join("")
+    : '<option value="">No alternate times available</option>';
+  elements.bookingRescheduleSubmit.disabled = rescheduleLoading || !validStarts.length;
+  elements.bookingRescheduleStatus.textContent = rescheduleLoading
+    ? "Loading available start times..."
+    : rescheduleStatusMessage ||
+      `Move this booking to a different start time while keeping the same ${formatDuration(booking.duration_minutes)} duration.`;
+}
+
+function renderReviewPanel(currentState, booking) {
+  if (!elements.bookingReviewPanel || !elements.bookingReviewForm || !elements.bookingReviewStatus) {
+    return;
+  }
+
+  const canReview =
+    booking.status === "Completed" ||
+    (booking.status === "Paid" && new Date(booking.end_time).getTime() <= Date.now());
+  toggleHidden(elements.bookingReviewPanel, !canReview);
+  if (!canReview) {
+    reviewFormFingerprint = null;
+    return;
+  }
+
+  const review = currentState.selectedBookingReview;
+  const nextFingerprint = JSON.stringify({
+    bookingId: booking.id,
+    reviewId: review?.id || null,
+    rating: review?.rating || null,
+    comment: review?.comment || null,
+  });
+  if (reviewFormFingerprint !== nextFingerprint) {
+    elements.bookingReviewForm.elements.rating.value = String(review?.rating || 5);
+    elements.bookingReviewForm.elements.comment.value = review?.comment || "";
+    reviewFormFingerprint = nextFingerprint;
+  }
+
+  elements.bookingReviewStatus.textContent = review
+    ? `Last updated ${formatBookingDate(review.updated_at || review.created_at)} by ${review.reviewer_name || "you"}.`
+    : "Leave a review once the session wraps so future guests can judge the room with more confidence.";
+  const submitButton = elements.bookingReviewForm.querySelector("button[type='submit']");
+  if (submitButton) {
+    submitButton.textContent = review ? "Update review" : "Save review";
+  }
+}
+
 function renderStaffAssignments(booking) {
   if (!elements.bookingDetailStaffList) {
     return;
@@ -351,6 +476,51 @@ export function initBookingDetailView(actions) {
 
   elements.bookingDetailActions.addEventListener("click", handleAction);
   elements.bookingPaymentControls?.addEventListener("click", handleAction);
+  elements.bookingRescheduleDate?.addEventListener("change", () => {
+    if (!state.selectedBooking) {
+      return;
+    }
+    void loadRescheduleAvailability(state.selectedBooking, elements.bookingRescheduleDate.value);
+  });
+  elements.bookingRescheduleSubmit?.addEventListener("click", async () => {
+    if (!state.selectedBooking || !elements.bookingRescheduleStart?.value) {
+      setState({ message: "Choose a new start time before rescheduling." });
+      return;
+    }
+
+    try {
+      setState({ message: "Rescheduling booking..." });
+      const booking = await api.rescheduleBooking(state.selectedBooking.id, {
+        start_time: elements.bookingRescheduleStart.value,
+      });
+      rescheduleAvailability = null;
+      rescheduleBookingId = null;
+      rescheduleDateValue = "";
+      rescheduleStatusMessage = "";
+      setState({ selectedBooking: booking, message: "Booking rescheduled." });
+      if (actions?.reloadBookingDetail) {
+        await actions.reloadBookingDetail("Booking detail refreshed.");
+      }
+    } catch (error) {
+      setState({ message: error.message });
+    }
+  });
+  elements.bookingReviewForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!state.selectedBooking) {
+      return;
+    }
+
+    try {
+      const review = await api.saveBookingReview(state.selectedBooking.id, {
+        rating: Number(elements.bookingReviewForm.elements.rating.value || 5),
+        comment: elements.bookingReviewForm.elements.comment.value.trim() || null,
+      });
+      setState({ selectedBookingReview: review, message: "Review saved." });
+    } catch (error) {
+      setState({ message: error.message });
+    }
+  });
 }
 
 export function renderBookingDetailView(state) {
@@ -366,6 +536,7 @@ export function renderBookingDetailView(state) {
   if (!booking) {
     clearPaymentDeadlineTimer();
     clearPaymentElement();
+    reviewFormFingerprint = null;
     return;
   }
 
@@ -407,4 +578,6 @@ export function renderBookingDetailView(state) {
   }
 
   renderPaymentPanel(state, booking);
+  renderReschedulePanel(booking);
+  renderReviewPanel(state, booking);
 }

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bookings | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260409c" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260421a" />
   </head>
   <body data-page="bookings">
     <div class="site-frame">
@@ -45,9 +45,9 @@
       <main class="page-grid booking-page-grid">
         <section class="hero-card hero-card-wide">
           <p class="eyebrow">Bookings</p>
-          <h1>Check room availability, then sign in when you are ready to book.</h1>
+          <h1>Check room availability, then book as a guest or sign in.</h1>
           <p class="hero-copy">
-            Guests can browse available rooms and start times here. Sessions can run from 1 hour up to the maximum allowed for that room between 10am and 6pm.
+            Guests can browse available rooms and start times here, then continue with only a name and phone number. Sessions can run from 1 hour up to the maximum allowed for that room between 10am and 6pm.
           </p>
         </section>
 
@@ -58,7 +58,7 @@
           </div>
 
           <div id="booking-empty" class="empty-state">
-            Guests can browse availability. Log in on the account page when you are ready to complete a booking.
+            Guests can browse availability and continue with name plus phone, or sign in if they want their bookings tied to an account.
           </div>
 
           <form id="availability-form" class="stack-form booking-toolbar-form">
@@ -78,6 +78,19 @@
           <div id="booking-slot-list" class="slot-grid hidden"></div>
 
           <form id="booking-form" class="stack-form booking-form">
+            <div id="booking-guest-fields" class="guest-booking-fields hidden">
+              <p class="form-note">Continue as guest with your name and phone number.</p>
+              <div class="profile-grid profile-grid-tight">
+                <label>
+                  <span>Name</span>
+                  <input id="booking-guest-name" type="text" autocomplete="name" />
+                </label>
+                <label>
+                  <span>Phone number</span>
+                  <input id="booking-guest-phone" type="tel" autocomplete="tel" />
+                </label>
+              </div>
+            </div>
             <label class="inline-field hidden">
               <span>Start time</span>
               <select id="booking-start-select" name="start_time"></select>
@@ -191,6 +204,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260409c"></script>
+    <script type="module" src="/assets/js/main.js?v=20260421a"></script>
   </body>
 </html>

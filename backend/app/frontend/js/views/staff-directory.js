@@ -1,4 +1,4 @@
-import { elements } from "../dom.js?v=20260401r";
+import { elements } from "../dom.js?v=20260421a";
 
 const STAFF_PLACEHOLDER_IMAGE = "/assets/media/staff/staff-placeholder.svg";
 

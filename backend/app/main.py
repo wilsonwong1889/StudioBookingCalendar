@@ -5,7 +5,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
-from app.config import get_stripe_configuration_status, settings, validate_runtime_configuration
+from app.config import (
+    get_stripe_configuration_status,
+    get_supabase_configuration_status,
+    settings,
+    validate_runtime_configuration,
+)
 from app.database import engine
 from app.routers import admin, auth, bookings, rooms, staff, users, webhooks
 from app.monitoring import record_request, render_metrics, time_request
@@ -93,6 +98,7 @@ def metrics():
 @app.get("/api/public/config", include_in_schema=False)
 def public_config():
     stripe_status = get_stripe_configuration_status()
+    supabase_status = get_supabase_configuration_status()
     return {
         "app_env": settings.APP_ENV,
         "payment_backend": settings.PAYMENT_BACKEND,
@@ -100,6 +106,11 @@ def public_config():
         "stripe_checkout_ready": stripe_status["stripe_checkout_ready"],
         "stripe_webhooks_ready": stripe_status["stripe_webhooks_ready"],
         "stripe_fully_ready": stripe_status["stripe_fully_ready"],
+        "supabase_url": settings.SUPABASE_URL if supabase_status["supabase_fully_ready"] else None,
+        "supabase_publishable_key": (
+            settings.SUPABASE_PUBLISHABLE_KEY if supabase_status["supabase_fully_ready"] else None
+        ),
+        "supabase_fully_ready": supabase_status["supabase_fully_ready"],
         "app_base_url": settings.APP_BASE_URL,
         "default_currency": settings.DEFAULT_CURRENCY,
     }

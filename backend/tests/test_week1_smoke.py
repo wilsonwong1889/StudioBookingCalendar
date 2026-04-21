@@ -41,7 +41,7 @@ class AppSmokeTest(unittest.TestCase):
 
         from app.database import Base, SessionLocal, engine
         from app.main import app
-        from app.models.booking import AuditLog, Booking, BookingSlot, NotificationLog, Refund
+        from app.models.booking import AuditLog, Booking, BookingSlot, NotificationLog, Refund, Review
         from app.models.promo_code import PromoCode
         from app.models.room import Room
         from app.models.staff_profile import StaffProfile
@@ -56,6 +56,7 @@ class AppSmokeTest(unittest.TestCase):
         cls.BookingSlot = BookingSlot
         cls.NotificationLog = NotificationLog
         cls.Refund = Refund
+        cls.Review = Review
         cls.PromoCode = PromoCode
         cls.Room = Room
         cls.StaffProfile = StaffProfile
@@ -81,6 +82,7 @@ class AppSmokeTest(unittest.TestCase):
                 self.AuditLog,
                 self.NotificationLog,
                 self.Refund,
+                self.Review,
                 self.PromoCode,
                 self.BookingSlot,
                 self.Booking,
@@ -165,10 +167,12 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertIn("StudioBookingSoftware", response.text)
         self.assertIn("2525 36 St N, Lethbridge, AB T1H 5L1", response.text)
-        self.assertIn("Plan your session before you book it.", response.text)
+        self.assertIn("Plan your session after you see the space", response.text)
         self.assertIn("Explore the studio", response.text)
+        self.assertIn("home-carousel-captions", response.text)
+        self.assertIn("Studio location on Google Maps", response.text)
         self.assertNotIn('id="rooms-grid"', response.text)
-        self.assertIn("20260401s", response.text)
+        self.assertIn("20260421a", response.text)
 
         for path in ("/account", "/rooms", "/room", "/reserve", "/bookings", "/booking", "/payment-success", "/admin"):
             page_response = self.client.get(path)
@@ -185,8 +189,10 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn("signup-password-match-feedback", account_page.text)
         self.assertIn("reset-password-match-feedback", account_page.text)
         self.assertIn("profile-password-match-feedback", account_page.text)
+        self.assertIn("profile-avatar-file", account_page.text)
+        self.assertIn("profile-avatar-preview", account_page.text)
         self.assertIn("account-danger-zone", account_page.text)
-        self.assertIn("20260401ab", account_page.text)
+        self.assertIn("20260421a", account_page.text)
 
         bookings_page = self.client.get("/bookings")
         self.assertIn("Check availability", bookings_page.text)
@@ -200,11 +206,13 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn("booking-promo-code-input", bookings_page.text)
         self.assertIn("booking-promo-preview-button", bookings_page.text)
         self.assertIn("booking-promo-feedback", bookings_page.text)
-        self.assertIn("20260409c", bookings_page.text)
+        self.assertIn("continue with only a name and phone number", bookings_page.text)
+        self.assertIn("20260421a", bookings_page.text)
         self.assertIn("recent-bookings-search", bookings_page.text)
         self.assertIn("recent-bookings-status-filter", bookings_page.text)
 
         reserve_page = self.client.get("/reserve")
+        self.assertIn("continue as a guest", reserve_page.text)
         self.assertIn("reserve-promo-code-input", reserve_page.text)
         self.assertIn("reserve-promo-preview-button", reserve_page.text)
         self.assertIn("reserve-promo-feedback", reserve_page.text)
@@ -228,7 +236,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn("admin-accounts-list", admin_page.text)
         self.assertIn("admin-test-case-summary", admin_page.text)
         self.assertIn("admin-test-cases-list", admin_page.text)
-        self.assertIn("20260409c", admin_page.text)
+        self.assertIn("20260421a", admin_page.text)
         self.assertLess(admin_page.text.index("Room management"), admin_page.text.index("Backend test cases"))
 
         response = self.client.get("/assets/styles/app.css")
@@ -242,22 +250,22 @@ class AppSmokeTest(unittest.TestCase):
         response = self.client.get("/assets/js/main.js")
         self.assertEqual(response.status_code, 200, response.text)
         self.assertIn("refreshSession", response.text)
-        self.assertIn('./api.js?v=20260401r', response.text)
-        self.assertIn('./state.js?v=20260401r', response.text)
-        self.assertIn("views/admin.js?v=20260409c", response.text)
+        self.assertIn('./api.js?v=20260421a', response.text)
+        self.assertIn('./state.js?v=20260421a', response.text)
+        self.assertIn("views/admin.js?v=20260421a", response.text)
         self.assertIn("views/booking-detail.js?v=", response.text)
         self.assertIn("views/payment-success.js?v=", response.text)
-        self.assertIn("views/bookings.js?v=20260409c", response.text)
-        self.assertIn("views/room-booking.js?v=20260409c", response.text)
-        self.assertIn("views/rooms.js?v=20260408q", response.text)
-        self.assertIn("views/room-detail.js?v=20260401r", response.text)
-        self.assertIn("views/auth.js?v=20260401ab", response.text)
-        self.assertIn("views/profile.js?v=20260408m", response.text)
-        self.assertNotIn("views/admin.js?v=20260401x", response.text)
+        self.assertIn("views/bookings.js?v=20260421a", response.text)
+        self.assertIn("views/room-booking.js?v=20260421a", response.text)
+        self.assertIn("views/rooms.js?v=20260421a", response.text)
+        self.assertIn("views/room-detail.js?v=20260421a", response.text)
+        self.assertIn("views/info.js?v=20260421a", response.text)
+        self.assertIn("views/auth.js?v=20260421a", response.text)
+        self.assertIn("views/profile.js?v=20260421a", response.text)
 
         response = self.client.get("/assets/js/views/bookings.js")
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertIn('../state.js?v=20260401r', response.text)
+        self.assertIn('../state.js?v=20260421a', response.text)
         self.assertIn('getSearchParam("room") || getSearchParam("id")', response.text)
         self.assertIn("const MAX_DURATION_MINUTES = 300;", response.text)
         self.assertIn("Completed / checked in", response.text)
@@ -278,6 +286,10 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertIn("stripeElements.submit()", response.text)
         self.assertIn('new URL("/payment-success"', response.text)
+        self.assertIn("bookingReschedulePanel", response.text)
+        self.assertIn("bookingReviewForm", response.text)
+        self.assertIn("api.rescheduleBooking(state.selectedBooking.id", response.text)
+        self.assertIn("api.saveBookingReview(state.selectedBooking.id", response.text)
         self.assertIn("Skip Stripe as admin", response.text)
         self.assertIn('api.adminWaiveBookingPayment(button.dataset.bookingId)', response.text)
         self.assertIn("Mark paid manually as admin", response.text)
@@ -302,6 +314,7 @@ class AppSmokeTest(unittest.TestCase):
         response = self.client.get("/assets/js/views/profile.js")
         self.assertEqual(response.status_code, 200, response.text)
         self.assertIn('window.prompt("Enter your password to delete this account.")', response.text)
+        self.assertIn("api.uploadProfileAvatar(avatarFile)", response.text)
         self.assertIn('api.deleteProfile({ password: deletePassword })', response.text)
 
         response = self.client.get("/assets/js/views/admin.js")
@@ -326,6 +339,8 @@ class AppSmokeTest(unittest.TestCase):
         response = self.client.get("/assets/js/views/rooms.js")
         self.assertEqual(response.status_code, 200, response.text)
         self.assertIn('detail: { group: "rooms", subpage: "editor" }', response.text)
+        self.assertIn("elements.roomsSearchButton?.addEventListener", response.text)
+        self.assertIn("searchRoomsByAvailability", response.text)
         self.assertIn('href="/bookings?room=${room.id}"', response.text)
 
         signup_payload = {
@@ -889,6 +904,59 @@ class AppSmokeTest(unittest.TestCase):
             response.json()["detail"],
             "Bookings are only available between 10:00 and 18:00",
         )
+
+    def test_21_guest_booking_endpoint_requires_only_name_and_phone(self) -> None:
+        from app.models.booking import Booking
+        from app.models.room import Room
+        from app.models.user import User
+
+        with self.SessionLocal() as db:
+            room = Room(
+                name="Guest Booking Room",
+                description="Room used for guest booking smoke tests",
+                capacity=2,
+                photos=[],
+                hourly_rate_cents=4500,
+                max_booking_duration_minutes=180,
+            )
+            db.add(room)
+            db.commit()
+            db.refresh(room)
+            room_id = str(room.id)
+
+        business_timezone = ZoneInfo("America/Edmonton")
+        start_time = datetime(2026, 4, 4, 11, 0, tzinfo=business_timezone)
+
+        response = self.client.post(
+            "/api/bookings/guest",
+            json={
+                "room_id": room_id,
+                "start_time": start_time.isoformat(),
+                "duration_minutes": 60,
+                "guest_name": "Guest Booker",
+                "guest_phone": "4035550102",
+            },
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+        payload = response.json()
+        self.assertTrue(payload["access_token"])
+        self.assertEqual(payload["booking"]["status"], "PendingPayment")
+        self.assertEqual(payload["booking"]["price_cents"], 4500)
+
+        guest_headers = {"Authorization": f"Bearer {payload['access_token']}"}
+        response = self.client.get(f"/api/bookings/{payload['booking']['id']}", headers=guest_headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["id"], payload["booking"]["id"])
+
+        with self.SessionLocal() as db:
+            booking = db.query(Booking).filter(Booking.id == UUID(payload["booking"]["id"])).one()
+            user = db.query(User).filter(User.id == booking.user_id).one()
+
+        self.assertEqual(user.full_name, "Guest Booker")
+        self.assertEqual(user.phone, "4035550102")
+        self.assertTrue(user.email.startswith("guest+"))
+        self.assertEqual(booking.user_full_name_snapshot, "Guest Booker")
+        self.assertEqual(booking.user_phone_snapshot, "4035550102")
 
     def test_25_pending_payment_window_expires_and_reopens_slot(self) -> None:
         from app.models.booking import Booking
@@ -1671,6 +1739,105 @@ class AppSmokeTest(unittest.TestCase):
         response = self.client.get("/api/admin/users", headers=admin_headers)
         self.assertEqual(response.status_code, 200, response.text)
         self.assertFalse(any(account["email"] == "delete-by-admin@example.com" for account in response.json()))
+
+    def test_36_profile_avatar_reschedule_and_review_flow(self) -> None:
+        from app.models.room import Room
+
+        with self.SessionLocal() as db:
+            room = Room(
+                name="Review Flow Room",
+                description="Room for avatar, reschedule, and review coverage",
+                capacity=4,
+                photos=[],
+                hourly_rate_cents=5000,
+            )
+            db.add(room)
+            db.commit()
+            db.refresh(room)
+            room_id = str(room.id)
+
+        response = self.client.post(
+            "/api/auth/signup",
+            json={
+                "email": "reviewer@example.com",
+                "password": "Password123!",
+                "full_name": "Review User",
+                "phone": "5555554100",
+            },
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+
+        response = self.client.post(
+            "/api/auth/login",
+            data={"username": "reviewer@example.com", "password": "Password123!"},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        user_headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+        response = self.client.put(
+            "/api/users/me",
+            headers=user_headers,
+            json={
+                "full_name": "Review User",
+                "avatar_url": "/assets/media/avatars/example-avatar.jpg",
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["avatar_url"], "/assets/media/avatars/example-avatar.jpg")
+
+        business_timezone = ZoneInfo("America/Edmonton")
+        response = self.client.post(
+            "/api/bookings",
+            headers=user_headers,
+            json={
+                "room_id": room_id,
+                "start_time": datetime(2026, 4, 20, 10, 0, tzinfo=business_timezone).isoformat(),
+                "duration_minutes": 60,
+            },
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+        booking = response.json()
+
+        response = self.client.post(
+            f"/api/bookings/{booking['id']}/reschedule",
+            headers=user_headers,
+            json={
+                "start_time": datetime(2026, 4, 20, 12, 0, tzinfo=business_timezone).isoformat(),
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        rescheduled_booking = response.json()
+        self.assertEqual(
+            datetime.fromisoformat(rescheduled_booking["start_time"].replace("Z", "+00:00")),
+            datetime(2026, 4, 20, 18, 0, tzinfo=timezone.utc),
+        )
+
+        with self.SessionLocal() as db:
+            booking_row = db.query(self.Booking).filter(self.Booking.id == rescheduled_booking["id"]).first()
+            booking_row.status = "Completed"
+            booking_row.confirmed_at = datetime.now(timezone.utc)
+            booking_row.checked_in_at = datetime.now(timezone.utc)
+            db.commit()
+
+        response = self.client.put(
+            f"/api/bookings/{rescheduled_booking['id']}/review",
+            headers=user_headers,
+            json={"rating": 5, "comment": "Great room and smooth session."},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["rating"], 5)
+
+        response = self.client.get(
+            f"/api/bookings/{rescheduled_booking['id']}/review",
+            headers=user_headers,
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["comment"], "Great room and smooth session.")
+
+        response = self.client.get(f"/api/rooms/{room_id}/reviews")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["summary"]["review_count"], 1)
+        self.assertEqual(response.json()["reviews"][0]["rating"], 5)
 
     def test_40_week_seven_eight_ops(self) -> None:
         from app.celery_app import celery_app

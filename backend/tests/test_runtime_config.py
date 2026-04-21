@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from app.config import (
     RuntimeConfigurationError,
     get_stripe_configuration_status,
+    get_supabase_configuration_status,
     mask_secret,
     redact_sensitive_text,
     Settings,
@@ -109,7 +110,7 @@ class RuntimeConfigurationTest(unittest.TestCase):
 
         validate_runtime_configuration(settings_obj)
 
-    def test_production_accepts_stub_payment_backend(self) -> None:
+    def test_production_rejects_stub_payment_backend(self) -> None:
         settings_obj = SimpleNamespace(
             APP_ENV="production",
             SECRET_KEY="super-long-live-secret-with-entropy-1234567890",
@@ -133,7 +134,8 @@ class RuntimeConfigurationTest(unittest.TestCase):
             TWILIO_FROM_NUMBER="",
         )
 
-        validate_runtime_configuration(settings_obj)
+        with self.assertRaises(RuntimeConfigurationError):
+            validate_runtime_configuration(settings_obj)
 
     def test_production_accepts_inline_tasks_when_explicitly_allowed(self) -> None:
         settings_obj = SimpleNamespace(
@@ -272,6 +274,18 @@ class RuntimeConfigurationTest(unittest.TestCase):
         self.assertTrue(status["stripe_checkout_ready"])
         self.assertTrue(status["stripe_webhooks_ready"])
         self.assertTrue(status["stripe_fully_ready"])
+
+    def test_supabase_configuration_status_requires_url_and_publishable_key(self) -> None:
+        settings_obj = SimpleNamespace(
+            SUPABASE_URL="https://project.supabase.co",
+            SUPABASE_PUBLISHABLE_KEY="sb_publishable_key",
+        )
+
+        status = get_supabase_configuration_status(settings_obj)
+
+        self.assertTrue(status["supabase_url_ready"])
+        self.assertTrue(status["supabase_publishable_key_ready"])
+        self.assertTrue(status["supabase_fully_ready"])
 
     def test_settings_repr_hides_secret_fields(self) -> None:
         settings_obj = Settings(

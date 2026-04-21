@@ -1,18 +1,19 @@
-import { api } from "./api.js?v=20260401r";
-import { CURRENT_PAGE, getSearchParam } from "./config.js?v=20260401r";
-import { setState, state, subscribe, persistToken } from "./state.js?v=20260401r";
-import { initAdminView, renderAdminView } from "./views/admin.js?v=20260409c";
-import { initAuthView, renderAuthView } from "./views/auth.js?v=20260401ab";
-import { initBookingDetailView, renderBookingDetailView } from "./views/booking-detail.js?v=20260409a";
-import { initBookingsView, renderBookingsView } from "./views/bookings.js?v=20260409c";
-import { initInfoView, renderInfoView } from "./views/info.js?v=20260401r";
-import { initPaymentSuccessView, renderPaymentSuccessView } from "./views/payment-success.js?v=20260409a";
-import { initProfileView, renderProfileView } from "./views/profile.js?v=20260408m";
-import { initRoomBookingView, renderRoomBookingView } from "./views/room-booking.js?v=20260409c";
-import { initRoomDetailView, renderRoomDetailView } from "./views/room-detail.js?v=20260401r";
-import { initRoomsView, renderRoomsView } from "./views/rooms.js?v=20260408q";
-import { initStaffDirectoryView, renderStaffDirectoryView } from "./views/staff-directory.js?v=20260401v";
-import { renderStatus } from "./views/status.js?v=20260401r";
+import { api } from "./api.js?v=20260421a";
+import { CURRENT_PAGE, getSearchParam } from "./config.js?v=20260421a";
+import { setState, state, subscribe, persistToken } from "./state.js?v=20260421a";
+import { initAdminView, renderAdminView } from "./views/admin.js?v=20260421a";
+import { initAuthView, renderAuthView } from "./views/auth.js?v=20260421a";
+import { initBookingDetailView, renderBookingDetailView } from "./views/booking-detail.js?v=20260421a";
+import { initBookingsView, renderBookingsView } from "./views/bookings.js?v=20260421a";
+import { initHomeView } from "./views/home.js?v=20260421a";
+import { initInfoView, renderInfoView } from "./views/info.js?v=20260421a";
+import { initPaymentSuccessView, renderPaymentSuccessView } from "./views/payment-success.js?v=20260421a";
+import { initProfileView, renderProfileView } from "./views/profile.js?v=20260421a";
+import { initRoomBookingView, renderRoomBookingView } from "./views/room-booking.js?v=20260421a";
+import { initRoomDetailView, renderRoomDetailView } from "./views/room-detail.js?v=20260421a";
+import { initRoomsView, renderRoomsView } from "./views/rooms.js?v=20260421a";
+import { initStaffDirectoryView, renderStaffDirectoryView } from "./views/staff-directory.js?v=20260421a";
+import { renderStatus } from "./views/status.js?v=20260421a";
 
 const PAGE_DATA_REQUIREMENTS = {
   home: { rooms: false, bookings: false, admin: false, selectedRoom: false, selectedBooking: false },
@@ -95,6 +96,13 @@ function resetScopedData() {
   if (!requirements.rooms) {
     patch.rooms = [];
     patch.roomAvailabilityPreview = {};
+    patch.roomAvailabilitySearch = {
+      date: new Date().toISOString().slice(0, 10),
+      time: "15:00",
+      duration: 60,
+      matchingRoomIds: [],
+      hasSearched: false,
+    };
     patch.showInactiveRooms = false;
   }
   if (!requirements.bookings) {
@@ -115,9 +123,12 @@ function resetScopedData() {
   }
   if (!requirements.selectedRoom) {
     patch.selectedRoom = null;
+    patch.selectedRoomReviews = [];
+    patch.selectedRoomReviewSummary = null;
   }
   if (!requirements.selectedBooking) {
     patch.selectedBooking = null;
+    patch.selectedBookingReview = null;
   }
 
   if (Object.keys(patch).length) {
@@ -320,9 +331,23 @@ async function loadSelectedRoom(message) {
 
   try {
     const selectedRoom = await api.getRoom(roomId);
-    setState({ selectedRoom, message: message || "Room loaded." });
+    const reviewFeed = await api.getRoomReviews(roomId).catch(() => ({
+      summary: null,
+      reviews: [],
+    }));
+    setState({
+      selectedRoom,
+      selectedRoomReviews: reviewFeed.reviews || [],
+      selectedRoomReviewSummary: reviewFeed.summary || null,
+      message: message || "Room loaded.",
+    });
   } catch (error) {
-    setState({ selectedRoom: null, message: error.message });
+    setState({
+      selectedRoom: null,
+      selectedRoomReviews: [],
+      selectedRoomReviewSummary: null,
+      message: error.message,
+    });
   }
 }
 
@@ -338,15 +363,23 @@ async function loadSelectedBooking(message) {
   }
 
   if (!state.token) {
-    setState({ selectedBooking: null, message: "Log in to view booking details." });
+    setState({
+      selectedBooking: null,
+      message: "Open a booking from the bookings page after signing in or continuing as a guest.",
+    });
     return;
   }
 
   try {
     const selectedBooking = await api.getBooking(bookingId);
-    setState({ selectedBooking, message: message || "Booking loaded." });
+    const selectedBookingReview = await api.getBookingReview(bookingId).catch(() => null);
+    setState({
+      selectedBooking,
+      selectedBookingReview,
+      message: message || "Booking loaded.",
+    });
   } catch (error) {
-    setState({ selectedBooking: null, message: error.message });
+    setState({ selectedBooking: null, selectedBookingReview: null, message: error.message });
   }
 }
 
@@ -437,7 +470,10 @@ async function refreshSession(message) {
       adminPromoCodes: [],
       publicStaffProfiles: [],
       selectedRoom: null,
+      selectedRoomReviews: [],
+      selectedRoomReviewSummary: null,
       selectedBooking: null,
+      selectedBookingReview: null,
       availability: null,
       message: error.message,
     });
@@ -458,7 +494,10 @@ async function clearSession() {
     adminPromoCodes: [],
     publicStaffProfiles: [],
     selectedRoom: null,
+    selectedRoomReviews: [],
+    selectedRoomReviewSummary: null,
     selectedBooking: null,
+    selectedBookingReview: null,
     availability: null,
     message: "Signed out.",
   });
@@ -471,6 +510,7 @@ initAdminView({ refreshAll: refreshAvailabilityAndBookings, getState: () => stat
 initAuthView({ refreshSession, clearSession });
 initBookingsView({ refreshAvailabilityAndBookings });
 initBookingDetailView({ reloadBookingDetail: loadSelectedBooking });
+initHomeView();
 initInfoView();
 initPaymentSuccessView({ reloadPaymentSuccess: loadSelectedBooking });
 initProfileView({ clearSession });

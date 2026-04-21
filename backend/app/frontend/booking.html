@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Booking Detail | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260421a" />
   </head>
   <body data-page="booking">
     <div class="site-frame">
@@ -51,7 +51,7 @@
 
         <section class="panel panel-wide">
           <div id="booking-detail-empty" class="empty-state">
-            Log in and open a booking from the bookings page to view its full details.
+            Open a booking from the bookings page after signing in or continuing as a guest to view its full details.
           </div>
 
           <article id="booking-detail-card" class="detail-card hidden">
@@ -79,6 +79,43 @@
               <div id="booking-payment-element" class="hidden"></div>
               <div id="booking-payment-controls" class="room-actions"></div>
             </section>
+            <section id="booking-reschedule-panel" class="detail-section hidden">
+              <h3>Reschedule this booking</h3>
+              <p class="panel-copy">Choose a new start time for the same room and duration. Payment stays attached to the booking.</p>
+              <div class="booking-reschedule-grid">
+                <label class="inline-field">
+                  <span>New date</span>
+                  <input id="booking-reschedule-date" type="date" />
+                </label>
+                <label class="inline-field">
+                  <span>Available start</span>
+                  <select id="booking-reschedule-start"></select>
+                </label>
+                <button id="booking-reschedule-submit" class="ghost-button" type="button">Move booking</button>
+              </div>
+              <p id="booking-reschedule-status" class="field-help"></p>
+            </section>
+            <section id="booking-review-panel" class="detail-section hidden">
+              <h3>Rate the session</h3>
+              <p id="booking-review-status" class="panel-copy">Leave a short rating after the session finishes.</p>
+              <form id="booking-review-form" class="stack-form profile-grid-tight">
+                <label>
+                  <span>Rating</span>
+                  <select name="rating">
+                    <option value="5">5 stars</option>
+                    <option value="4">4 stars</option>
+                    <option value="3">3 stars</option>
+                    <option value="2">2 stars</option>
+                    <option value="1">1 star</option>
+                  </select>
+                </label>
+                <label class="profile-span-2">
+                  <span>Comment</span>
+                  <textarea name="comment" rows="3" placeholder="What went well, what stood out, or what future guests should know"></textarea>
+                </label>
+                <button class="primary-button" type="submit">Save review</button>
+              </form>
+            </section>
           </article>
         </section>
       </main>
@@ -103,6 +140,6 @@
     </div>
 
     <script src="https://js.stripe.com/v3/"></script>
-    <script type="module" src="/assets/js/main.js?v=20260409a"></script>
+    <script type="module" src="/assets/js/main.js?v=20260421a"></script>
   </body>
 </html>

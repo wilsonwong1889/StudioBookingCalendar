@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Reserve Room | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260409c" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260421a" />
   </head>
   <body data-page="reserve">
     <div class="site-frame">
@@ -47,7 +47,7 @@
           <p class="eyebrow">Room booking</p>
           <h1 id="reserve-room-title">Choose a room to see today’s openings.</h1>
           <p id="reserve-room-copy" class="hero-copy">
-            Open a room from the catalog to review available sessions up to that room's maximum duration for a specific day and browse the full month below.
+            Open a room from the catalog to review available sessions up to that room's maximum duration for a specific day, browse the full month below, and continue as a guest if you do not want to sign in.
           </p>
         </section>
 
@@ -76,6 +76,19 @@
           <div id="reserve-slot-list" class="slot-grid hidden"></div>
 
           <form id="reserve-booking-form" class="stack-form booking-form">
+            <div id="reserve-guest-fields" class="guest-booking-fields hidden">
+              <p class="form-note">Continue as guest with your name and phone number.</p>
+              <div class="profile-grid profile-grid-tight">
+                <label>
+                  <span>Name</span>
+                  <input id="reserve-guest-name" type="text" autocomplete="name" />
+                </label>
+                <label>
+                  <span>Phone number</span>
+                  <input id="reserve-guest-phone" type="tel" autocomplete="tel" />
+                </label>
+              </div>
+            </div>
             <label class="inline-field hidden">
               <span>Start time</span>
               <select id="reserve-start-select" name="start_time"></select>
@@ -162,6 +175,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260409c"></script>
+    <script type="module" src="/assets/js/main.js?v=20260421a"></script>
   </body>
 </html>

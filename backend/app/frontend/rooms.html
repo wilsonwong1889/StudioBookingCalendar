@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Rooms | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260421a" />
   </head>
   <body data-page="rooms">
     <div class="site-frame">
@@ -45,17 +45,58 @@
       <main class="page-grid">
         <section class="hero-card hero-card-wide">
           <p class="eyebrow">Rooms</p>
-          <h1>Browse the studio catalog without dragging booking or admin tools onto the same screen.</h1>
+          <h1>Find the room that fits the session before you commit to booking.</h1>
           <p class="hero-copy">
-            Admin users can optionally include inactive rooms here. Everyone else gets a clear, public-facing catalog.
+            Compare photos, pricing, capacity, and live availability in one place. The catalog stays public and easy to scan, while admin users can still include inactive rooms when they need the full inventory.
           </p>
+          <div class="room-actions">
+            <a class="primary-button" href="/bookings">Start booking</a>
+            <a class="ghost-button ghost-link" href="/contact">Ask a question</a>
+            <a class="ghost-button ghost-link" href="/info">Studio info</a>
+          </div>
+          <div class="summary-line">
+            <span>Live catalog</span>
+            <strong>Pricing, room imagery, and capacity update from the API</strong>
+          </div>
+          <div class="summary-line">
+            <span>Availability snapshot</span>
+            <strong>Preview open start times before you jump into booking</strong>
+          </div>
+          <div class="summary-line">
+            <span>Guest-friendly flow</span>
+            <strong>Continue as a guest with name and phone when you are ready</strong>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">Quick path</p>
+            <h2>Move from browsing to booking without losing context.</h2>
+            <p class="panel-copy">
+              Use the catalog to compare rooms, check a live availability snapshot, and open the booking flow only when a room feels right.
+            </p>
+          </div>
+          <div class="summary-line">
+            <span>1. Compare rooms</span>
+            <strong>Scan photos, hourly rate, capacity, and room support options.</strong>
+          </div>
+          <div class="summary-line">
+            <span>2. Preview openings</span>
+            <strong>Pick a date to see the first few available start times for each active room.</strong>
+          </div>
+          <div class="summary-line">
+            <span>3. Book your way</span>
+            <strong>Jump into the booking flow, or continue as a guest when you do not want to sign in.</strong>
+          </div>
         </section>
 
         <section class="panel panel-wide">
           <div class="panel-header">
             <p class="panel-kicker">Catalog</p>
             <h2>Available rooms</h2>
-            <p class="panel-copy">Rates, capacity, room imagery, and quick availability previews come directly from the live API.</p>
+            <p class="panel-copy">
+              Rates, capacity, room imagery, and quick availability previews come directly from the live API. Use the date picker to compare rooms side by side before booking.
+            </p>
           </div>
           <div id="rooms-toolbar" class="rooms-toolbar hidden">
             <label class="checkbox-row rooms-filter">
@@ -63,12 +104,35 @@
               <span>Include inactive rooms</span>
             </label>
           </div>
+          <div class="rooms-search-toolbar">
+            <label class="inline-field">
+              <span>Search date</span>
+              <input id="rooms-search-date" type="date" />
+            </label>
+            <label class="inline-field">
+              <span>Start time</span>
+              <input id="rooms-search-time" type="time" value="15:00" />
+            </label>
+            <label class="inline-field">
+              <span>Duration</span>
+              <select id="rooms-search-duration">
+                <option value="60">1 hour</option>
+                <option value="120">2 hours</option>
+                <option value="180">3 hours</option>
+                <option value="240">4 hours</option>
+                <option value="300">5 hours</option>
+              </select>
+            </label>
+            <button id="rooms-search-button" class="primary-button" type="button">Find matching rooms</button>
+            <button id="rooms-search-clear-button" class="ghost-button" type="button">Clear search</button>
+          </div>
+          <div id="rooms-search-summary" class="empty-state hidden"></div>
           <div class="rooms-preview-toolbar">
             <label class="inline-field">
               <span>Preview date</span>
               <input id="rooms-preview-date" type="date" />
             </label>
-            <button id="rooms-preview-button" class="ghost-button" type="button">Show availability</button>
+            <button id="rooms-preview-button" class="ghost-button" type="button">Preview live openings</button>
           </div>
           <div id="rooms-grid" class="rooms-grid"></div>
         </section>
@@ -93,6 +157,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260401r"></script>
+    <script type="module" src="/assets/js/main.js?v=20260421a"></script>
   </body>
 </html>

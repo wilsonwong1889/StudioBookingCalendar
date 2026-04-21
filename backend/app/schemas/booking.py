@@ -51,6 +51,11 @@ class BookingCreate(BaseModel):
     def normalize_staff_assignments(cls, value):
         return normalize_staff_selection_ids(value)
 
+
+class GuestBookingCreate(BookingCreate):
+    guest_name: str = Field(min_length=1, max_length=120)
+    guest_phone: str = Field(min_length=7, max_length=40)
+
 class BookingOut(BaseModel):
     id: UUID
     room_id: UUID
@@ -124,6 +129,19 @@ class BookingCancel(BaseModel):
     reason: Optional[str] = None
 
 
+class BookingRescheduleIn(BaseModel):
+    start_time: datetime
+
+    @field_validator("start_time")
+    @classmethod
+    def validate_start_time(cls, v):
+        if v.tzinfo is None or v.utcoffset() is None:
+            raise ValueError("Bookings must include a timezone offset")
+        if v.minute != 0 or v.second != 0:
+            raise ValueError("Bookings must start on the hour")
+        return v.replace(microsecond=0)
+
+
 class PaymentSessionOut(BaseModel):
     booking_id: UUID
     payment_intent_id: str
@@ -132,6 +150,11 @@ class PaymentSessionOut(BaseModel):
     stripe_publishable_key: Optional[str] = None
     payment_expires_at: Optional[datetime] = None
     payment_seconds_remaining: Optional[int] = None
+
+
+class GuestBookingCreateOut(BaseModel):
+    access_token: str
+    booking: BookingOut
 
 
 class AdminAnalyticsRoomSummaryOut(BaseModel):

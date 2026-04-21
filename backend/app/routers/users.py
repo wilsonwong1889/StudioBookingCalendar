@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+from pathlib import Path
+from uuid import uuid4
+
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
@@ -9,6 +12,12 @@ from app.services.account_service import can_delete_admin_account, delete_user_a
 from app.services.booking_service import create_audit_log
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
+AVATAR_MEDIA_DIR = Path(__file__).resolve().parents[1] / "frontend" / "media" / "avatars"
+MAX_AVATAR_BYTES = 5 * 1024 * 1024
+
+
+def _is_jpeg_bytes(file_bytes: bytes) -> bool:
+    return len(file_bytes) >= 4 and file_bytes.startswith(b"\xff\xd8\xff") and file_bytes.endswith(b"\xff\xd9")
 
 
 def _validate_two_factor_settings(current_user: User, payload: UserUpdate) -> None:
@@ -51,6 +60,30 @@ def update_profile(
 
     sync_suitedash_contact_task.delay(str(current_user.id), "profile_update")
     return current_user
+
+
+@router.post("/me/avatar", response_model=dict)
+async def upload_profile_avatar(
+    photo: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    filename = (photo.filename or "").lower()
+    if not filename.endswith((".jpg", ".jpeg")):
+        raise HTTPException(status_code=400, detail="Only JPG avatar images are supported")
+
+    file_bytes = await photo.read()
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded avatar is empty")
+    if len(file_bytes) > MAX_AVATAR_BYTES:
+        raise HTTPException(status_code=400, detail="Avatar image must be 5 MB or smaller")
+    if not _is_jpeg_bytes(file_bytes):
+        raise HTTPException(status_code=400, detail="Uploaded avatar is not a valid JPG image")
+
+    AVATAR_MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+    saved_filename = f"{uuid4().hex}.jpg"
+    saved_path = AVATAR_MEDIA_DIR / saved_filename
+    saved_path.write_bytes(file_bytes)
+    return {"avatar_url": f"/assets/media/avatars/{saved_filename}"}
 
 
 @router.put("/me/password", status_code=204)

@@ -1,4 +1,4 @@
-import { STORAGE_KEYS } from "./config.js?v=20260401r";
+import { STORAGE_KEYS } from "./config.js?v=20260421a";
 
 const listeners = new Set();
 
@@ -8,6 +8,13 @@ export const state = {
   rooms: [],
   roomAvailabilityPreview: {},
   roomPreviewDate: new Date().toISOString().slice(0, 10),
+  roomAvailabilitySearch: {
+    date: new Date().toISOString().slice(0, 10),
+    time: "15:00",
+    duration: 60,
+    matchingRoomIds: [],
+    hasSearched: false,
+  },
   bookings: [],
   adminBookings: [],
   adminAnalytics: null,
@@ -18,7 +25,10 @@ export const state = {
   adminPromoCodes: [],
   publicStaffProfiles: [],
   selectedRoom: null,
+  selectedRoomReviews: [],
+  selectedRoomReviewSummary: null,
   selectedBooking: null,
+  selectedBookingReview: null,
   availability: null,
   health: null,
   showInactiveRooms: false,

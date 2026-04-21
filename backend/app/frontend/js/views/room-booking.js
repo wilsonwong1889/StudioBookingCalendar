@@ -1,6 +1,6 @@
-import { api } from "../api.js?v=20260401r";
-import { elements, toggleHidden } from "../dom.js?v=20260401r";
-import { setState, state } from "../state.js?v=20260401r";
+import { api } from "../api.js?v=20260421a";
+import { elements, toggleHidden } from "../dom.js?v=20260421a";
+import { persistToken, setState, state } from "../state.js?v=20260421a";
 
 const MIN_DURATION_MINUTES = 60;
 const MAX_DURATION_MINUTES = 300;
@@ -16,6 +16,18 @@ let loadingMonth = false;
 let selectedStaffIds = new Set();
 let reservePromoPreview = null;
 let reservePromoMessage = "";
+
+function getReserveGuestFields() {
+  return document.getElementById("reserve-guest-fields");
+}
+
+function getReserveGuestNameInput() {
+  return document.getElementById("reserve-guest-name");
+}
+
+function getReserveGuestPhoneInput() {
+  return document.getElementById("reserve-guest-phone");
+}
 
 function todayString() {
   return new Date().toISOString().slice(0, 10);
@@ -490,7 +502,7 @@ function renderSummary(currentState) {
           : `<div class="summary-line"><span>Estimated total</span><strong>${formatCurrency(estimatedTotal)}</strong></div>`
       }
       <div class="summary-line"><span>Scheduling rule</span><strong>Staff are checked for conflicts before booking</strong></div>
-      <div class="summary-line"><span>Booking access</span><strong>${currentState.currentUser ? "Ready to submit" : "Log in required"}</strong></div>
+      <div class="summary-line"><span>Booking access</span><strong>${currentState.currentUser ? "Ready to submit" : "Guest checkout ready"}</strong></div>
     </div>
   `;
 }
@@ -506,7 +518,7 @@ function renderSubmitButton(currentState) {
     return;
   }
 
-  const canSubmit = Boolean(currentState.currentUser && selectedStart && elements.reserveDurationSelect?.value);
+  const canSubmit = Boolean(selectedStart && elements.reserveDurationSelect?.value);
   const estimatedTotal = calculateEstimatedTotal(currentState.selectedRoom);
   const promoSelectionKey = getReservePromoSelectionKey(
     currentState.selectedRoom.id,
@@ -525,7 +537,7 @@ function renderSubmitButton(currentState) {
     ? `Save 5-minute hold for ${totalLabel}`
     : currentState.currentUser
       ? "Choose a time to continue"
-      : "Log in to book this room";
+      : "Continue as guest";
 }
 
 function renderCalendar() {
@@ -685,10 +697,6 @@ export function initRoomBookingView() {
 
   elements.reserveBookingForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (!state.currentUser) {
-      setState({ message: "Log in to complete a booking." });
-      return;
-    }
     if (!state.selectedRoom || !selectedStart || !elements.reserveDurationSelect.value) {
       setState({ message: "Choose a valid day, slot, and duration first." });
       return;
@@ -696,16 +704,40 @@ export function initRoomBookingView() {
 
     try {
       setState({ message: "Creating booking..." });
-      const booking = await api.createBooking({
+      const payload = {
         room_id: state.selectedRoom.id,
         start_time: selectedStart,
         duration_minutes: getSelectedDurationMinutes(),
         promo_code: getReservePromoInputValue() || null,
         note: elements.reserveNoteInput?.value?.trim() || null,
         staff_assignments: [...selectedStaffIds],
-      });
+      };
+      let booking = null;
+      if (state.currentUser) {
+        booking = await api.createBooking(payload);
+      } else {
+        const guestName = getReserveGuestNameInput()?.value?.trim() || "";
+        const guestPhone = getReserveGuestPhoneInput()?.value?.trim() || "";
+        if (!guestName || !guestPhone) {
+          setState({ message: "Enter your name and phone number to continue as guest." });
+          return;
+        }
+        const guestSession = await api.createGuestBooking({
+          ...payload,
+          guest_name: guestName,
+          guest_phone: guestPhone,
+        });
+        booking = guestSession.booking;
+        persistToken(guestSession.access_token);
+      }
       if (elements.reserveNoteInput) {
         elements.reserveNoteInput.value = "";
+      }
+      if (getReserveGuestNameInput()) {
+        getReserveGuestNameInput().value = "";
+      }
+      if (getReserveGuestPhoneInput()) {
+        getReserveGuestPhoneInput().value = "";
       }
       if (getReservePromoCodeInput()) {
         getReservePromoCodeInput().value = "";
@@ -758,6 +790,7 @@ export function renderRoomBookingView(currentState) {
   if (elements.reserveRoomTitle) {
     elements.reserveRoomTitle.textContent = `Book ${room.name}.`;
   }
+  getReserveGuestFields()?.classList.toggle("hidden", Boolean(currentState.currentUser));
   if (elements.reserveRoomCopy) {
     const staffCount = (room.staff_roles || []).length;
     elements.reserveRoomCopy.textContent = `${room.description || "Review available times for this room."} ${staffCount ? `This room also has ${staffCount} staff profile${staffCount === 1 ? "" : "s"} you can add to the booking.` : "Choose a day above and use the calendar below to scan the month."}`;

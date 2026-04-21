@@ -10,20 +10,15 @@ from sqlalchemy import (
     CheckConstraint,
     UniqueConstraint,
     func,
+    text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import ExcludeConstraint, JSONB, UUID
 from app.config import settings
 from app.database import Base
 
 
 class Booking(Base):
     __tablename__ = "bookings"
-    __table_args__ = (
-        CheckConstraint(
-            "status IN ('PendingPayment','Paid','Completed','Cancelled','Refunded')",
-            name="booking_status_check"
-        ),
-    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
@@ -50,6 +45,19 @@ class Booking(Base):
     staff_assignments = Column(JSONB, default=list)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('PendingPayment','Paid','Completed','Cancelled','Refunded')",
+            name="booking_status_check",
+        ),
+        ExcludeConstraint(
+            ("room_id", "="),
+            (func.tstzrange(start_time, end_time, "[)"), "&&"),
+            where=text("status IN ('PendingPayment','Paid','Completed')"),
+            using="gist",
+            name="booking_room_time_excl",
+        ),
+    )
 
     @property
     def payment_expires_at(self):
@@ -113,6 +121,22 @@ class NotificationLog(Base):
     details = Column(JSONB)
     sent_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Review(Base):
+    __tablename__ = "reviews"
+    __table_args__ = (
+        CheckConstraint("rating BETWEEN 1 AND 5", name="review_rating_range_check"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    booking_id = Column(UUID(as_uuid=True), ForeignKey("bookings.id", ondelete="CASCADE"), nullable=False, unique=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+    room_id = Column(UUID(as_uuid=True), ForeignKey("rooms.id", ondelete="CASCADE"), nullable=False)
+    rating = Column(Integer, nullable=False)
+    comment = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class AuditLog(Base):

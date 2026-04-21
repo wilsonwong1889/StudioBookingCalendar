@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Studio Info | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260421a" />
   </head>
   <body data-page="info">
     <div class="site-frame">
@@ -45,45 +45,95 @@
       <main class="page-grid">
         <section class="hero-card hero-card-wide">
           <p class="eyebrow">Studio info</p>
-          <h1>Everything guests should know before they book the space.</h1>
+          <h1>A clear, polished overview of the studio before you book.</h1>
           <p class="hero-copy">
-            Use this page to explain what the studio offers, who it serves, what the experience feels like, and where the building is located.
+            See what the space is built for, what comes with the booking, and how to get here without guesswork. The goal is to make the studio feel easy to understand from the first visit.
           </p>
+          <div class="detail-stack">
+            <div class="summary-line"><span>Best for</span><strong>Recording, podcasts, branded content, meetings, and creative sessions</strong></div>
+            <div class="summary-line"><span>Guest flow</span><strong>Browse, choose a time, add support, and continue as a guest when needed</strong></div>
+            <div class="summary-line"><span>Arrival</span><strong>Plan to arrive 10 to 15 minutes early for a smooth start</strong></div>
+          </div>
+          <div class="hero-actions">
+            <a class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
+            <a class="ghost-button ghost-link" href="/bookings">Book now</a>
+            <a class="ghost-button ghost-link" href="/contact">Ask a question</a>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">Use cases</p>
+            <h2>What people book the studio for</h2>
+            <p class="panel-copy">A compact, productized overview of the most common ways the space gets used.</p>
+          </div>
+          <div id="info-use-cases-grid" class="story-grid"></div>
         </section>
 
         <section class="panel">
           <div class="panel-header">
-            <p class="panel-kicker">About</p>
-            <h2>What this studio is for</h2>
+            <p class="panel-kicker">Amenities</p>
+            <h2>What comes with the experience</h2>
           </div>
-          <div class="detail-stack">
-            <p class="hero-copy">This studio is designed for recording sessions, podcast capture, production shoots, strategy meetings, content creation, and client-facing creative work.</p>
-            <p class="hero-copy">The booking platform is meant to keep the process direct: browse the room, pick the time, add any staff support you need, and arrive with a clear understanding of the space.</p>
-          </div>
+          <div id="info-amenities-grid" class="detail-stack"></div>
         </section>
 
         <section class="panel">
           <div class="panel-header">
-            <p class="panel-kicker">Guest flow</p>
-            <h2>How bookings work</h2>
+            <p class="panel-kicker">Expectations</p>
+            <h2>What the session feels like on site</h2>
           </div>
-          <div class="detail-stack">
-            <div class="summary-line"><span>1. Choose a room</span><strong>Browse the public room catalog</strong></div>
-            <div class="summary-line"><span>2. Pick a time</span><strong>Select an available session up to that room's allowed duration</strong></div>
-            <div class="summary-line"><span>3. Add staff support</span><strong>Choose staff profiles offered for that room</strong></div>
-            <div class="summary-line"><span>4. Review details</span><strong>See pricing before finishing the booking</strong></div>
-          </div>
+          <div id="info-expectations-grid" class="story-grid"></div>
         </section>
 
         <section class="panel">
           <div class="panel-header">
-            <p class="panel-kicker">Visit</p>
-            <h2>Location and arrival</h2>
+            <p class="panel-kicker">Booking flow</p>
+            <h2>How guests move through the booking</h2>
           </div>
           <div class="detail-stack">
-            <div class="summary-line"><span>Address</span><strong>2525 36 St N, Lethbridge, AB T1H 5L1</strong></div>
-            <div class="summary-line"><span>Arrival</span><strong>Plan to arrive 10 to 15 minutes before your slot</strong></div>
-            <div class="summary-line"><span>Best for</span><strong>Recording, podcasts, branded shoots, meetings, and creative sessions</strong></div>
+            <div class="summary-line"><span>1. Choose a room</span><strong>Browse the public room catalog and pick the setup that fits the session</strong></div>
+            <div class="summary-line"><span>2. Pick a time</span><strong>Select an available slot that matches the room rules and timing</strong></div>
+            <div class="summary-line"><span>3. Continue as a guest</span><strong>Enter your name and phone number if you do not want to create an account</strong></div>
+            <div class="summary-line"><span>4. Review and confirm</span><strong>Check the final price, any support add-ons, and your booking details before finishing</strong></div>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">Arrival</p>
+            <h2>Location, check-in, and how to get in</h2>
+          </div>
+          <div class="story-grid">
+            <article class="story-card">
+              <span>1</span>
+              <strong>2525 36 St N, Lethbridge, AB T1H 5L1</strong>
+              <p>Use this address for navigation, ride share drop-off, and first-time visits.</p>
+            </article>
+            <article class="story-card">
+              <span>2</span>
+              <strong>10 to 15 minutes early</strong>
+              <p>Give yourself enough time to park, check in, and get settled before the session starts.</p>
+            </article>
+            <article class="story-card">
+              <span>3</span>
+              <strong>Find the entrance, then head directly to the booking area</strong>
+              <p>Keep your confirmation handy so the arrival flow stays quick and simple.</p>
+            </article>
+          </div>
+          <div class="detail-card panel-nested">
+            <div class="panel-header">
+              <p class="panel-kicker">Map</p>
+              <h2>Google Maps</h2>
+              <p class="panel-copy">Open the map to preview the building and get directions before you leave.</p>
+            </div>
+            <iframe
+              class="page-map-frame"
+              title="Studio location on Google Maps"
+              src="https://www.google.com/maps?q=2525%2036%20St%20N,%20Lethbridge,%20AB%20T1H%205L1&z=16&output=embed"
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+            ></iframe>
           </div>
         </section>
 
@@ -113,9 +163,39 @@
 
         <section class="panel panel-wide">
           <div class="panel-header">
+            <p class="panel-kicker">Next step</p>
+            <h2>Ready to book the space?</h2>
+            <p class="panel-copy">Move straight into the rooms list or jump into bookings with the details above in mind.</p>
+          </div>
+          <div class="story-grid">
+            <article class="story-card">
+              <span>Browse</span>
+              <strong>See rooms and availability</strong>
+              <p>Review the room catalog first if you want to compare layouts, pricing, and capacity.</p>
+            </article>
+            <article class="story-card">
+              <span>Book</span>
+              <strong>Start a booking now</strong>
+              <p>Use the booking flow when you already know what room and time you need.</p>
+            </article>
+            <article class="story-card">
+              <span>Ask</span>
+              <strong>Contact the studio</strong>
+              <p>Reach out if you need help deciding which room fits the session best.</p>
+            </article>
+          </div>
+          <div class="hero-actions">
+            <a class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
+            <a class="ghost-button ghost-link" href="/bookings">Start booking</a>
+            <a class="ghost-button ghost-link" href="/contact">Contact us</a>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
             <p class="panel-kicker">Founders</p>
             <h2>Studio leadership</h2>
-            <p class="panel-copy">This section gives you a public-facing place to present the founders behind the studio.</p>
+            <p class="panel-copy">A lightweight public-facing place to present the people behind the studio.</p>
           </div>
           <div id="info-founders-grid" class="admin-staff-catalog-list"></div>
         </section>
@@ -124,7 +204,7 @@
           <div class="panel-header">
             <p class="panel-kicker">Building</p>
             <h2>Whole-building photo gallery</h2>
-            <p class="panel-copy">These slots are ready for real exterior and interior photos of the full studio building.</p>
+            <p class="panel-copy">Use these cards for exterior and interior photos that help guests recognize the space right away.</p>
           </div>
           <div id="info-building-gallery" class="rooms-grid"></div>
         </section>
@@ -149,6 +229,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260401r"></script>
+    <script type="module" src="/assets/js/main.js?v=20260421a"></script>
   </body>
 </html>
