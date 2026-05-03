@@ -4,12 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Studio Info | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260421a" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260427a" />
   </head>
   <body data-page="info">
     <div class="site-frame">
-      <header class="site-header">
-        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+      <header class="site-header site-header-simple site-header-public">
+        <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
+          <span class="brand-mark-icon" aria-hidden="true">♪</span>
+          <span class="brand-mark-label">StudioBook</span>
+        </a>
         <nav class="site-nav" aria-label="Primary">
           <a class="nav-link" href="/">Home</a>
           <a class="nav-link is-active" href="/info">Info</a>
@@ -18,46 +21,52 @@
           <a class="nav-link" href="/contact">Contact</a>
           <a class="nav-link" href="/rooms">Rooms</a>
           <a class="nav-link" href="/bookings">Bookings</a>
-          <a class="nav-link" href="/account">Account</a>
-          <a class="nav-link" href="/admin">Admin</a>
         </nav>
-        <div class="header-side">
-          <div class="header-actions">
-            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
-            <a id="header-secondary-link" class="ghost-button ghost-link" href="/account?mode=signup">Create account</a>
-            <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
-          </div>
-          <div class="status-strip">
-            <div class="status-chip">
-              <span class="status-chip-label">Backend</span>
-              <strong id="health-status">Checking...</strong>
-              <span id="health-detail" class="status-detail">Waiting for health probe.</span>
-            </div>
-            <div class="status-chip">
-              <span class="status-chip-label">Session</span>
-              <strong id="session-status">Signed out</strong>
-              <span id="session-detail" class="status-detail">Log in or create an account to continue.</span>
+        <div class="header-actions">
+          <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
+          <a id="header-secondary-link" class="primary-button site-header-book-button" href="/account?mode=signup">Create account</a>
+          <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
+            <button
+              id="header-user-trigger"
+              class="ghost-button header-user-trigger"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            >
+              <span id="header-user-email" class="header-user-trigger-label">account@example.com</span>
+              <span class="header-user-trigger-caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="header-user-menu" class="header-user-menu hidden" role="menu" aria-label="Account menu">
+              <a id="header-profile-link" class="header-user-menu-item is-primary" href="/account" role="menuitem">My Profile</a>
+              <a id="header-bookings-link" class="header-user-menu-item" href="/bookings" role="menuitem">My Bookings</a>
+              <a id="header-admin-link" class="header-user-menu-item hidden" href="/admin" role="menuitem">Admin</a>
+              <button id="header-logout-button" class="header-user-menu-item header-user-menu-signout" type="button" role="menuitem">Sign Out</button>
             </div>
           </div>
         </div>
       </header>
 
-      <main class="page-grid">
-        <section class="hero-card hero-card-wide">
-          <p class="eyebrow">Studio info</p>
-          <h1>A clear, polished overview of the studio before you book.</h1>
-          <p class="hero-copy">
-            See what the space is built for, what comes with the booking, and how to get here without guesswork. The goal is to make the studio feel easy to understand from the first visit.
-          </p>
-          <div class="detail-stack">
-            <div class="summary-line"><span>Best for</span><strong>Recording, podcasts, branded content, meetings, and creative sessions</strong></div>
-            <div class="summary-line"><span>Guest flow</span><strong>Browse, choose a time, add support, and continue as a guest when needed</strong></div>
-            <div class="summary-line"><span>Arrival</span><strong>Plan to arrive 10 to 15 minutes early for a smooth start</strong></div>
-          </div>
-          <div class="hero-actions">
-            <a class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
-            <a class="ghost-button ghost-link" href="/bookings">Book now</a>
-            <a class="ghost-button ghost-link" href="/contact">Ask a question</a>
+      <main class="page-grid page-grid-public">
+        <section class="hero-card hero-card-wide page-hero-polish">
+          <div class="page-hero-layout">
+            <div class="page-hero-copy-block">
+              <p class="eyebrow">Studio info</p>
+              <h1>A clear, polished overview of the studio before you book.</h1>
+              <p class="hero-copy">
+                See what the space is built for, what comes with the booking, and how to get here without guesswork. The goal is to make the studio feel easy to understand from the first visit.
+              </p>
+              <div class="hero-actions">
+                <a class="primary-button hero-primary" href="/rooms">Browse rooms</a>
+                <a class="ghost-button ghost-link" href="/bookings">Book now</a>
+                <a class="ghost-button ghost-link" href="/contact">Ask a question</a>
+              </div>
+            </div>
+            <aside class="page-hero-summary">
+              <p class="panel-kicker">At a Glance</p>
+              <div class="summary-line"><span>Best for</span><strong>Recording, podcasts, branded content, meetings, and creative sessions</strong></div>
+              <div class="summary-line"><span>Guest flow</span><strong>Browse, choose a time, add support, and continue as a guest when needed</strong></div>
+              <div class="summary-line"><span>Arrival</span><strong>Plan to arrive 10 to 15 minutes early for a smooth start</strong></div>
+            </aside>
           </div>
         </section>
 
@@ -88,14 +97,26 @@
 
         <section class="panel">
           <div class="panel-header">
-            <p class="panel-kicker">Booking flow</p>
-            <h2>How guests move through the booking</h2>
+            <p class="panel-kicker">Help</p>
+            <h2>Need help deciding where to start?</h2>
+            <p class="panel-copy">These quick paths keep visitors moving without making them read every page first.</p>
           </div>
-          <div class="detail-stack">
-            <div class="summary-line"><span>1. Choose a room</span><strong>Browse the public room catalog and pick the setup that fits the session</strong></div>
-            <div class="summary-line"><span>2. Pick a time</span><strong>Select an available slot that matches the room rules and timing</strong></div>
-            <div class="summary-line"><span>3. Continue as a guest</span><strong>Enter your name and phone number if you do not want to create an account</strong></div>
-            <div class="summary-line"><span>4. Review and confirm</span><strong>Check the final price, any support add-ons, and your booking details before finishing</strong></div>
+          <div class="story-grid">
+            <article class="story-card">
+              <span>1</span>
+              <strong>Not sure which room fits</strong>
+              <p>Start with Rooms to compare photos, capacity, and pricing before you commit.</p>
+            </article>
+            <article class="story-card">
+              <span>2</span>
+              <strong>Need guest checkout</strong>
+              <p>Continue with your name and phone number on supported booking screens.</p>
+            </article>
+            <article class="story-card">
+              <span>3</span>
+              <strong>Need arrival or parking help</strong>
+              <p>Open Contact for the address, map, and check-in guidance before you leave.</p>
+            </article>
           </div>
         </section>
 
@@ -210,10 +231,42 @@
         </section>
       </main>
 
-      <footer class="signal-ribbon">
-        <div class="signal-panel">
-          <strong>Status</strong>
-          <div id="app-message" class="signal-copy">Frontend booting.</div>
+      <footer class="studio-footer">
+        <div class="studio-footer-grid">
+          <div class="studio-footer-brand">
+            <div class="studio-footer-logo">StudioBook</div>
+            <p>Studio information, building context, and booking expectations stay together so guests can decide quickly.</p>
+            <div class="signal-panel studio-footer-status">
+              <strong>Status</strong>
+              <div id="app-message" class="signal-copy">Frontend booting.</div>
+            </div>
+          </div>
+          <div>
+            <h3>Explore</h3>
+            <a href="/rooms">All Studios</a>
+            <a href="/staff">Staff</a>
+            <a href="/contact">Contact</a>
+          </div>
+          <div>
+            <h3>Account</h3>
+            <a href="/account">Sign In</a>
+            <a href="/bookings">My Bookings</a>
+            <a href="/account">Profile</a>
+          </div>
+          <div>
+            <h3>Support</h3>
+            <a href="/faq">FAQ</a>
+            <a href="/contact">Arrival help</a>
+            <a href="/rooms">Book a room</a>
+          </div>
+        </div>
+        <div class="studio-footer-bottom">
+          <span>© 2026 StudioBook. All rights reserved.</span>
+          <div class="studio-footer-inline-links">
+            <a href="/faq">Privacy</a>
+            <a href="/faq">Terms</a>
+            <a href="/faq">Cookies</a>
+          </div>
         </div>
       </footer>
       <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
@@ -229,6 +282,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260421a"></script>
+    <script type="module" src="/assets/js/main.js?v=20260427a"></script>
   </body>
 </html>

@@ -4,12 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260421b" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260427a" />
   </head>
   <body data-page="home">
     <div class="site-frame site-frame-home">
-      <header class="site-header site-header-simple home-header">
-        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+      <header class="site-header site-header-simple site-header-public home-header">
+        <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
+          <span class="brand-mark-icon" aria-hidden="true">♪</span>
+          <span class="brand-mark-label">StudioBook</span>
+        </a>
         <nav class="site-nav" aria-label="Primary">
           <a class="nav-link is-active" href="/">Home</a>
           <a class="nav-link" href="/info">Info</a>
@@ -18,12 +21,28 @@
           <a class="nav-link" href="/contact">Contact</a>
           <a class="nav-link" href="/rooms">Rooms</a>
           <a class="nav-link" href="/bookings">Bookings</a>
-          <a class="nav-link" href="/admin">Admin</a>
         </nav>
         <div class="header-actions">
           <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
-          <a id="header-secondary-link" class="ghost-button ghost-link" href="/account?mode=signup">Create account</a>
-          <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
+          <a id="header-secondary-link" class="primary-button home-header-book-button" href="/account?mode=signup">Create account</a>
+          <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
+            <button
+              id="header-user-trigger"
+              class="ghost-button header-user-trigger"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            >
+              <span id="header-user-email" class="header-user-trigger-label">account@example.com</span>
+              <span class="header-user-trigger-caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="header-user-menu" class="header-user-menu hidden" role="menu" aria-label="Account menu">
+              <a id="header-profile-link" class="header-user-menu-item is-primary" href="/account" role="menuitem">My Profile</a>
+              <a id="header-bookings-link" class="header-user-menu-item" href="/bookings" role="menuitem">My Bookings</a>
+              <a id="header-admin-link" class="header-user-menu-item hidden" href="/admin" role="menuitem">Admin</a>
+              <button id="header-logout-button" class="header-user-menu-item header-user-menu-signout" type="button" role="menuitem">Sign Out</button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -32,228 +51,135 @@
           <div class="home-carousel" data-home-carousel>
             <div class="home-carousel-slides-container">
               <div class="home-carousel-slide is-active" data-home-slide>
-                <img class="home-hero-image" src="/assets/media/studio-room-2.jpg" alt="Studio room" loading="eager" />
+                <img class="home-hero-image" src="/assets/media/studio-building-exterior.jpg" alt="Studio building exterior" loading="eager" />
               </div>
               <div class="home-carousel-slide" data-home-slide>
-                <img class="home-hero-image" src="/assets/media/studio-lobby-2.jpg" alt="Studio lobby" loading="lazy" />
+                <img class="home-hero-image" src="/assets/media/studio-lobby-2.png" alt="Podcast conversation corner inside the studio" loading="lazy" />
               </div>
               <div class="home-carousel-slide" data-home-slide>
-                <img class="home-hero-image" src="/assets/media/studio-exterior-2.jpg" alt="Studio exterior" loading="lazy" />
+                <img class="home-hero-image" src="/assets/media/studio-exterior-2.png" alt="Studio podcast corner in use" loading="lazy" />
+              </div>
+              <div class="home-carousel-slide" data-home-slide>
+                <img class="home-hero-image" src="/assets/media/studio-room-2.png" alt="Studio recording and content setup" loading="lazy" />
               </div>
               <div class="home-hero-overlay home-hero-overlay-primary"></div>
-              <div class="home-hero-overlay home-hero-overlay-secondary"></div>
               <div class="home-hero-stage">
-                <div class="home-hero-stage-copy">
-                  <span class="panel-kicker">Studio booking made simple</span>
-                  <h1>Plan your session after you see the space</h1>
-                  <p class="hero-copy">
-                    Walk through the studio visually first, compare rooms only when you are ready, and keep the booking flow clear from the first click.
-                  </p>
-                  <div class="hero-actions">
-                    <a class="primary-button hero-primary" href="/info">Explore the studio</a>
-                    <a class="ghost-button ghost-link" href="/rooms">See rooms</a>
-                    <a class="ghost-button ghost-link" href="/staff">Meet the team</a>
-                  </div>
-                  <div class="home-badge-row">
-                    <span class="pill">Lethbridge, Alberta</span>
-                    <span class="pill">Continue as guest</span>
-                    <span class="pill">Rooms + staff booking</span>
-                  </div>
-                </div>
                 <div class="home-carousel-controls">
-                  <button data-home-prev class="home-carousel-button" type="button">Previous</button>
+                  <button data-home-prev class="home-carousel-button home-carousel-button-prev" type="button" aria-label="Previous slide">‹</button>
                   <div class="home-carousel-progress">
-                    <div class="home-carousel-counter" data-home-counter>1 / 3</div>
                     <div class="home-carousel-dots">
                       <button class="home-carousel-dot is-active" type="button" data-home-dot aria-current="true"></button>
                       <button class="home-carousel-dot" type="button" data-home-dot aria-current="false"></button>
                       <button class="home-carousel-dot" type="button" data-home-dot aria-current="false"></button>
+                      <button class="home-carousel-dot" type="button" data-home-dot aria-current="false"></button>
                     </div>
                   </div>
-                  <button data-home-next class="home-carousel-button" type="button">Next</button>
+                  <button data-home-next class="home-carousel-button home-carousel-button-next" type="button" aria-label="Next slide">›</button>
                 </div>
               </div>
             </div>
-
-            <div class="home-carousel-captions">
-              <button class="home-carousel-caption is-active" type="button" data-home-caption>
-                <span class="home-carousel-caption-kicker">Arrival</span>
-                <strong>Welcoming exterior and arrival point</strong>
-                <p>Start with how the studio feels from the street and where to park.</p>
-              </button>
-              <button class="home-carousel-caption" type="button" data-home-caption>
-                <span class="home-carousel-caption-kicker">Lobby</span>
-                <strong>Warm guest check-in area</strong>
-                <p>See the lobby style and client welcome space before booking.</p>
-              </button>
-              <button class="home-carousel-caption" type="button" data-home-caption>
-                <span class="home-carousel-caption-kicker">Studio</span>
-                <strong>Signature room atmosphere</strong>
-                <p>Visualize the shoot space and the studio mood before choosing a room.</p>
-              </button>
+          </div>
+          <div class="home-hero-summary">
+            <div class="home-hero-summary-copy">
+              <span class="home-soft-badge">Premium studio spaces</span>
+              <h1>Book Your Studio Space</h1>
+              <p class="hero-copy">
+                Professional recording, podcast, and content spaces with a cleaner booking path, real room photos, and direct guest checkout when you need it.
+              </p>
+              <div class="hero-actions">
+                <a class="primary-button hero-primary" href="/rooms">Explore Studios</a>
+                <a class="ghost-button ghost-link" href="/info">How It Works</a>
+              </div>
+            </div>
+            <div class="home-hero-utility">
+              <div class="home-utility-pill">
+                <strong>Guest checkout</strong>
+                <span>Name and phone is enough to start</span>
+              </div>
+              <div class="home-utility-pill">
+                <strong>Live availability</strong>
+                <span>Search rooms before committing</span>
+              </div>
+              <div class="home-utility-pill">
+                <strong>2525 36 St N</strong>
+                <span>Lethbridge, Alberta</span>
+              </div>
             </div>
           </div>
         </section>
 
         <section class="panel panel-wide home-information-panel">
           <div class="panel-header">
-            <p class="panel-kicker">Below The Hero</p>
-            <h2>All the planning information sits underneath the photos</h2>
-            <p class="panel-copy">
-              The top of the page stays visual and immersive. Everything practical lives lower on the page so guests can scroll into details, directions, and next steps without losing the first impression.
-            </p>
-          </div>
-          <div class="home-hero-grid">
-            <div class="home-hero-copy">
+            <p class="panel-kicker">Featured studios</p>
+            <div class="section-heading-row">
               <div>
-                <p class="hero-copy">
-                  Use the public pages to learn about the studio, view staff, and then move into room selection only when you are ready.
-                </p>
+                <h2>Hand-picked spaces for your next session</h2>
+                <p class="panel-copy">Start with the strongest rooms first, then open the full catalog when you want every option.</p>
               </div>
-              <div class="hero-actions">
-                <a class="primary-button hero-primary" href="/info">Explore the studio</a>
-                <a class="ghost-button ghost-link" href="/rooms">See rooms</a>
-                <a class="ghost-button ghost-link" href="/staff">Meet the team</a>
-              </div>
-              <div class="home-badge-row">
-                <span class="pill">Lethbridge, Alberta</span>
-                <span class="pill">Rooms + staff booking</span>
-                <span class="pill">Admin-managed availability</span>
-              </div>
-            </div>
-
-            <div class="home-hero-side">
-              <div class="home-side-card">
-                <span class="panel-kicker">Start Here</span>
-                <h2>What the homepage should do</h2>
-                <ul class="home-checklist">
-                  <li>Show what the studio offers without forcing booking UI first.</li>
-                  <li>Point guests to rooms, staff, and information in a clear order.</li>
-                  <li>Keep account and system status visible for returning users.</li>
-                </ul>
-              </div>
-              <div class="hero-status-inline home-status-grid">
-                <div class="status-chip">
-                  <span class="status-chip-label">Backend</span>
-                  <strong id="health-status">Checking...</strong>
-                  <span id="health-detail" class="status-detail">Waiting for health probe.</span>
-                </div>
-                <div class="status-chip">
-                  <span class="status-chip-label">Session</span>
-                  <strong id="session-status">Signed out</strong>
-                  <span id="session-detail" class="status-detail">Log in or create an account to continue.</span>
-                </div>
-              </div>
+              <a class="ghost-button ghost-link" href="/rooms">View all</a>
             </div>
           </div>
+          <div id="home-featured-grid" class="home-featured-grid"></div>
         </section>
 
-        <section class="panel panel-wide">
-          <div class="panel-header">
-            <p class="panel-kicker">How It Works</p>
-            <h2>A simpler path for first-time visitors</h2>
-            <p class="panel-copy">The homepage now points people through the studio in a cleaner order.</p>
-          </div>
-          <div class="story-grid">
-            <article class="story-card">
-              <span>1</span>
-              <h3>Learn the space</h3>
-              <p>Start with studio details, location notes, rules, and building photos before choosing anything.</p>
+        <section class="panel panel-wide home-composition-panel">
+          <div class="home-composition-grid">
+            <article class="home-composition-copy">
+              <p class="panel-kicker">Why it feels easier</p>
+              <h2>One clear path from first look to confirmed session.</h2>
+              <div class="home-flow-list">
+                <div class="home-flow-row">
+                  <span>01</span>
+                  <div>
+                    <strong>See the real space first</strong>
+                    <p>Browse the studio, room atmosphere, and building details before choosing a booking path.</p>
+                  </div>
+                </div>
+                <div class="home-flow-row">
+                  <span>02</span>
+                  <div>
+                    <strong>Compare rooms with live context</strong>
+                    <p>Check room photos, rates, capacity, and availability without losing your place.</p>
+                  </div>
+                </div>
+                <div class="home-flow-row">
+                  <span>03</span>
+                  <div>
+                    <strong>Book your way</strong>
+                    <p>Continue as a guest with just name and phone, or sign in to keep everything in your account.</p>
+                  </div>
+                </div>
+              </div>
             </article>
-            <article class="story-card">
-              <span>2</span>
-              <h3>Review rooms and staff</h3>
-              <p>Browse rooms and optional staff support only when you are ready to compare services.</p>
-            </article>
-            <article class="story-card">
-              <span>3</span>
-              <h3>Book with less friction</h3>
-              <p>Create your account, check availability, and confirm a session with a much clearer flow.</p>
-            </article>
-          </div>
-        </section>
-
-        <section class="panel panel-wide">
-          <div class="panel-header">
-            <p class="panel-kicker">Studio Highlights</p>
-            <h2>What visitors need up front</h2>
-          </div>
-          <div class="feature-list home-feature-list">
-            <article class="feature-item">
-              <strong>Clear public pages</strong>
-              <p>Info, staff, FAQ, and contact pages now do the explaining before guests enter booking flow.</p>
-            </article>
-            <article class="feature-item">
-              <strong>Optional staff add-ons</strong>
-              <p>Rooms can offer assigned staff profiles like engineers, photographers, or film crew support.</p>
-            </article>
-            <article class="feature-item">
-              <strong>Focused room browsing</strong>
-              <p>The home screen no longer dumps live room cards into the landing experience.</p>
-            </article>
-            <article class="feature-item">
-              <strong>Admin-managed operations</strong>
-              <p>Admins control room setup, staff options, user accounts, and the day schedule from one place.</p>
-            </article>
+            <div class="home-studio-glimpse-grid">
+              <figure class="media-card home-glimpse-card home-glimpse-card-tall">
+                <img class="detail-image" src="/assets/media/studio-lobby-2.png" alt="Podcast corner and guest setup" loading="lazy" />
+                <figcaption>Podcast corner and guest-facing setup.</figcaption>
+              </figure>
+              <figure class="media-card home-glimpse-card">
+                <img class="detail-image" src="/assets/media/studio-room-2.png" alt="Studio content and recording setup" loading="lazy" />
+                <figcaption>Content and recording-ready production area.</figcaption>
+              </figure>
+              <figure class="media-card home-glimpse-card">
+                <img class="detail-image" src="/assets/media/studio-exterior-2.png" alt="Studio conversation corner in use" loading="lazy" />
+                <figcaption>Live session atmosphere inside the space.</figcaption>
+              </figure>
+            </div>
           </div>
         </section>
 
-        <section class="panel panel-wide">
-          <div class="panel-header">
-            <p class="panel-kicker">Inside The Building</p>
-            <h2>A quick visual pass before booking</h2>
-          </div>
-          <div class="media-grid">
-            <figure class="media-card">
-              <img class="detail-image" src="/assets/media/studio-building-exterior.svg" alt="Studio building exterior" loading="lazy" />
-              <figcaption>Street-facing exterior and arrival point.</figcaption>
-            </figure>
-            <figure class="media-card">
-              <img class="detail-image" src="/assets/media/studio-building-lobby.svg" alt="Studio lobby" loading="lazy" />
-              <figcaption>Main lobby and client welcome area.</figcaption>
-            </figure>
-            <figure class="media-card">
-              <img class="detail-image" src="/assets/media/studio-building-signature-room.svg" alt="Signature studio room" loading="lazy" />
-              <figcaption>Signature room atmosphere and production feel.</figcaption>
-            </figure>
-          </div>
-        </section>
-
-        <section class="panel panel-wide">
-          <div class="panel-header">
-            <p class="panel-kicker">Visit</p>
-            <h2>Plan your next step</h2>
-          </div>
-          <div class="home-visit-grid">
-            <article class="detail-card">
-              <h3>Studio location</h3>
+        <section class="panel panel-wide home-arrival-panel">
+          <div class="home-arrival-grid">
+            <article class="detail-card home-arrival-copy">
+              <p class="panel-kicker">Arrival</p>
+              <h2>Studio location on Google Maps</h2>
               <p>2525 36 St N, Lethbridge, AB T1H 5L1</p>
-              <p>Use the info page for arrival guidance, house rules, and on-site expectations.</p>
-              <div class="hero-actions">
-                <a class="primary-button" href="/info">View studio info</a>
+              <p>Confirm the route before your session, review arrival details, and then jump out to Google Maps when you are ready to head over.</p>
+              <div class="home-arrival-points">
+                <div class="summary-line"><span>Guest ready</span><strong>Name and phone is enough to start</strong></div>
+                <div class="summary-line"><span>Payments</span><strong>Stripe checkout and reminders are already integrated</strong></div>
+                <div class="summary-line"><span>Support</span><strong>Review staff, rules, and access notes before arrival</strong></div>
               </div>
-            </article>
-            <article class="detail-card">
-              <h3>Ready to move forward</h3>
-              <p>Review staff, check room details, or go straight to your account if you already know what you need.</p>
-              <div class="hero-actions">
-                <a class="ghost-button ghost-link" href="/staff">Staff directory</a>
-                <a class="ghost-button ghost-link" href="/account">Account</a>
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <section class="panel panel-wide">
-          <div class="panel-header">
-            <p class="panel-kicker">Map</p>
-            <h2>Studio location on Google Maps</h2>
-            <p class="panel-copy">Confirm the route before your session, then jump out to Google Maps for directions when you are ready to head over.</p>
-          </div>
-          <div class="home-location-grid">
-            <article class="detail-card">
-              <h3>2525 36 St N, Lethbridge, AB T1H 5L1</h3>
-              <p>Use the landing page to see the space first, then open directions once you are ready to arrive.</p>
               <div class="hero-actions">
                 <a
                   class="primary-button"
@@ -263,14 +189,7 @@
                 >
                   Get directions
                 </a>
-                <a
-                  class="ghost-button ghost-link"
-                  href="https://www.google.com/maps/search/?api=1&query=2525%2036%20St%20N%2C%20Lethbridge%2C%20AB%20T1H%205L1"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open in Google Maps
-                </a>
+                <a class="ghost-button ghost-link" href="/info">View studio info</a>
               </div>
             </article>
             <div class="home-map-card">
@@ -286,10 +205,42 @@
         </section>
       </main>
 
-      <footer class="signal-ribbon signal-ribbon-compact">
-        <div class="signal-panel">
-          <strong>Status</strong>
-          <div id="app-message" class="signal-copy">Frontend booting.</div>
+      <footer class="studio-footer">
+        <div class="studio-footer-grid">
+          <div class="studio-footer-brand">
+            <div class="studio-footer-logo">StudioBook</div>
+            <p>Premium studio spaces for creators. Book recording, podcast, photo, and production rooms on-demand.</p>
+            <div class="signal-panel studio-footer-status">
+              <strong>Status</strong>
+              <div id="app-message" class="signal-copy">Frontend booting.</div>
+            </div>
+          </div>
+          <div>
+            <h3>Explore</h3>
+            <a href="/rooms">All Studios</a>
+            <a href="/info">How It Works</a>
+            <a href="/contact">Pricing & Contact</a>
+          </div>
+          <div>
+            <h3>Account</h3>
+            <a href="/account">Sign In</a>
+            <a href="/bookings">My Bookings</a>
+            <a href="/account">Profile</a>
+          </div>
+          <div>
+            <h3>Company</h3>
+            <a href="/info">About</a>
+            <a href="/contact">Contact</a>
+            <a href="/faq">Support</a>
+          </div>
+        </div>
+        <div class="studio-footer-bottom">
+          <span>© 2026 StudioBook. All rights reserved.</span>
+          <div class="studio-footer-inline-links">
+            <a href="/faq">Privacy</a>
+            <a href="/faq">Terms</a>
+            <a href="/faq">Cookies</a>
+          </div>
         </div>
       </footer>
       <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
@@ -305,6 +256,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260421a"></script>
+    <script type="module" src="/assets/js/main.js?v=20260427a"></script>
   </body>
 </html>

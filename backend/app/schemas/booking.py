@@ -249,8 +249,40 @@ class ManualBookingCreate(BookingCreate):
     full_name: Optional[str] = None
 
 
-class AdminBookingLookupOut(BookingOut):
+class AdminBookingLookupOut(BaseModel):
+    id: UUID
+    booking_kind: str = "room"
+    room_id: Optional[UUID] = None
+    staff_profile_id: Optional[UUID] = None
+    user_id: Optional[UUID] = None
+    start_time: datetime
+    end_time: datetime
+    duration_minutes: int
+    original_price_cents: Optional[int] = None
+    discount_cents: int = 0
+    promo_code: Optional[str] = None
+    price_cents: int
+    currency: str
+    status: str
+    booking_code: str
+    payment_intent_id: Optional[str] = None
+    payment_expires_at: Optional[datetime] = None
+    payment_seconds_remaining: Optional[int] = None
+    confirmed_at: Optional[datetime] = None
+    checked_in_at: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
+    cancellation_reason: Optional[str] = None
+    note: Optional[str] = None
+    staff_assignments: List[StaffOption] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: Optional[datetime] = None
     user_email: Optional[str] = None
     user_full_name: Optional[str] = None
     user_phone: Optional[str] = None
     room_name: Optional[str] = None
+    staff_name: Optional[str] = None
+    staff_photo_url: Optional[str] = None
+    service_type: Optional[str] = None
+    location_label: Optional[str] = None
+
+    model_config = {"from_attributes": True}

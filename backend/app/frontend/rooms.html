@@ -4,12 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Rooms | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260421a" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260427a" />
   </head>
   <body data-page="rooms">
     <div class="site-frame">
-      <header class="site-header">
-        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+      <header class="site-header site-header-simple site-header-public">
+        <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
+          <span class="brand-mark-icon" aria-hidden="true">♪</span>
+          <span class="brand-mark-label">StudioBook</span>
+        </a>
         <nav class="site-nav" aria-label="Primary">
           <a class="nav-link" href="/">Home</a>
           <a class="nav-link" href="/info">Info</a>
@@ -18,130 +21,171 @@
           <a class="nav-link" href="/contact">Contact</a>
           <a class="nav-link is-active" href="/rooms">Rooms</a>
           <a class="nav-link" href="/bookings">Bookings</a>
-          <a class="nav-link" href="/account">Account</a>
-          <a class="nav-link" href="/admin">Admin</a>
         </nav>
-        <div class="header-side">
-          <div class="header-actions">
-            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Sign in</a>
-            <a id="header-secondary-link" class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
-            <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
-          </div>
-          <div class="status-strip">
-            <div class="status-chip">
-              <span class="status-chip-label">Backend</span>
-              <strong id="health-status">Checking...</strong>
-              <span id="health-detail" class="status-detail">Waiting for health probe.</span>
-            </div>
-            <div class="status-chip">
-              <span class="status-chip-label">Session</span>
-              <strong id="session-status">Signed out</strong>
-              <span id="session-detail" class="status-detail">Create an account or log in to continue.</span>
+        <div class="header-actions">
+          <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
+          <a id="header-secondary-link" class="primary-button site-header-book-button" href="/account?mode=signup">Create account</a>
+          <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
+            <button
+              id="header-user-trigger"
+              class="ghost-button header-user-trigger"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            >
+              <span id="header-user-email" class="header-user-trigger-label">account@example.com</span>
+              <span class="header-user-trigger-caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="header-user-menu" class="header-user-menu hidden" role="menu" aria-label="Account menu">
+              <a id="header-profile-link" class="header-user-menu-item is-primary" href="/account" role="menuitem">My Profile</a>
+              <a id="header-bookings-link" class="header-user-menu-item" href="/bookings" role="menuitem">My Bookings</a>
+              <a id="header-admin-link" class="header-user-menu-item hidden" href="/admin" role="menuitem">Admin</a>
+              <button id="header-logout-button" class="header-user-menu-item header-user-menu-signout" type="button" role="menuitem">Sign Out</button>
             </div>
           </div>
         </div>
       </header>
 
-      <main class="page-grid">
-        <section class="hero-card hero-card-wide">
-          <p class="eyebrow">Rooms</p>
-          <h1>Find the room that fits the session before you commit to booking.</h1>
-          <p class="hero-copy">
-            Compare photos, pricing, capacity, and live availability in one place. The catalog stays public and easy to scan, while admin users can still include inactive rooms when they need the full inventory.
-          </p>
-          <div class="room-actions">
-            <a class="primary-button" href="/bookings">Start booking</a>
-            <a class="ghost-button ghost-link" href="/contact">Ask a question</a>
-            <a class="ghost-button ghost-link" href="/info">Studio info</a>
+      <main class="page-grid rooms-page-grid-modern">
+        <section class="rooms-catalog-shell">
+          <div class="rooms-catalog-header">
+            <h1><span class="rooms-title-ink">All</span> <span class="rooms-title-accent">Studios</span></h1>
+            <p>Browse studios first, then open booking when you are ready.</p>
           </div>
-          <div class="summary-line">
-            <span>Live catalog</span>
-            <strong>Pricing, room imagery, and capacity update from the API</strong>
-          </div>
-          <div class="summary-line">
-            <span>Availability snapshot</span>
-            <strong>Preview open start times before you jump into booking</strong>
-          </div>
-          <div class="summary-line">
-            <span>Guest-friendly flow</span>
-            <strong>Continue as a guest with name and phone when you are ready</strong>
-          </div>
-        </section>
 
-        <section class="panel panel-wide">
-          <div class="panel-header">
-            <p class="panel-kicker">Quick path</p>
-            <h2>Move from browsing to booking without losing context.</h2>
-            <p class="panel-copy">
-              Use the catalog to compare rooms, check a live availability snapshot, and open the booking flow only when a room feels right.
-            </p>
+          <div class="rooms-catalog-toolbar">
+            <label class="rooms-search-input-shell" for="rooms-search-text">
+              <span class="rooms-search-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <circle cx="8.5" cy="8.5" r="5.4"></circle>
+                  <path d="M12.5 12.5L17 17"></path>
+                </svg>
+              </span>
+              <input
+                id="rooms-search-text"
+                type="search"
+                autocomplete="off"
+                placeholder="Search studios by name or description..."
+              />
+            </label>
+            <button id="rooms-filter-toggle" class="ghost-button rooms-filter-toggle" type="button">
+              <span class="rooms-filter-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M4 5h12"></path>
+                  <path d="M7 10h9"></path>
+                  <path d="M10 15h6"></path>
+                  <circle cx="5" cy="10" r="1.4"></circle>
+                  <circle cx="8" cy="15" r="1.4"></circle>
+                  <circle cx="12" cy="5" r="1.4"></circle>
+                </svg>
+              </span>
+              Filters
+            </button>
           </div>
-          <div class="summary-line">
-            <span>1. Compare rooms</span>
-            <strong>Scan photos, hourly rate, capacity, and room support options.</strong>
-          </div>
-          <div class="summary-line">
-            <span>2. Preview openings</span>
-            <strong>Pick a date to see the first few available start times for each active room.</strong>
-          </div>
-          <div class="summary-line">
-            <span>3. Book your way</span>
-            <strong>Jump into the booking flow, or continue as a guest when you do not want to sign in.</strong>
-          </div>
-        </section>
 
-        <section class="panel panel-wide">
-          <div class="panel-header">
-            <p class="panel-kicker">Catalog</p>
-            <h2>Available rooms</h2>
-            <p class="panel-copy">
-              Rates, capacity, room imagery, and quick availability previews come directly from the live API. Use the date picker to compare rooms side by side before booking.
-            </p>
+          <div id="rooms-category-bar" class="rooms-category-bar"></div>
+          <div class="rooms-results-row">
+            <strong id="rooms-results-count">0 studios found</strong>
           </div>
-          <div id="rooms-toolbar" class="rooms-toolbar hidden">
-            <label class="checkbox-row rooms-filter">
-              <input id="show-inactive-toggle" type="checkbox" />
-              <span>Include inactive rooms</span>
-            </label>
-          </div>
-          <div class="rooms-search-toolbar">
-            <label class="inline-field">
-              <span>Search date</span>
-              <input id="rooms-search-date" type="date" />
-            </label>
-            <label class="inline-field">
-              <span>Start time</span>
-              <input id="rooms-search-time" type="time" value="15:00" />
-            </label>
-            <label class="inline-field">
-              <span>Duration</span>
-              <select id="rooms-search-duration">
-                <option value="60">1 hour</option>
-                <option value="120">2 hours</option>
-                <option value="180">3 hours</option>
-                <option value="240">4 hours</option>
-                <option value="300">5 hours</option>
-              </select>
-            </label>
-            <button id="rooms-search-button" class="primary-button" type="button">Find matching rooms</button>
-            <button id="rooms-search-clear-button" class="ghost-button" type="button">Clear search</button>
-          </div>
-          <div id="rooms-search-summary" class="empty-state hidden"></div>
-          <div class="rooms-preview-toolbar">
-            <label class="inline-field">
-              <span>Preview date</span>
-              <input id="rooms-preview-date" type="date" />
-            </label>
-            <button id="rooms-preview-button" class="ghost-button" type="button">Preview live openings</button>
-          </div>
-          <div id="rooms-grid" class="rooms-grid"></div>
+
+          <section id="rooms-filter-panel" class="rooms-filter-panel hidden">
+            <div class="rooms-filter-sort-row">
+              <label class="rooms-sort-shell" for="rooms-sort-select">
+                <span class="rooms-sort-icon" aria-hidden="true">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M6 4v12"></path>
+                    <path d="M3.5 6.5L6 4l2.5 2.5"></path>
+                    <path d="M14 16V4"></path>
+                    <path d="M11.5 13.5L14 16l2.5-2.5"></path>
+                  </svg>
+                </span>
+                <select id="rooms-sort-select">
+                  <option value="recommended">Recommended</option>
+                  <option value="price-low">Price: Low to High</option>
+                  <option value="price-high">Price: High to Low</option>
+                  <option value="capacity">Capacity</option>
+                  <option value="name">Name</option>
+                </select>
+              </label>
+            </div>
+            <div id="rooms-toolbar" class="rooms-toolbar hidden">
+              <label class="checkbox-row rooms-filter">
+                <input id="show-inactive-toggle" type="checkbox" />
+                <span>Include inactive rooms</span>
+              </label>
+            </div>
+            <div class="rooms-search-toolbar">
+              <label class="inline-field">
+                <span>Search date</span>
+                <input id="rooms-search-date" type="date" />
+              </label>
+              <label class="inline-field">
+                <span>Start time</span>
+                <input id="rooms-search-time" type="time" value="15:00" />
+              </label>
+              <label class="inline-field">
+                <span>Duration</span>
+                <select id="rooms-search-duration">
+                  <option value="60">1 hour</option>
+                  <option value="120">2 hours</option>
+                  <option value="180">3 hours</option>
+                  <option value="240">4 hours</option>
+                  <option value="300">5 hours</option>
+                </select>
+              </label>
+              <button id="rooms-search-button" class="primary-button" type="button">Find matching rooms</button>
+              <button id="rooms-search-clear-button" class="ghost-button" type="button">Clear search</button>
+            </div>
+            <div class="rooms-preview-toolbar">
+              <label class="inline-field">
+                <span>Preview date</span>
+                <input id="rooms-preview-date" type="date" />
+              </label>
+              <button id="rooms-preview-button" class="ghost-button" type="button">Preview live openings</button>
+            </div>
+          </section>
+
+          <div id="rooms-search-summary" class="empty-state rooms-search-summary hidden"></div>
+          <div id="rooms-grid" class="rooms-grid rooms-grid-catalog"></div>
         </section>
       </main>
 
-      <footer class="signal-ribbon">
-        <div class="signal-panel">
-          <strong>Activity</strong>
-          <div id="app-message" class="signal-copy">Frontend booting.</div>
+      <footer class="studio-footer">
+        <div class="studio-footer-grid">
+          <div class="studio-footer-brand">
+            <div class="studio-footer-logo">StudioBook</div>
+            <p>Premium studio spaces for creators. Book recording, podcast, photo, and production rooms on-demand.</p>
+            <div class="signal-panel studio-footer-status">
+              <strong>Status</strong>
+              <div id="app-message" class="signal-copy">Frontend booting.</div>
+            </div>
+          </div>
+          <div>
+            <h3>Explore</h3>
+            <a href="/rooms">All Studios</a>
+            <a href="/info">How It Works</a>
+            <a href="/contact">Pricing</a>
+          </div>
+          <div>
+            <h3>Account</h3>
+            <a href="/account">Sign In</a>
+            <a href="/bookings">My Bookings</a>
+            <a href="/account">Profile</a>
+          </div>
+          <div>
+            <h3>Company</h3>
+            <a href="/info">About</a>
+            <a href="/contact">Contact</a>
+            <a href="/faq">Support</a>
+          </div>
+        </div>
+        <div class="studio-footer-bottom">
+          <span>© 2026 StudioBook. All rights reserved.</span>
+          <div class="studio-footer-inline-links">
+            <a href="/faq">Privacy</a>
+            <a href="/faq">Terms</a>
+            <a href="/faq">Cookies</a>
+          </div>
         </div>
       </footer>
       <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
@@ -157,6 +201,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260421a"></script>
+    <script type="module" src="/assets/js/main.js?v=20260427a"></script>
   </body>
 </html>

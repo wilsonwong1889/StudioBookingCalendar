@@ -82,6 +82,9 @@ def create_staff_profile(db: Session, payload: StaffProfileCreate) -> StaffProfi
         talents=normalize_string_list(payload.talents),
         photo_url=payload.photo_url,
         add_on_price_cents=payload.add_on_price_cents,
+        booking_rate_cents=payload.booking_rate_cents,
+        service_types=normalize_string_list(payload.service_types),
+        booking_enabled=payload.booking_enabled,
         active=payload.active,
     )
     db.add(profile)
@@ -110,6 +113,12 @@ def update_staff_profile(db: Session, profile_id: str, payload: StaffProfileUpda
         profile.photo_url = update_data["photo_url"]
     if "add_on_price_cents" in update_data and update_data["add_on_price_cents"] is not None:
         profile.add_on_price_cents = update_data["add_on_price_cents"]
+    if "booking_rate_cents" in update_data and update_data["booking_rate_cents"] is not None:
+        profile.booking_rate_cents = update_data["booking_rate_cents"]
+    if "service_types" in update_data and update_data["service_types"] is not None:
+        profile.service_types = normalize_string_list(update_data["service_types"])
+    if "booking_enabled" in update_data and update_data["booking_enabled"] is not None:
+        profile.booking_enabled = update_data["booking_enabled"]
     if "active" in update_data and update_data["active"] is not None:
         profile.active = update_data["active"]
 

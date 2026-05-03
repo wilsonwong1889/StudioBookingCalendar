@@ -1,17 +1,70 @@
-import { api } from "../api.js?v=20260421a";
-import { API_BASE_URL, getSearchParam } from "../config.js?v=20260421a";
-import { elements, toggleHidden } from "../dom.js?v=20260421a";
+import { api } from "../api.js?v=20260427a";
+import { API_BASE_URL, getSearchParam } from "../config.js?v=20260422d";
+import { elements, toggleHidden } from "../dom.js?v=20260427a";
 import {
   exchangeSupabaseSession,
   hasSupabaseConfig,
   signOutSupabase,
   startGoogleSignIn,
-} from "../supabase.js?v=20260410b";
-import { persistToken, setState } from "../state.js?v=20260421a";
+} from "../supabase.js?v=20260422d";
+import { persistToken, setState } from "../state.js?v=20260427a";
 
 let pendingTwoFactorToken = null;
 let pendingTwoFactorMethod = "email";
 let googleButtonBusy = false;
+let headerMenuOpen = false;
+let headerMenuBound = false;
+
+function setHeaderMenuOpen(isOpen) {
+  const shouldOpen =
+    Boolean(isOpen) &&
+    Boolean(elements.headerUserMenuShell) &&
+    !elements.headerUserMenuShell.classList.contains("hidden");
+  headerMenuOpen = shouldOpen;
+  toggleHidden(elements.headerUserMenu, !shouldOpen);
+  elements.headerUserTrigger?.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+}
+
+function bindHeaderMenu() {
+  if (headerMenuBound) {
+    return;
+  }
+  headerMenuBound = true;
+
+  elements.headerUserTrigger?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (elements.headerUserMenuShell?.classList.contains("hidden")) {
+      return;
+    }
+    setHeaderMenuOpen(!headerMenuOpen);
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!headerMenuOpen || !elements.headerUserMenuShell) {
+      return;
+    }
+    if (event.target instanceof Node && elements.headerUserMenuShell.contains(event.target)) {
+      return;
+    }
+    setHeaderMenuOpen(false);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      setHeaderMenuOpen(false);
+    }
+  });
+
+  [
+    elements.headerProfileLink,
+    elements.headerBookingsLink,
+    elements.headerAdminLink,
+    elements.headerLogoutButton,
+  ].forEach((element) => {
+    element?.addEventListener("click", () => setHeaderMenuOpen(false));
+  });
+}
 
 function currentResetToken() {
   return getSearchParam("reset_token");
@@ -244,6 +297,8 @@ function applyLoginError(message) {
 }
 
 export function initAuthView(actions) {
+  bindHeaderMenu();
+
   [elements.googleLoginButton, elements.googleSignupButton].forEach((button) => {
     if (!button) {
       return;
@@ -541,6 +596,7 @@ export function initAuthView(actions) {
 
 export function renderAuthView(state) {
   const isSessionRestoring = Boolean(state.token && !state.currentUser);
+  document.body?.setAttribute("data-auth-pending", isSessionRestoring ? "true" : "false");
   if (state.currentUser) {
     clearTwoFactorStep();
     hideAuthFeedback();
@@ -578,26 +634,37 @@ export function renderAuthView(state) {
 
   if (elements.headerAccountLink) {
     elements.headerAccountLink.href = "/account";
-    elements.headerAccountLink.textContent = state.currentUser ? "My account" : "Log in";
+    elements.headerAccountLink.textContent = "Log in";
   }
 
   if (elements.headerSecondaryLink) {
-    if (state.currentUser?.is_admin) {
-      elements.headerSecondaryLink.href = "/admin";
-      elements.headerSecondaryLink.textContent = "Admin";
-      elements.headerSecondaryLink.classList.remove("hidden");
-    } else if (state.currentUser) {
-      elements.headerSecondaryLink.href = "/bookings";
-      elements.headerSecondaryLink.textContent = "My bookings";
-      elements.headerSecondaryLink.classList.remove("hidden");
-    } else {
-      elements.headerSecondaryLink.href = "/account?mode=signup";
-      elements.headerSecondaryLink.textContent = "Create account";
-      elements.headerSecondaryLink.classList.remove("hidden");
-    }
+    elements.headerSecondaryLink.href = state.currentUser ? "/rooms" : "/account?mode=signup";
+    elements.headerSecondaryLink.textContent = state.currentUser ? "Book Now" : "Create account";
+    elements.headerSecondaryLink.classList.remove("hidden");
   }
 
-  if (elements.headerLogoutButton) {
-    elements.headerLogoutButton.classList.toggle("hidden", !state.currentUser);
+  toggleHidden(elements.headerAccountLink, Boolean(state.currentUser) || isSessionRestoring);
+  toggleHidden(elements.headerSecondaryLink, isSessionRestoring ? true : false);
+  toggleHidden(elements.headerUserMenuShell, !state.currentUser || isSessionRestoring);
+
+  if (elements.headerUserEmail) {
+    elements.headerUserEmail.textContent = state.currentUser?.email || "account@example.com";
+  }
+
+  if (elements.headerProfileLink) {
+    elements.headerProfileLink.href = "/account";
+  }
+
+  if (elements.headerBookingsLink) {
+    elements.headerBookingsLink.href = "/bookings";
+  }
+
+  if (elements.headerAdminLink) {
+    elements.headerAdminLink.href = "/admin";
+    elements.headerAdminLink.classList.toggle("hidden", !state.currentUser?.is_admin);
+  }
+
+  if (!state.currentUser) {
+    setHeaderMenuOpen(false);
   }
 }

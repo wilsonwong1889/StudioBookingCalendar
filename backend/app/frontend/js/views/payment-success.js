@@ -1,6 +1,6 @@
 import { downloadBookingCalendarFile } from "../calendar.js?v=20260408k";
-import { downloadBookingReceiptPdf } from "../receipt.js?v=20260421a";
-import { elements, toggleHidden } from "../dom.js?v=20260421a";
+import { downloadBookingReceiptPdf } from "../receipt.js?v=20260422d";
+import { elements, toggleHidden } from "../dom.js?v=20260427a";
 
 let reloadPaymentSuccessAction = null;
 let paymentSuccessPollTimer = null;

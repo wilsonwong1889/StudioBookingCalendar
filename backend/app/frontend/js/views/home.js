@@ -1,4 +1,97 @@
 const AUTOPLAY_INTERVAL_MS = 6000;
+const REAL_STUDIO_VISUALS = {
+  Recording: "/assets/media/studio-room-2.png",
+  Podcast: "/assets/media/studio-lobby-2.png",
+  Photography: "/assets/media/studio-room-2.png",
+  Film: "/assets/media/studio-exterior-2.png",
+  Dance: "/assets/media/studio-exterior-2.png",
+  Production: "/assets/media/studio-room-2.png",
+};
+
+function formatCurrency(cents) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "CAD",
+    maximumFractionDigits: 0,
+  }).format((cents || 0) / 100);
+}
+
+function inferCategory(room) {
+  const text = `${room.name || ""} ${room.description || ""}`.toLowerCase();
+  if (text.includes("podcast")) {
+    return "Podcast";
+  }
+  if (text.includes("photo")) {
+    return "Photography";
+  }
+  if (text.includes("film")) {
+    return "Film";
+  }
+  if (text.includes("dance")) {
+    return "Dance";
+  }
+  if (text.includes("production")) {
+    return "Production";
+  }
+  return "Recording";
+}
+
+function getFeaturePhoto(room) {
+  const category = inferCategory(room);
+  const photo = Array.isArray(room.photos) && room.photos.length ? room.photos[0] : "";
+  const fallback = REAL_STUDIO_VISUALS[category] || "/assets/media/studio-room-2.png";
+  if (!photo || String(photo).includes("/assets/media/rooms/")) {
+    return fallback;
+  }
+  return photo;
+}
+
+function renderFeaturedRooms(currentState) {
+  const container = document.getElementById("home-featured-grid");
+  if (!container) {
+    return;
+  }
+
+  const rooms = (currentState.rooms || []).filter((room) => room.active !== false).slice(0, 6);
+  if (!rooms.length) {
+    container.innerHTML = '<div class="empty-state">Featured studios will appear here once rooms are available.</div>';
+    return;
+  }
+
+  container.innerHTML = rooms
+    .map((room) => {
+      const photo = getFeaturePhoto(room);
+      const category = inferCategory(room);
+      return `
+        <article class="home-studio-card">
+          <a class="home-studio-card-link" href="/room?id=${room.id}">
+            <div class="home-studio-card-media">
+              ${
+                photo
+                  ? `<img class="home-studio-card-image" src="${photo}" alt="${room.name}" loading="lazy" onerror="this.onerror=null;this.src='${REAL_STUDIO_VISUALS[category] || "/assets/media/studio-room-2.png"}';" />`
+                  : '<div class="room-card-placeholder">No room image yet.</div>'
+              }
+              <div class="home-studio-card-badges">
+                <span class="home-card-pill home-card-pill-dark">${category}</span>
+                <span class="home-card-pill">${room.active ? "Available" : "Booked"}</span>
+              </div>
+            </div>
+            <div class="home-studio-card-copy">
+              <div class="home-studio-card-heading">
+                <h3>${room.name}</h3>
+                <span class="home-studio-card-rating">★ 4.9</span>
+              </div>
+              <div class="home-studio-card-meta">
+                <span>Up to ${room.capacity || 4}</span>
+                <strong>${formatCurrency(room.hourly_rate_cents)}/hr</strong>
+              </div>
+            </div>
+          </a>
+        </article>
+      `;
+    })
+    .join("");
+}
 
 function normalizeIndex(index, total) {
   if (!total) {
@@ -14,6 +107,17 @@ export function initHomeView() {
   }
 
   const slides = Array.from(carousel.querySelectorAll("[data-home-slide]"));
+  const dotsContainer = carousel.querySelector(".home-carousel-dots");
+  if (dotsContainer) {
+    dotsContainer.innerHTML = slides
+      .map(
+        (_, index) =>
+          `<button class="home-carousel-dot${index === 0 ? " is-active" : ""}" type="button" data-home-dot aria-current="${
+            index === 0 ? "true" : "false"
+          }"></button>`,
+      )
+      .join("");
+  }
   const dots = Array.from(carousel.querySelectorAll("[data-home-dot]"));
   const captions = Array.from(carousel.querySelectorAll("[data-home-caption]"));
   const previousButton = carousel.querySelector("[data-home-prev]");
@@ -117,4 +221,8 @@ export function initHomeView() {
   });
 
   render(activeIndex);
+}
+
+export function renderHomeView(currentState) {
+  renderFeaturedRooms(currentState);
 }

@@ -1,4 +1,4 @@
-import { elements } from "../dom.js?v=20260421a";
+import { elements } from "../dom.js?v=20260427a";
 
 const FOUNDERS = [
   {

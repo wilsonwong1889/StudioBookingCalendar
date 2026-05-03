@@ -1,6 +1,14 @@
-import { api } from "../api.js?v=20260421a";
-import { elements, toggleHidden } from "../dom.js?v=20260421a";
-import { persistToken, setState, state } from "../state.js?v=20260421a";
+import { api } from "../api.js?v=20260427a";
+import { elements, toggleHidden } from "../dom.js?v=20260427a";
+import { persistCheckoutDraft, persistLastBookingId, persistToken, setState, state } from "../state.js?v=20260427a";
+const ROOM_CATEGORY_VISUALS = {
+  recording: "/assets/media/studio-room-2.png",
+  podcast: "/assets/media/studio-lobby-2.png",
+  production: "/assets/media/studio-room-2.png",
+  photography: "/assets/media/studio-room-2.png",
+  dance: "/assets/media/studio-exterior-2.png",
+  film: "/assets/media/studio-exterior-2.png",
+};
 
 const MIN_DURATION_MINUTES = 60;
 const MAX_DURATION_MINUTES = 300;
@@ -69,6 +77,64 @@ function formatTime(value) {
 function formatDuration(minutes) {
   const hours = minutes / 60;
   return `${hours} hour${hours === 1 ? "" : "s"}`;
+}
+
+function buildAmenityList(room) {
+  const amenities = [];
+  if ((room.capacity || 0) >= 4) {
+    amenities.push("High-Speed WiFi");
+  }
+  if ((room.staff_roles || []).length) {
+    amenities.push("Pro Monitors");
+  }
+  if ((room.photos || []).length > 1) {
+    amenities.push("Premium Mics");
+  }
+  amenities.push("Central Location");
+  return amenities.slice(0, 4);
+}
+
+function getRoomCategory(room) {
+  const text = `${room.name || ""} ${room.description || ""}`.toLowerCase();
+  if (text.includes("podcast")) {
+    return "podcast";
+  }
+  if (text.includes("production")) {
+    return "production";
+  }
+  if (text.includes("photo")) {
+    return "photography";
+  }
+  if (text.includes("dance")) {
+    return "dance";
+  }
+  if (text.includes("film") || text.includes("video")) {
+    return "film";
+  }
+  return "recording";
+}
+
+function getReserveGallery(room) {
+  const rawPhotos = Array.isArray(room.photos) ? room.photos : [];
+  const usablePhotos = rawPhotos.filter((photo) => photo && !String(photo).includes("/assets/media/rooms/"));
+  if (usablePhotos.length) {
+    return usablePhotos;
+  }
+
+  const category = getRoomCategory(room);
+  const fallback = ROOM_CATEGORY_VISUALS[category] || "/assets/media/studio-room-2.png";
+  if (category === "podcast") {
+    return [
+      "/assets/media/studio-lobby-2.png",
+      "/assets/media/studio-exterior-2.png",
+      "/assets/media/studio-room-2.png",
+    ];
+  }
+  return [
+    fallback,
+    "/assets/media/studio-lobby-2.png",
+    "/assets/media/studio-exterior-2.png",
+  ];
 }
 
 function buildDurationValues(limitMinutes = MAX_DURATION_MINUTES) {
@@ -202,6 +268,40 @@ function renderStaffImage(photoUrl, label) {
     return `<img class="staff-avatar" src="${photoUrl}" alt="${label}" loading="lazy" />`;
   }
   return `<div class="staff-avatar staff-avatar-fallback">${label.slice(0, 1).toUpperCase()}</div>`;
+}
+
+function renderRoomVisuals(room) {
+  if (elements.reserveRoomPhotos) {
+    const photos = getReserveGallery(room);
+    elements.reserveRoomPhotos.innerHTML = photos.length
+      ? photos
+          .map(
+            (photo, index) => `
+              <figure class="${index === 0 ? "room-detail-hero-media reserve-detail-hero-media" : "room-detail-thumb-card reserve-detail-thumb-card"}">
+                <img class="detail-image" src="${photo}" alt="${room.name} image ${index + 1}" loading="${index === 0 ? "eager" : "lazy"}" />
+                ${index === 0 ? "" : `<figcaption>Image ${index + 1}</figcaption>`}
+              </figure>
+            `,
+          )
+          .join("")
+      : '<div class="empty-state">No room images were added for this room yet.</div>';
+  }
+
+  if (elements.reserveRoomMeta) {
+    elements.reserveRoomMeta.innerHTML = `
+      <span class="pill reserve-room-pill">${room.name.split(" ")[0]}</span>
+      <span class="pill reserve-room-pill ${room.active ? "" : "muted"}">${room.active ? "Available" : "Inactive"}</span>
+      <span class="pill reserve-room-pill">Up to ${room.capacity || "n/a"} people</span>
+      <span class="pill reserve-room-pill">★ 4.9 rating</span>
+      <span class="pill reserve-room-pill">Min 1 hour</span>
+    `;
+  }
+
+  if (elements.reserveRoomAmenities) {
+    elements.reserveRoomAmenities.innerHTML = buildAmenityList(room)
+      .map((item) => `<span class="room-detail-amenity">${item}</span>`)
+      .join("");
+  }
 }
 
 function renderTagGroup(label, values = []) {
@@ -439,13 +539,12 @@ function renderStaffOptions(currentState) {
 }
 
 function renderSummary(currentState) {
-  if (!elements.reserveSummaryTitle || !elements.reserveSummaryMeta) {
+  if (!elements.reserveSummaryMeta) {
     return;
   }
 
   const room = currentState.selectedRoom;
   if (!room) {
-    elements.reserveSummaryTitle.textContent = "Pick a room";
     elements.reserveSummaryMeta.innerHTML = '<div class="empty-state">Choose a room from the catalog first.</div>';
     return;
   }
@@ -460,50 +559,32 @@ function renderSummary(currentState) {
       : null;
 
   if (!selectedStart) {
-    elements.reserveSummaryTitle.textContent = room.name;
     elements.reserveSummaryMeta.innerHTML = `
-      <div class="summary-stack">
-      <div class="summary-line"><span>Room rate</span><strong>${formatCurrency(room.hourly_rate_cents)}/hour</strong></div>
-      <div class="summary-line"><span>Duration range</span><strong>Up to ${formatDuration(room.max_booking_duration_minutes || MAX_DURATION_MINUTES)}</strong></div>
-      <div class="summary-line"><span>Date</span><strong>${selectedDate ? formatDateLabel(selectedDate) : "Select a date"}</strong></div>
-      ${renderSelectedStaffBreakdown(room)}
+      <div class="reserve-price-line"><span>${formatCurrency(room.hourly_rate_cents)} x ${formatDuration(getSelectedDurationMinutes())}</span><strong>${formatCurrency(estimatedTotal)}</strong></div>
+      <div class="reserve-price-line"><span>Service fee</span><strong class="reserve-price-free">Free</strong></div>
       ${
         activePromo
-          ? `
-            <div class="summary-line"><span>Original amount</span><strong>${formatCurrency(estimatedTotal)}</strong></div>
-            <div class="summary-line"><span>Promo</span><strong>${activePromo.code}</strong></div>
-            <div class="summary-line"><span>Discount</span><strong>-${formatCurrency(activePromo.discount_cents)}</strong></div>
-            <div class="summary-line"><span>Current estimate</span><strong>${formatCurrency(activePromo.final_amount_cents)}</strong></div>
-          `
-          : `<div class="summary-line"><span>Current estimate</span><strong>${formatCurrency(estimatedTotal)}</strong></div>`
+          ? `<div class="reserve-price-line"><span>Promo ${activePromo.code}</span><strong>-${formatCurrency(activePromo.discount_cents)}</strong></div>`
+          : ""
       }
-      <div class="summary-line"><span>Scheduling rule</span><strong>Staff are checked for conflicts before booking</strong></div>
-      <div class="empty-state">Pick an available start time to continue.</div>
-      </div>
+      <div class="reserve-price-total"><span>Total</span><strong>${formatCurrency(activePromo ? activePromo.final_amount_cents : estimatedTotal)}</strong></div>
+      <div class="reserve-helper-copy reserve-helper-copy-strong">Pick an available time to continue.</div>
     `;
     return;
   }
 
-  elements.reserveSummaryTitle.textContent = `${room.name} at ${formatTime(selectedStart)}`;
   elements.reserveSummaryMeta.innerHTML = `
-    <div class="summary-stack">
-      <div class="summary-line"><span>Date</span><strong>${formatDateTime(selectedStart)}</strong></div>
-      <div class="summary-line"><span>Duration</span><strong>${formatDuration(getSelectedDurationMinutes())}</strong></div>
-      <div class="summary-line"><span>Room rate</span><strong>${formatCurrency(room.hourly_rate_cents)}/hour</strong></div>
-      ${renderSelectedStaffBreakdown(room)}
-      ${
-        activePromo
-          ? `
-            <div class="summary-line"><span>Original amount</span><strong>${formatCurrency(estimatedTotal)}</strong></div>
-            <div class="summary-line"><span>Promo</span><strong>${activePromo.code}</strong></div>
-            <div class="summary-line"><span>Discount</span><strong>-${formatCurrency(activePromo.discount_cents)}</strong></div>
-            <div class="summary-line"><span>Estimated total</span><strong>${formatCurrency(activePromo.final_amount_cents)}</strong></div>
-          `
-          : `<div class="summary-line"><span>Estimated total</span><strong>${formatCurrency(estimatedTotal)}</strong></div>`
-      }
-      <div class="summary-line"><span>Scheduling rule</span><strong>Staff are checked for conflicts before booking</strong></div>
-      <div class="summary-line"><span>Booking access</span><strong>${currentState.currentUser ? "Ready to submit" : "Guest checkout ready"}</strong></div>
-    </div>
+    <div class="reserve-price-line"><span>${formatCurrency(room.hourly_rate_cents)} x ${formatDuration(getSelectedDurationMinutes())}</span><strong>${formatCurrency(estimatedTotal)}</strong></div>
+    <div class="reserve-price-line"><span>Service fee</span><strong class="reserve-price-free">Free</strong></div>
+    ${
+      activePromo
+        ? `<div class="reserve-price-line"><span>Promo ${activePromo.code}</span><strong>-${formatCurrency(activePromo.discount_cents)}</strong></div>`
+        : ""
+    }
+    ${renderSelectedStaffBreakdown(room)
+      .replaceAll('class="summary-line"', 'class="reserve-price-line reserve-price-line-staff"')}
+    <div class="reserve-price-total"><span>Total</span><strong>${formatCurrency(activePromo ? activePromo.final_amount_cents : estimatedTotal)}</strong></div>
+    <div class="reserve-helper-copy reserve-helper-copy-strong">${formatDateTime(selectedStart)}</div>
   `;
 }
 
@@ -534,10 +615,10 @@ function renderSubmitButton(currentState) {
   const totalLabel = formatCurrency(activePromo ? activePromo.final_amount_cents : estimatedTotal);
   elements.reserveSubmitButton.disabled = !canSubmit;
   elements.reserveSubmitButton.textContent = canSubmit
-    ? `Save 5-minute hold for ${totalLabel}`
+    ? `Confirm Booking ${totalLabel}`
     : currentState.currentUser
       ? "Choose a time to continue"
-      : "Continue as guest";
+      : "Choose a time to continue";
 }
 
 function renderCalendar() {
@@ -592,11 +673,11 @@ async function selectDate(roomId, date) {
 }
 
 export function initRoomBookingView() {
-  if (!elements.reserveDateButton || !elements.reserveBookingForm || !elements.reserveMonthGrid) {
+  if (!elements.reserveBookingForm || !elements.reserveMonthGrid) {
     return;
   }
 
-  elements.reserveDateButton.addEventListener("click", async () => {
+  elements.reserveDateButton?.addEventListener("click", async () => {
     if (!state.selectedRoom || !elements.reserveDateInput.value) {
       return;
     }
@@ -615,6 +696,43 @@ export function initRoomBookingView() {
     renderReservePromoFeedback();
     renderSummary(state);
     renderSubmitButton(state);
+    updateDurationDisplay();
+  });
+
+  elements.reserveDurationDecrease?.addEventListener("click", () => {
+    if (!elements.reserveDurationSelect) {
+      return;
+    }
+    const values = Array.from(elements.reserveDurationSelect.options).map((option) => Number(option.value));
+    const current = getSelectedDurationMinutes();
+    const next = values.filter((value) => value < current).pop();
+    if (!next) {
+      return;
+    }
+    elements.reserveDurationSelect.value = String(next);
+    invalidateReservePromoIfNeeded(state.selectedRoom);
+    renderReservePromoFeedback();
+    renderSummary(state);
+    renderSubmitButton(state);
+    updateDurationDisplay();
+  });
+
+  elements.reserveDurationIncrease?.addEventListener("click", () => {
+    if (!elements.reserveDurationSelect) {
+      return;
+    }
+    const values = Array.from(elements.reserveDurationSelect.options).map((option) => Number(option.value));
+    const current = getSelectedDurationMinutes();
+    const next = values.find((value) => value > current);
+    if (!next) {
+      return;
+    }
+    elements.reserveDurationSelect.value = String(next);
+    invalidateReservePromoIfNeeded(state.selectedRoom);
+    renderReservePromoFeedback();
+    renderSummary(state);
+    renderSubmitButton(state);
+    updateDurationDisplay();
   });
 
   elements.reserveSlotList?.addEventListener("click", (event) => {
@@ -745,11 +863,22 @@ export function initRoomBookingView() {
       clearReservePromoState("");
       await loadDayAvailability(String(state.selectedRoom.id), selectedDate);
       await loadMonthAvailability(String(state.selectedRoom.id), displayedMonth);
+      persistLastBookingId(booking.id);
+      persistCheckoutDraft({ booking });
       window.location.href = `/booking?id=${booking.id}`;
     } catch (error) {
       setState({ message: error.message });
     }
   });
+}
+
+function updateDurationDisplay() {
+  if (!elements.reserveDurationDisplay || !elements.reserveDurationUnit) {
+    return;
+  }
+  const hours = getSelectedDurationMinutes() / 60;
+  elements.reserveDurationDisplay.textContent = String(hours);
+  elements.reserveDurationUnit.textContent = hours === 1 ? "hour" : "hours";
 }
 
 export function renderRoomBookingView(currentState) {
@@ -783,17 +912,23 @@ export function renderRoomBookingView(currentState) {
     if (elements.reserveNoteInput) {
       elements.reserveNoteInput.value = "";
     }
+    if (elements.reserveStartSelect) {
+      elements.reserveStartSelect.innerHTML = "";
+    }
     void loadDayAvailability(lastRoomId, selectedDate);
     void loadMonthAvailability(lastRoomId, displayedMonth);
   }
 
+  renderRoomVisuals(room);
   if (elements.reserveRoomTitle) {
-    elements.reserveRoomTitle.textContent = `Book ${room.name}.`;
+    elements.reserveRoomTitle.textContent = room.name;
   }
   getReserveGuestFields()?.classList.toggle("hidden", Boolean(currentState.currentUser));
   if (elements.reserveRoomCopy) {
-    const staffCount = (room.staff_roles || []).length;
-    elements.reserveRoomCopy.textContent = `${room.description || "Review available times for this room."} ${staffCount ? `This room also has ${staffCount} staff profile${staffCount === 1 ? "" : "s"} you can add to the booking.` : "Choose a day above and use the calendar below to scan the month."}`;
+    const bookingPrompt = currentState.currentUser
+      ? "Choose a day, pick a start time, and confirm your booking."
+      : "Choose a day, pick a start time, and continue with your name and phone number.";
+    elements.reserveRoomCopy.textContent = `${room.description || "Review available times for this room."} ${bookingPrompt}`;
   }
 
   if (elements.reserveDateInput && selectedDate && elements.reserveDateInput.value !== selectedDate) {
@@ -808,4 +943,5 @@ export function renderRoomBookingView(currentState) {
   renderSummary(currentState);
   renderCalendar();
   renderSubmitButton(currentState);
+  updateDurationDisplay();
 }

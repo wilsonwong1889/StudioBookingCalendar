@@ -1,0 +1,161 @@
+from datetime import date
+from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+
+from app.config import settings
+from app.core.dependencies import get_current_user
+from app.core.rate_limit import rate_limit_dependency
+from app.database import get_db
+from app.models.user import User
+from app.schemas.booking import PaymentSessionOut
+from app.schemas.staff_booking import (
+    GuestStaffBookingCreate,
+    GuestStaffBookingCreateOut,
+    StaffBookingAvailabilityOut,
+    StaffBookingCancel,
+    StaffBookingCreate,
+    StaffBookingOut,
+    StaffBookingRescheduleIn,
+)
+from app.services.booking_service import DailyBookingLimitError, PaymentSessionError
+from app.services.payment_service import PaymentBackendError
+from app.services.staff_booking_service import (
+    StaffBookingConflictError,
+    cancel_staff_booking,
+    create_guest_staff_booking,
+    create_staff_booking,
+    get_staff_availability,
+    get_staff_booking_for_user,
+    get_staff_booking_payment_session,
+    list_staff_bookings_for_user,
+    reschedule_staff_booking,
+)
+
+
+router = APIRouter(prefix="/api", tags=["Staff Bookings"])
+booking_rate_limit = rate_limit_dependency("booking", settings.BOOKING_RATE_LIMIT_MAX_REQUESTS)
+
+
+@router.get("/staff/{staff_profile_id}/availability", response_model=StaffBookingAvailabilityOut)
+def staff_availability(
+    staff_profile_id: str,
+    date_value: date = Query(alias="date"),
+    db: Session = Depends(get_db),
+):
+    try:
+        return get_staff_availability(db, staff_profile_id, date_value)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/staff-bookings", response_model=StaffBookingOut, status_code=201)
+def create_staff_booking_endpoint(
+    payload: StaffBookingCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(booking_rate_limit),
+):
+    try:
+        return create_staff_booking(db, current_user, payload)
+    except DailyBookingLimitError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except StaffBookingConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except PaymentBackendError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/staff-bookings/guest", response_model=GuestStaffBookingCreateOut, status_code=201)
+def create_guest_staff_booking_endpoint(
+    payload: GuestStaffBookingCreate,
+    db: Session = Depends(get_db),
+    _: None = Depends(booking_rate_limit),
+):
+    try:
+        return create_guest_staff_booking(db, payload)
+    except DailyBookingLimitError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except StaffBookingConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except PaymentBackendError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/staff-bookings", response_model=List[StaffBookingOut])
+def list_my_staff_bookings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return list_staff_bookings_for_user(db, current_user)
+
+
+@router.get("/staff-bookings/{staff_booking_id}", response_model=StaffBookingOut)
+def get_my_staff_booking(
+    staff_booking_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    booking = get_staff_booking_for_user(db, staff_booking_id, current_user)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Staff booking not found")
+    return booking
+
+
+@router.post("/staff-bookings/{staff_booking_id}/payment-session", response_model=PaymentSessionOut)
+def get_my_staff_booking_payment_session(
+    staff_booking_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(booking_rate_limit),
+):
+    booking = get_staff_booking_for_user(db, staff_booking_id, current_user)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Staff booking not found")
+    try:
+        return get_staff_booking_payment_session(db, booking, current_user)
+    except PaymentBackendError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except PaymentSessionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/staff-bookings/{staff_booking_id}/cancel", response_model=StaffBookingOut)
+def cancel_my_staff_booking(
+    staff_booking_id: str,
+    payload: StaffBookingCancel,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(booking_rate_limit),
+):
+    booking = get_staff_booking_for_user(db, staff_booking_id, current_user)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Staff booking not found")
+    try:
+        return cancel_staff_booking(db, booking, current_user, payload.reason)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/staff-bookings/{staff_booking_id}/reschedule", response_model=StaffBookingOut)
+def reschedule_my_staff_booking(
+    staff_booking_id: str,
+    payload: StaffBookingRescheduleIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(booking_rate_limit),
+):
+    booking = get_staff_booking_for_user(db, staff_booking_id, current_user)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Staff booking not found")
+    try:
+        return reschedule_staff_booking(db, booking, current_user, payload)
+    except StaffBookingConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

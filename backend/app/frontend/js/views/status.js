@@ -1,4 +1,4 @@
-import { elements, setText } from "../dom.js?v=20260421a";
+import { elements, setText } from "../dom.js?v=20260427a";
 
 export function renderStatus(state) {
   if (!elements.healthStatus || !elements.healthDetail || !elements.sessionStatus || !elements.sessionDetail) {

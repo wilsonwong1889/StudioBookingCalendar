@@ -4,12 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FAQ | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260421a" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260427a" />
   </head>
   <body data-page="faq">
     <div class="site-frame">
-      <header class="site-header">
-        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+      <header class="site-header site-header-simple site-header-public">
+        <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
+          <span class="brand-mark-icon" aria-hidden="true">♪</span>
+          <span class="brand-mark-label">StudioBook</span>
+        </a>
         <nav class="site-nav" aria-label="Primary">
           <a class="nav-link" href="/">Home</a>
           <a class="nav-link" href="/info">Info</a>
@@ -18,67 +21,79 @@
           <a class="nav-link" href="/contact">Contact</a>
           <a class="nav-link" href="/rooms">Rooms</a>
           <a class="nav-link" href="/bookings">Bookings</a>
-          <a class="nav-link" href="/account">Account</a>
-          <a class="nav-link" href="/admin">Admin</a>
         </nav>
-        <div class="header-side">
-          <div class="header-actions">
-            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
-            <a id="header-secondary-link" class="ghost-button ghost-link" href="/account?mode=signup">Create account</a>
-            <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
-          </div>
-          <div class="status-strip">
-            <div class="status-chip">
-              <span class="status-chip-label">Backend</span>
-              <strong id="health-status">Checking...</strong>
-              <span id="health-detail" class="status-detail">Waiting for health probe.</span>
-            </div>
-            <div class="status-chip">
-              <span class="status-chip-label">Session</span>
-              <strong id="session-status">Signed out</strong>
-              <span id="session-detail" class="status-detail">Log in or create an account to continue.</span>
+        <div class="header-actions">
+          <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
+          <a id="header-secondary-link" class="primary-button site-header-book-button" href="/account?mode=signup">Create account</a>
+          <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
+            <button
+              id="header-user-trigger"
+              class="ghost-button header-user-trigger"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            >
+              <span id="header-user-email" class="header-user-trigger-label">account@example.com</span>
+              <span class="header-user-trigger-caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="header-user-menu" class="header-user-menu hidden" role="menu" aria-label="Account menu">
+              <a id="header-profile-link" class="header-user-menu-item is-primary" href="/account" role="menuitem">My Profile</a>
+              <a id="header-bookings-link" class="header-user-menu-item" href="/bookings" role="menuitem">My Bookings</a>
+              <a id="header-admin-link" class="header-user-menu-item hidden" href="/admin" role="menuitem">Admin</a>
+              <button id="header-logout-button" class="header-user-menu-item header-user-menu-signout" type="button" role="menuitem">Sign Out</button>
             </div>
           </div>
         </div>
       </header>
 
-      <main class="page-grid">
-        <section class="hero-card hero-card-wide">
-          <p class="eyebrow">FAQ</p>
-          <h1>Clear answers before you book.</h1>
-          <p class="hero-copy">
-            This page covers the booking basics people ask first: how reservations work, when to
-            arrive, how guest checkout works, and what to know about payments, cancellations, rooms,
-            and staff support.
-          </p>
-          <div class="hero-actions">
-            <a class="primary-button hero-primary" href="/bookings">Start a booking</a>
-            <a class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
-            <a class="ghost-button ghost-link" href="/contact">Ask a question</a>
+      <main class="page-grid page-grid-public">
+        <section class="hero-card hero-card-wide page-hero-polish">
+          <div class="page-hero-layout">
+            <div class="page-hero-copy-block">
+              <p class="eyebrow">FAQ</p>
+              <h1>Clear answers before you book.</h1>
+              <p class="hero-copy">
+                This page covers the booking basics people ask first: how reservations work, when to
+                arrive, how guest checkout works, and what to know about payments, cancellations, rooms,
+                and staff support.
+              </p>
+              <div class="hero-actions">
+                <a class="primary-button hero-primary" href="/bookings">Start a booking</a>
+                <a class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
+                <a class="ghost-button ghost-link" href="/contact">Ask a question</a>
+              </div>
+            </div>
+            <aside class="page-hero-summary">
+              <p class="panel-kicker">Quick Read</p>
+              <div class="summary-line"><span>Guest option</span><strong>Continue with just your name and phone number where supported</strong></div>
+              <div class="summary-line"><span>Support</span><strong>Room, payment, cancellation, and staff questions live here</strong></div>
+              <div class="summary-line"><span>Next step</span><strong>Browse rooms, then jump into booking when you are ready</strong></div>
+            </aside>
           </div>
         </section>
 
         <section class="panel panel-wide">
           <div class="panel-header">
             <p class="panel-kicker">Quick answers</p>
-            <h2>The essentials in one place</h2>
+            <h2>Start with the issue in front of you</h2>
+            <p class="panel-copy">These are the fastest paths when a page is not obvious and you need to keep moving.</p>
           </div>
           <div class="detail-stack">
             <div class="summary-line">
-              <span>Booking flow</span>
-              <strong>Pick a room, choose a time, and confirm your details</strong>
+              <span>Booking not loading</span>
+              <strong>Use Rooms first, then move into booking when the room looks right</strong>
             </div>
             <div class="summary-line">
               <span>Guest option</span>
-              <strong>Continue as guest with just your name and phone number</strong>
+              <strong>Continue as guest with just your name and phone number where supported</strong>
             </div>
             <div class="summary-line">
-              <span>Arrival</span>
-              <strong>Plan to arrive 10 to 15 minutes early</strong>
+              <span>Need to change or cancel</span>
+              <strong>Open My Bookings, then use the booking tools or Contact if you need help</strong>
             </div>
             <div class="summary-line">
-              <span>Help</span>
-              <strong>Use Contact if you need a custom booking or support</strong>
+              <span>Payment issue</span>
+              <strong>Review the booking summary and Stripe status before trying again</strong>
             </div>
           </div>
         </section>
@@ -218,10 +233,42 @@
         </section>
       </main>
 
-      <footer class="signal-ribbon">
-        <div class="signal-panel">
-          <strong>Status</strong>
-          <div id="app-message" class="signal-copy">Frontend booting.</div>
+      <footer class="studio-footer">
+        <div class="studio-footer-grid">
+          <div class="studio-footer-brand">
+            <div class="studio-footer-logo">StudioBook</div>
+            <p>Common booking, guest checkout, and payment questions stay in one simple reference page.</p>
+            <div class="signal-panel studio-footer-status">
+              <strong>Status</strong>
+              <div id="app-message" class="signal-copy">Frontend booting.</div>
+            </div>
+          </div>
+          <div>
+            <h3>Explore</h3>
+            <a href="/rooms">All Studios</a>
+            <a href="/info">How It Works</a>
+            <a href="/contact">Contact</a>
+          </div>
+          <div>
+            <h3>Account</h3>
+            <a href="/account">Sign In</a>
+            <a href="/bookings">My Bookings</a>
+            <a href="/account">Profile</a>
+          </div>
+          <div>
+            <h3>Support</h3>
+            <a href="/faq">Policies</a>
+            <a href="/contact">Get help</a>
+            <a href="/rooms">Book a room</a>
+          </div>
+        </div>
+        <div class="studio-footer-bottom">
+          <span>© 2026 StudioBook. All rights reserved.</span>
+          <div class="studio-footer-inline-links">
+            <a href="/faq">Privacy</a>
+            <a href="/faq">Terms</a>
+            <a href="/faq">Cookies</a>
+          </div>
         </div>
       </footer>
       <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
@@ -237,6 +284,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260421a"></script>
+    <script type="module" src="/assets/js/main.js?v=20260427a"></script>
   </body>
 </html>

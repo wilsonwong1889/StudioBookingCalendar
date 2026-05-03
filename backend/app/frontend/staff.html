@@ -4,12 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Staff | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260421a" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260427a" />
   </head>
   <body data-page="staff">
     <div class="site-frame">
-      <header class="site-header">
-        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+      <header class="site-header site-header-simple site-header-public">
+        <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
+          <span class="brand-mark-icon" aria-hidden="true">♪</span>
+          <span class="brand-mark-label">StudioBook</span>
+        </a>
         <nav class="site-nav" aria-label="Primary">
           <a class="nav-link" href="/">Home</a>
           <a class="nav-link" href="/info">Info</a>
@@ -18,40 +21,116 @@
           <a class="nav-link" href="/contact">Contact</a>
           <a class="nav-link" href="/rooms">Rooms</a>
           <a class="nav-link" href="/bookings">Bookings</a>
-          <a class="nav-link" href="/account">Account</a>
-          <a class="nav-link" href="/admin">Admin</a>
         </nav>
-        <div class="header-side">
-          <div class="header-actions">
-            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
-            <a id="header-secondary-link" class="ghost-button ghost-link" href="/account?mode=signup">Create account</a>
-            <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
-          </div>
-          <div class="status-strip">
-            <div class="status-chip">
-              <span class="status-chip-label">Backend</span>
-              <strong id="health-status">Checking...</strong>
-              <span id="health-detail" class="status-detail">Waiting for health probe.</span>
-            </div>
-            <div class="status-chip">
-              <span class="status-chip-label">Session</span>
-              <strong id="session-status">Signed out</strong>
-              <span id="session-detail" class="status-detail">Log in or create an account to continue.</span>
+        <div class="header-actions">
+          <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
+          <a id="header-secondary-link" class="primary-button site-header-book-button" href="/account?mode=signup">Create account</a>
+          <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
+            <button
+              id="header-user-trigger"
+              class="ghost-button header-user-trigger"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            >
+              <span id="header-user-email" class="header-user-trigger-label">account@example.com</span>
+              <span class="header-user-trigger-caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="header-user-menu" class="header-user-menu hidden" role="menu" aria-label="Account menu">
+              <a id="header-profile-link" class="header-user-menu-item is-primary" href="/account" role="menuitem">My Profile</a>
+              <a id="header-bookings-link" class="header-user-menu-item" href="/bookings" role="menuitem">My Bookings</a>
+              <a id="header-admin-link" class="header-user-menu-item hidden" href="/admin" role="menuitem">Admin</a>
+              <button id="header-logout-button" class="header-user-menu-item header-user-menu-signout" type="button" role="menuitem">Sign Out</button>
             </div>
           </div>
         </div>
       </header>
 
-      <main class="page-grid">
-        <section class="hero-card hero-card-wide">
-          <p class="eyebrow">Staff</p>
-          <h1>Meet the founders and staff behind the studio.</h1>
-          <p class="hero-copy">
-            This page is public-facing and is intended to help visitors understand who they might work with before they book a room.
-          </p>
+      <main class="page-grid page-grid-public">
+        <section class="hero-card hero-card-wide page-hero-polish">
+          <div class="page-hero-layout">
+            <div class="page-hero-copy-block">
+              <p class="eyebrow">Staff</p>
+              <h1>Meet the founders and staff behind the studio.</h1>
+              <p class="hero-copy">
+                Book staff independently from rooms. Choose a person, pick a time, and hold their session without leaving this page.
+              </p>
+              <div class="hero-actions">
+                <a class="primary-button hero-primary" href="#book-staff">Book staff</a>
+                <a class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
+              </div>
+            </div>
+            <aside class="page-hero-summary">
+              <p class="panel-kicker">Quick Read</p>
+              <div class="summary-line"><span>Book staff</span><strong>Pick a person first, then move into a staff-only booking flow</strong></div>
+              <div class="summary-line"><span>Availability</span><strong>See openings before you commit to a time</strong></div>
+              <div class="summary-line"><span>Guest flow</span><strong>Name and phone is enough to start when you are not signed in</strong></div>
+            </aside>
+          </div>
         </section>
 
         <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">Help</p>
+            <h2>Need a quick path to the right place?</h2>
+            <p class="panel-copy">Use these if you are deciding between staff, rooms, or booking support before you reserve.</p>
+          </div>
+          <div class="story-grid">
+            <article class="story-card">
+              <span>1</span>
+              <strong>Need room advice</strong>
+              <p>Start with Rooms to compare layouts, capacity, and the room photo set.</p>
+            </article>
+            <article class="story-card">
+              <span>2</span>
+              <strong>Need to ask the team</strong>
+              <p>Use Contact when you want help with timing, setup, or a custom booking question.</p>
+            </article>
+            <article class="story-card">
+              <span>3</span>
+              <strong>Need guest checkout</strong>
+              <p>Guest booking stays available on supported booking screens when you do not want to sign in.</p>
+            </article>
+          </div>
+          <div class="hero-actions">
+            <a class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
+            <a class="ghost-button ghost-link" href="/contact">Contact us</a>
+            <a class="ghost-button ghost-link" href="/faq">Read FAQ</a>
+          </div>
+        </section>
+
+        <section class="panel panel-wide panel-soft staff-booking-intro" id="book-staff">
+          <div class="panel-header">
+            <p class="panel-kicker">Book staff</p>
+            <h2>Choose a person, pick a time, and continue to checkout.</h2>
+            <p class="panel-copy">
+              This flow stays separate from rooms so you can book support, guidance, or a creative session with the right person.
+            </p>
+          </div>
+          <div class="story-grid staff-booking-steps">
+            <article class="story-card">
+              <span>1</span>
+              <strong>Select staff</strong>
+              <p>Open a profile card and choose the person you want to book.</p>
+            </article>
+            <article class="story-card">
+              <span>2</span>
+              <strong>Choose a slot</strong>
+              <p>Pick a date, time, and duration using the staff availability shell below.</p>
+            </article>
+            <article class="story-card">
+              <span>3</span>
+              <strong>Confirm booking</strong>
+              <p>Submit the booking and continue directly to checkout for payment.</p>
+            </article>
+          </div>
+          <div class="hero-actions">
+            <a class="primary-button" href="#staff-booking-shell">Open booking shell</a>
+            <a class="ghost-button ghost-link" href="/contact">Ask a question</a>
+          </div>
+        </section>
+
+        <section class="panel panel-wide panel-soft">
           <div class="panel-header">
             <p class="panel-kicker">Founders</p>
             <h2>Studio founders</h2>
@@ -60,20 +139,156 @@
           <div id="staff-founders-grid" class="admin-staff-catalog-list"></div>
         </section>
 
-        <section class="panel panel-wide">
+        <section class="panel panel-wide panel-soft" id="staff-team-section">
           <div class="panel-header">
             <p class="panel-kicker">Team</p>
-            <h2>Public staff directory</h2>
-            <p class="panel-copy">Active staff profiles created in admin will appear here automatically.</p>
+            <h2>Book staff</h2>
+            <p class="panel-copy">Active staff profiles created in admin will appear here automatically with a direct booking action.</p>
           </div>
           <div id="staff-team-grid" class="admin-staff-catalog-list"></div>
         </section>
+
+        <section class="panel panel-wide panel-soft staff-booking-shell" id="staff-booking-shell">
+          <div class="panel-header">
+            <p class="panel-kicker">Staff booking</p>
+            <h2>Reserve a staff member independently from rooms.</h2>
+            <p class="panel-copy">
+              Select a person from the directory, then choose a date, time, duration, and contact details before confirming.
+            </p>
+          </div>
+          <div class="staff-booking-layout">
+            <div class="staff-booking-main">
+              <div id="staff-booking-selected-card" class="staff-booking-selected-card empty-state">
+                Select a staff member above to start booking.
+              </div>
+              <div class="staff-booking-card">
+                <div class="staff-booking-card-head">
+                  <p class="panel-kicker">Availability</p>
+                  <strong>Choose a day and time</strong>
+                </div>
+                <div class="staff-booking-fields staff-booking-grid-two">
+                  <label>
+                    <span>Date</span>
+                    <input id="staff-booking-date" type="date" />
+                  </label>
+                  <label>
+                    <span>Duration</span>
+                    <select id="staff-booking-duration">
+                      <option value="60">1 hour</option>
+                      <option value="90">1.5 hours</option>
+                      <option value="120">2 hours</option>
+                      <option value="180">3 hours</option>
+                    </select>
+                  </label>
+                </div>
+                <div id="staff-booking-availability" class="empty-state staff-booking-availability">
+                  Pick a staff member and date to see openings.
+                </div>
+                <div id="staff-booking-time-grid" class="reserve-slot-grid staff-booking-time-grid"></div>
+              </div>
+              <form id="staff-booking-form" class="booking-form staff-booking-form">
+                <div class="staff-booking-card-head">
+                  <p class="panel-kicker">Contact</p>
+                  <strong>Who is this booking for?</strong>
+                </div>
+                <div class="booking-contact-grid">
+                  <label>
+                    <span>Full name</span>
+                    <input id="staff-booking-name" type="text" placeholder="Jane Doe" />
+                  </label>
+                  <label>
+                    <span>Phone</span>
+                    <input id="staff-booking-phone" type="tel" placeholder="+1 555 123 4567" />
+                  </label>
+                  <label class="profile-span-2">
+                    <span>Email</span>
+                    <input id="staff-booking-email" type="email" placeholder="jane@example.com" />
+                  </label>
+                  <label class="profile-span-2">
+                    <span>Service type</span>
+                    <select id="staff-booking-service">
+                      <option value="Creative session">Creative session</option>
+                      <option value="Recording support">Recording support</option>
+                      <option value="Podcast support">Podcast support</option>
+                      <option value="Production help">Production help</option>
+                      <option value="Consultation">Consultation</option>
+                    </select>
+                  </label>
+                  <label class="profile-span-2">
+                    <span>Notes</span>
+                    <textarea
+                      id="staff-booking-notes"
+                      rows="4"
+                      placeholder="Setup requests, creative goals, or anything the staff member should know."
+                    ></textarea>
+                  </label>
+                </div>
+              </form>
+            </div>
+            <aside class="staff-booking-summary">
+              <p class="panel-kicker">Summary</p>
+              <div id="staff-booking-summary-card" class="staff-booking-summary-card empty-state">
+                Choose a staff member to see their summary here.
+              </div>
+              <div class="staff-booking-summary-lines">
+                <div class="summary-line"><span>Date</span><strong id="staff-booking-summary-date">Select a date</strong></div>
+                <div class="summary-line"><span>Time</span><strong id="staff-booking-summary-time">Choose an opening</strong></div>
+                <div class="summary-line"><span>Duration</span><strong id="staff-booking-summary-duration">1 hour</strong></div>
+                <div class="summary-line"><span>Estimated total</span><strong id="staff-booking-summary-total">CAD $0.00</strong></div>
+              </div>
+              <button
+                id="staff-booking-submit"
+                class="primary-button staff-booking-submit"
+                type="submit"
+                form="staff-booking-form"
+                disabled
+              >
+                Confirm booking
+              </button>
+              <div id="staff-booking-status" class="signal-copy staff-booking-status">
+                Select a staff member above to start a booking.
+              </div>
+            </aside>
+          </div>
+        </section>
       </main>
 
-      <footer class="signal-ribbon">
-        <div class="signal-panel">
-          <strong>Status</strong>
-          <div id="app-message" class="signal-copy">Frontend booting.</div>
+      <footer class="studio-footer">
+        <div class="studio-footer-grid">
+          <div class="studio-footer-brand">
+            <div class="studio-footer-logo">StudioBook</div>
+            <p>Meet the public-facing team, then book staff or rooms when you know who you want to work with.</p>
+            <div class="signal-panel studio-footer-status">
+              <strong>Status</strong>
+              <div id="app-message" class="signal-copy">Browse staff, then open the booking shell below.</div>
+            </div>
+          </div>
+          <div>
+            <h3>Explore</h3>
+            <a href="/rooms">All Studios</a>
+            <a href="/info">How It Works</a>
+            <a href="/contact">Contact</a>
+          </div>
+          <div>
+            <h3>Account</h3>
+            <a href="/account">Sign In</a>
+            <a href="/bookings">My Bookings</a>
+            <a href="/account">Profile</a>
+          </div>
+          <div>
+            <h3>Support</h3>
+            <a href="/faq">FAQ</a>
+            <a href="/contact">Get help</a>
+            <a href="/rooms">Book a room</a>
+          </div>
+        </div>
+        <div class="studio-footer-bottom">
+          <span>© 2026 StudioBook. All rights reserved.</span>
+          <div class="studio-footer-inline-links">
+            <a href="/faq">Privacy</a>
+            <a href="/faq">Terms</a>
+            <a href="/faq">Cookies</a>
+          </div>
         </div>
       </footer>
       <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
@@ -89,6 +304,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260421a"></script>
+    <script type="module" src="/assets/js/main.js?v=20260427a"></script>
   </body>
 </html>

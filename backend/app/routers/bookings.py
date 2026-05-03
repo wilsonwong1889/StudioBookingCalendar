@@ -35,6 +35,7 @@ from app.services.booking_service import (
     get_booking_for_user,
     get_booking_review_for_user,
     get_room_availability,
+    list_booking_feed_for_user,
     list_bookings_for_user,
     PaymentSessionError,
     reschedule_booking,
@@ -49,6 +50,7 @@ from app.services.receipt_service import (
     build_booking_receipt_filename,
     build_booking_receipt_pdf,
 )
+from app.services.staff_booking_service import build_staff_booking_feed_item, list_staff_bookings_for_user
 
 
 router = APIRouter(prefix="/api", tags=["Bookings"])
@@ -138,6 +140,20 @@ def list_my_bookings(
     current_user: User = Depends(get_current_user),
 ):
     return list_bookings_for_user(db, current_user)
+
+
+@router.get("/bookings/feed", response_model=List[dict])
+def list_my_bookings_feed(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    room_bookings = list_booking_feed_for_user(db, current_user)
+    staff_bookings = [build_staff_booking_feed_item(booking) for booking in list_staff_bookings_for_user(db, current_user)]
+    return sorted(
+        [*room_bookings, *staff_bookings],
+        key=lambda item: item.get("start_time"),
+        reverse=True,
+    )
 
 
 @router.get("/bookings/{booking_id}", response_model=BookingOut)

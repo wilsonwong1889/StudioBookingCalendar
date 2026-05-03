@@ -309,6 +309,43 @@ def list_bookings_for_user(db: Session, user: User) -> list[Booking]:
     )
 
 
+def build_booking_feed_item(db: Session, booking: Booking) -> dict:
+    room = get_room_or_404(db, booking.room_id, include_inactive=True)
+    return {
+        "id": booking.id,
+        "booking_kind": "room",
+        "room_id": booking.room_id,
+        "room_name": room.name,
+        "title": room.name,
+        "subtitle": room.description,
+        "status": booking.status,
+        "start_time": booking.start_time,
+        "end_time": booking.end_time,
+        "duration_minutes": booking.duration_minutes,
+        "price_cents": booking.price_cents,
+        "currency": booking.currency,
+        "payment_intent_id": booking.payment_intent_id,
+        "payment_expires_at": booking.payment_expires_at,
+        "payment_seconds_remaining": booking.payment_seconds_remaining,
+        "confirmed_at": booking.confirmed_at,
+        "checked_in_at": booking.checked_in_at,
+        "cancelled_at": booking.cancelled_at,
+        "cancellation_reason": booking.cancellation_reason,
+        "note": booking.note,
+        "staff_assignments": booking.staff_assignments,
+        "created_at": booking.created_at,
+        "updated_at": booking.updated_at,
+        "location_label": "Downtown studio district",
+        "can_cancel": booking.status in ("PendingPayment", "Paid"),
+        "can_pay": booking.status == "PendingPayment",
+    }
+
+
+def list_booking_feed_for_user(db: Session, user: User) -> list[dict]:
+    room_bookings = list_bookings_for_user(db, user)
+    return [build_booking_feed_item(db, booking) for booking in room_bookings]
+
+
 def get_booking_for_user(db: Session, booking_id: str, user: User) -> Optional[Booking]:
     expire_stale_pending_bookings(db)
     query = db.query(Booking).filter(Booking.id == booking_id)
@@ -1321,7 +1358,9 @@ def serialize_admin_booking(
 ) -> dict:
     return {
         "id": booking.id,
+        "booking_kind": "room",
         "room_id": booking.room_id,
+        "staff_profile_id": None,
         "user_id": booking.user_id,
         "start_time": booking.start_time,
         "end_time": booking.end_time,
@@ -1348,6 +1387,10 @@ def serialize_admin_booking(
         "user_full_name": booking.user_full_name_snapshot or user_full_name,
         "user_phone": booking.user_phone_snapshot or user_phone,
         "room_name": room_name,
+        "staff_name": None,
+        "staff_photo_url": None,
+        "service_type": None,
+        "location_label": room_name or "Studio room booking",
     }
 
 

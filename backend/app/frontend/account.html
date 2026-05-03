@@ -4,12 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Account | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260421a" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260427a" />
   </head>
   <body data-page="account">
     <div class="site-frame">
-      <header class="site-header">
-        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+      <header class="site-header site-header-simple site-header-public">
+        <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
+          <span class="brand-mark-icon" aria-hidden="true">♪</span>
+          <span class="brand-mark-label">StudioBook</span>
+        </a>
         <nav class="site-nav" aria-label="Primary">
           <a class="nav-link" href="/">Home</a>
           <a class="nav-link" href="/info">Info</a>
@@ -18,42 +21,56 @@
           <a class="nav-link" href="/contact">Contact</a>
           <a class="nav-link" href="/rooms">Rooms</a>
           <a class="nav-link" href="/bookings">Bookings</a>
-          <a class="nav-link is-active" href="/account">Account</a>
-          <a class="nav-link" href="/admin">Admin</a>
         </nav>
-        <div class="header-side">
-          <div class="header-actions">
-            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Sign in</a>
-            <a id="header-secondary-link" class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
-            <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
-          </div>
-          <div class="status-strip">
-            <div class="status-chip">
-              <span class="status-chip-label">Backend</span>
-              <strong id="health-status">Checking...</strong>
-              <span id="health-detail" class="status-detail">Waiting for health probe.</span>
-            </div>
-            <div class="status-chip">
-              <span class="status-chip-label">Session</span>
-              <strong id="session-status">Signed out</strong>
-              <span id="session-detail" class="status-detail">Create an account or log in to continue.</span>
+        <div class="header-actions">
+          <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
+          <a id="header-secondary-link" class="primary-button site-header-book-button" href="/account?mode=signup">Create account</a>
+          <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
+            <button
+              id="header-user-trigger"
+              class="ghost-button header-user-trigger"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            >
+              <span id="header-user-email" class="header-user-trigger-label">account@example.com</span>
+              <span class="header-user-trigger-caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="header-user-menu" class="header-user-menu hidden" role="menu" aria-label="Account menu">
+              <a id="header-profile-link" class="header-user-menu-item is-primary" href="/account" role="menuitem">My Profile</a>
+              <a id="header-bookings-link" class="header-user-menu-item" href="/bookings" role="menuitem">My Bookings</a>
+              <a id="header-admin-link" class="header-user-menu-item hidden" href="/admin" role="menuitem">Admin</a>
+              <button id="header-logout-button" class="header-user-menu-item header-user-menu-signout" type="button" role="menuitem">Sign Out</button>
             </div>
           </div>
         </div>
       </header>
 
-      <main class="page-grid account-page-grid">
-        <section class="hero-card hero-card-wide account-hero">
-          <p class="eyebrow">Account</p>
-          <h1 id="account-hero-title">Access and profile live in one clean place.</h1>
-          <p class="hero-copy">
-            <span id="account-hero-copy">
-              Use this page for account entry, profile updates, password changes, and reminder preferences.
-            </span>
-          </p>
-          <div id="account-summary-card" class="account-summary hidden">
-            <strong id="account-summary-name">Welcome back.</strong>
-            <span id="account-summary-email" class="status-detail">Your account details live here.</span>
+      <main class="page-grid page-grid-public account-page-grid">
+        <section class="hero-card hero-card-wide account-hero page-hero-polish">
+          <div class="page-hero-layout">
+            <div class="page-hero-copy-block">
+              <p class="eyebrow">Account</p>
+              <h1 id="account-hero-title">Access and profile live in one clean place.</h1>
+              <p class="hero-copy">
+                <span id="account-hero-copy">
+                  Use this page for account entry, profile updates, password changes, and reminder preferences.
+                </span>
+              </p>
+              <div class="hero-actions">
+                <a class="primary-button hero-primary" href="/rooms">Browse rooms</a>
+                <a class="ghost-button ghost-link" href="/bookings">Go to bookings</a>
+              </div>
+            </div>
+            <aside class="page-hero-summary">
+              <p class="panel-kicker">Account Snapshot</p>
+              <div class="summary-line"><span>Sign in</span><strong>Use email, password, Google, or reset flow from one place</strong></div>
+              <div class="summary-line"><span>Profile</span><strong>Update your name, avatar, password, and reminder preferences</strong></div>
+              <div id="account-summary-card" class="account-summary hidden">
+                <strong id="account-summary-name">Welcome back.</strong>
+                <span id="account-summary-email" class="status-detail">Your account details live here.</span>
+              </div>
+            </aside>
           </div>
         </section>
 
@@ -323,7 +340,7 @@
         </section>
       </main>
 
-      <footer class="signal-ribbon">
+      <footer class="signal-ribbon signal-ribbon-public">
         <div class="signal-panel">
           <strong>Activity</strong>
           <div id="app-message" class="signal-copy">Frontend booting.</div>
@@ -342,6 +359,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260421a"></script>
+    <script type="module" src="/assets/js/main.js?v=20260427a"></script>
   </body>
 </html>
