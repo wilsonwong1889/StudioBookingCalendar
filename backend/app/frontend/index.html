@@ -8,6 +8,50 @@
   </head>
   <body data-page="home">
     <div class="site-frame site-frame-home">
+      <div class="home-top-utility" aria-label="Studio contact details">
+        <div class="home-utility-inner">
+          <div class="home-contact-list">
+            <a class="home-contact-item" href="https://www.google.com/maps/search/?api=1&query=2525%2036%20St%20N%2C%20Lethbridge%2C%20AB%20T1H%205L1" target="_blank" rel="noreferrer">
+              <span class="home-contact-label">Location</span>
+              <span>2525 36 St N, Lethbridge</span>
+            </a>
+            <a class="home-contact-item" href="tel:188855578346">
+              <span class="home-contact-label">Phone</span>
+              <span>1-888-555-STUDIO</span>
+            </a>
+            <a class="home-contact-item" href="mailto:hello@studiobook.app">
+              <span class="home-contact-label">Email</span>
+              <span>hello@studiobook.app</span>
+            </a>
+          </div>
+          <div class="home-utility-actions">
+            <a class="home-social-link" href="/contact" aria-label="Instagram">IG</a>
+            <a class="home-social-link" href="/contact" aria-label="Facebook">FB</a>
+            <a class="home-social-link" href="/contact" aria-label="YouTube">YT</a>
+            <span class="home-utility-divider" aria-hidden="true"></span>
+            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
+            <a id="header-secondary-link" class="primary-button home-header-book-button" href="/rooms">Book Now</a>
+            <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
+              <button
+                id="header-user-trigger"
+                class="ghost-button header-user-trigger"
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded="false"
+              >
+                <span id="header-user-email" class="header-user-trigger-label">account@example.com</span>
+                <span class="header-user-trigger-caret" aria-hidden="true">▾</span>
+              </button>
+              <div id="header-user-menu" class="header-user-menu hidden" role="menu" aria-label="Account menu">
+                <a id="header-profile-link" class="header-user-menu-item is-primary" href="/account" role="menuitem">My Profile</a>
+                <a id="header-bookings-link" class="header-user-menu-item" href="/bookings" role="menuitem">My Bookings</a>
+                <a id="header-admin-link" class="header-user-menu-item hidden" href="/admin" role="menuitem">Admin</a>
+                <button id="header-logout-button" class="header-user-menu-item header-user-menu-signout" type="button" role="menuitem">Sign Out</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       <header class="site-header site-header-simple site-header-public home-header">
         <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
           <span class="brand-mark-icon" aria-hidden="true">♪</span>
@@ -15,33 +59,12 @@
         </a>
         <nav class="site-nav" aria-label="Primary">
           <a class="nav-link is-active" href="/" aria-current="page">Home</a>
-          <a class="nav-link" href="/staff">Staff</a>
           <a class="nav-link" href="/rooms">Rooms</a>
+          <a class="nav-link" href="/staff">Staff</a>
           <a class="nav-link" href="/bookings">Bookings</a>
-          <a class="nav-link" href="/info">Help</a>
+          <a class="nav-link" href="/info">Info</a>
+          <a class="nav-link" href="/contact">Contact</a>
         </nav>
-        <div class="header-actions">
-          <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
-          <a id="header-secondary-link" class="primary-button home-header-book-button" href="/account?mode=signup">Create account</a>
-          <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
-            <button
-              id="header-user-trigger"
-              class="ghost-button header-user-trigger"
-              type="button"
-              aria-haspopup="menu"
-              aria-expanded="false"
-            >
-              <span id="header-user-email" class="header-user-trigger-label">account@example.com</span>
-              <span class="header-user-trigger-caret" aria-hidden="true">▾</span>
-            </button>
-            <div id="header-user-menu" class="header-user-menu hidden" role="menu" aria-label="Account menu">
-              <a id="header-profile-link" class="header-user-menu-item is-primary" href="/account" role="menuitem">My Profile</a>
-              <a id="header-bookings-link" class="header-user-menu-item" href="/bookings" role="menuitem">My Bookings</a>
-              <a id="header-admin-link" class="header-user-menu-item hidden" href="/admin" role="menuitem">Admin</a>
-              <button id="header-logout-button" class="header-user-menu-item header-user-menu-signout" type="button" role="menuitem">Sign Out</button>
-            </div>
-          </div>
-        </div>
       </header>
 
       <main class="home-layout home-layout-refined home-layout-full">
@@ -49,7 +72,7 @@
           <div class="home-carousel" data-home-carousel>
             <div class="home-carousel-slides-container">
               <div class="home-carousel-slide is-active" data-home-slide>
-                <img class="home-hero-image" src="/assets/media/studio-building-exterior.jpg" alt="Studio building exterior" loading="eager" />
+                <img class="home-hero-image" src="/assets/media/studio-room-2.png" alt="Studio recording and content setup" loading="eager" />
               </div>
               <div class="home-carousel-slide" data-home-slide>
                 <img class="home-hero-image" src="/assets/media/studio-lobby-2.png" alt="Podcast conversation corner inside the studio" loading="lazy" />
@@ -58,8 +81,9 @@
                 <img class="home-hero-image" src="/assets/media/studio-exterior-2.png" alt="Studio podcast corner in use" loading="lazy" />
               </div>
               <div class="home-carousel-slide" data-home-slide>
-                <img class="home-hero-image" src="/assets/media/studio-room-2.png" alt="Studio recording and content setup" loading="lazy" />
+                <img class="home-hero-image" src="/assets/media/studio-building-exterior.jpg" alt="Studio building exterior" loading="lazy" />
               </div>
+              <div class="home-hero-accent-strip" aria-hidden="true"></div>
               <div class="home-hero-overlay home-hero-overlay-primary"></div>
               <div class="home-hero-stage">
                 <div class="home-carousel-controls">
@@ -74,35 +98,61 @@
                   </div>
                   <button data-home-next class="home-carousel-button home-carousel-button-next" type="button" aria-label="Next slide">›</button>
                 </div>
+                <form class="home-booking-search" action="/rooms" method="get" aria-label="Check room availability">
+                  <label class="home-search-field">
+                    <span>Date</span>
+                    <input type="date" name="date" />
+                  </label>
+                  <label class="home-search-field">
+                    <span>Time</span>
+                    <select name="time">
+                      <option value="">Any time</option>
+                      <option value="09:00">9:00 AM</option>
+                      <option value="12:00">12:00 PM</option>
+                      <option value="15:00">3:00 PM</option>
+                      <option value="18:00">6:00 PM</option>
+                    </select>
+                  </label>
+                  <label class="home-search-field">
+                    <span>Room Type</span>
+                    <select name="type">
+                      <option value="">Any room</option>
+                      <option value="podcast">Podcast studio</option>
+                      <option value="recording">Recording room</option>
+                      <option value="photo">Photo studio</option>
+                      <option value="production">Production space</option>
+                    </select>
+                  </label>
+                  <button class="primary-button home-search-submit" type="submit">Check Availability</button>
+                </form>
               </div>
             </div>
           </div>
-          <div class="home-hero-summary">
-            <div class="home-hero-summary-copy">
-              <span class="home-soft-badge">Premium studio spaces</span>
-              <h1>Book Your Studio Space</h1>
-              <p class="hero-copy">
-                Professional recording, podcast, and content spaces with a cleaner booking path, real room photos, and direct guest checkout when you need it.
-              </p>
-              <div class="hero-actions">
-                <a class="primary-button hero-primary" href="/rooms">Explore Studios</a>
-                <a class="ghost-button ghost-link" href="/info">How It Works</a>
+        </section>
+
+        <section class="home-stats-band" aria-label="Studio booking highlights">
+          <div class="home-stats-inner">
+            <article class="home-stat-tile">
+              <span class="home-stat-icon" aria-hidden="true">4</span>
+              <div>
+                <strong>Studio Rooms</strong>
+                <p>Recording, podcast, photo, and content spaces.</p>
               </div>
-            </div>
-            <div class="home-hero-utility">
-              <div class="home-utility-pill">
-                <strong>Guest checkout</strong>
-                <span>Name and phone is enough to start</span>
+            </article>
+            <article class="home-stat-tile">
+              <span class="home-stat-icon" aria-hidden="true">✓</span>
+              <div>
+                <strong>Live Availability</strong>
+                <p>Check open times before you commit.</p>
               </div>
-              <div class="home-utility-pill">
-                <strong>Live availability</strong>
-                <span>Search rooms before committing</span>
+            </article>
+            <article class="home-stat-tile">
+              <span class="home-stat-icon" aria-hidden="true">→</span>
+              <div>
+                <strong>Guest Checkout</strong>
+                <p>Book with your name and phone number.</p>
               </div>
-              <div class="home-utility-pill">
-                <strong>2525 36 St N</strong>
-                <span>Lethbridge, Alberta</span>
-              </div>
-            </div>
+            </article>
           </div>
         </section>
 

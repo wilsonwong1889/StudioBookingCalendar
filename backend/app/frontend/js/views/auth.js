@@ -638,8 +638,9 @@ export function renderAuthView(state) {
   }
 
   if (elements.headerSecondaryLink) {
-    elements.headerSecondaryLink.href = state.currentUser ? "/rooms" : "/account?mode=signup";
-    elements.headerSecondaryLink.textContent = state.currentUser ? "Book Now" : "Create account";
+    const isHomePage = document.body?.dataset?.page === "home";
+    elements.headerSecondaryLink.href = state.currentUser || isHomePage ? "/rooms" : "/account?mode=signup";
+    elements.headerSecondaryLink.textContent = state.currentUser || isHomePage ? "Book Now" : "Create account";
     elements.headerSecondaryLink.classList.remove("hidden");
   }
 
