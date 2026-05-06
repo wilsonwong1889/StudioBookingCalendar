@@ -1,15 +1,23 @@
-import { api } from "../api.js?v=20260401r";
-import { getSearchParam } from "../config.js?v=20260401r";
-import { elements } from "../dom.js?v=20260401r";
-import { setState, state } from "../state.js?v=20260401r";
+import { api } from "../api.js?v=20260427a";
+import { getSearchParam } from "../config.js?v=20260422d";
+import { elements } from "../dom.js?v=20260427a";
+import { persistCheckoutDraft, persistLastBookingId, persistToken, setState, state } from "../state.js?v=20260427a";
 
 const MIN_DURATION_MINUTES = 60;
 const MAX_DURATION_MINUTES = 300;
 let selectedStaffIds = new Set();
-let recentBookingSearchQuery = "";
-let recentBookingStatusFilter = "all";
+let bookingHistoryTab = "upcoming";
+let bookingHistoryKind = "all";
 let bookingPromoPreview = null;
 let bookingPromoMessage = "";
+const BOOKING_VISUALS = {
+  recording: "/assets/media/studio-room-2.png",
+  podcast: "/assets/media/studio-lobby-2.png",
+  photography: "/assets/media/studio-room-2.png",
+  film: "/assets/media/studio-exterior-2.png",
+  dance: "/assets/media/studio-exterior-2.png",
+  production: "/assets/media/studio-room-2.png",
+};
 
 function todayString() {
   return new Date().toISOString().slice(0, 10);
@@ -19,6 +27,15 @@ function formatBookingDate(value) {
   return new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",
     timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function formatBookingDay(value) {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
   }).format(new Date(value));
 }
 
@@ -41,6 +58,30 @@ function formatCurrency(cents) {
   }).format((cents || 0) / 100);
 }
 
+function inferBookingCategory(booking) {
+  const text = `${booking.room_name || ""} ${booking.note || ""}`.toLowerCase();
+  if (text.includes("podcast")) {
+    return "podcast";
+  }
+  if (text.includes("photo")) {
+    return "photography";
+  }
+  if (text.includes("film")) {
+    return "film";
+  }
+  if (text.includes("dance")) {
+    return "dance";
+  }
+  if (text.includes("production")) {
+    return "production";
+  }
+  return "recording";
+}
+
+function getBookingVisual(booking) {
+  return BOOKING_VISUALS[inferBookingCategory(booking)] || BOOKING_VISUALS.recording;
+}
+
 function formatStatusLabel(status) {
   return String(status || "Unknown")
     .replace(/([a-z])([A-Z])/g, "$1 $2")
@@ -55,29 +96,6 @@ function getBookingSortValue(value) {
   return value ? new Date(value).getTime() : 0;
 }
 
-const RECENT_BOOKING_SECTIONS = [
-  {
-    key: "Completed",
-    label: "Completed / checked in",
-    description: "Newest checked-in sessions first.",
-  },
-  {
-    key: "Paid",
-    label: "Paid",
-    description: "Paid bookings waiting for their session stay next.",
-  },
-  {
-    key: "Refunded",
-    label: "Refunded",
-    description: "Refunded bookings stay above cancellations.",
-  },
-  {
-    key: "Cancelled",
-    label: "Cancelled",
-    description: "Cancelled bookings stay at the bottom.",
-  },
-];
-
 function formatCountdown(seconds) {
   const safeSeconds = Math.max(0, seconds || 0);
   const minutes = Math.floor(safeSeconds / 60);
@@ -87,6 +105,106 @@ function formatCountdown(seconds) {
 
 function formatBookingCount(count) {
   return `${count} booking${count === 1 ? "" : "s"}`;
+}
+
+function getBookingKind(booking) {
+  const explicitKind = String(booking?.booking_kind || booking?.kind || booking?.type || "").toLowerCase();
+  if (explicitKind === "staff") {
+    return "staff";
+  }
+  if (explicitKind === "room") {
+    return "room";
+  }
+  if (booking?.staff_profile_id || booking?.staff_profile_name || booking?.staff_name || booking?.service_type) {
+    return "staff";
+  }
+  return "room";
+}
+
+function getBookingDisplayName(booking) {
+  if (getBookingKind(booking) === "staff") {
+    return (
+      booking?.staff_name ||
+      booking?.staff_profile_name ||
+      booking?.staff_profile?.name ||
+      booking?.service_type ||
+      "Staff booking"
+    );
+  }
+  return booking?.room_name || "Studio booking";
+}
+
+function getBookingTypeLabel(booking) {
+  return getBookingKind(booking) === "staff" ? "Staff" : "Room";
+}
+
+function getBookingTypeBadgeClass(booking) {
+  return getBookingKind(booking) === "staff"
+    ? "booking-card-category booking-card-kind-staff"
+    : "booking-card-category booking-card-kind-room";
+}
+
+function getBookingDetailHref(booking) {
+  const href = new URL("/booking", window.location.origin);
+  href.searchParams.set("id", booking.id);
+  if (getBookingKind(booking) === "staff") {
+    href.searchParams.set("kind", "staff");
+  }
+  return href.pathname + href.search;
+}
+
+function getBookingImage(booking) {
+  if (getBookingKind(booking) === "staff" && (booking?.staff_photo_url || booking?.photo_url)) {
+    return booking.staff_photo_url || booking.photo_url;
+  }
+  return getBookingVisual(booking);
+}
+
+function getBookingLocationLabel(booking) {
+  if (getBookingKind(booking) === "staff") {
+    return booking?.location_label || "Studio support session";
+  }
+  return booking?.location_label || "Downtown studio district";
+}
+
+function bookingMatchesKindFilter(booking, filter) {
+  if (filter === "all") {
+    return true;
+  }
+  return getBookingKind(booking) === filter;
+}
+
+function getFilteredBookingCounts(bookings) {
+  return bookings.reduce(
+    (counts, booking) => {
+      const kind = getBookingKind(booking);
+      counts.all += 1;
+      if (kind === "staff") {
+        counts.staff += 1;
+      } else {
+        counts.rooms += 1;
+      }
+      return counts;
+    },
+    { all: 0, rooms: 0, staff: 0 },
+  );
+}
+
+function getFilteredBookingCollection(bookings) {
+  return bookings.filter((booking) => bookingMatchesKindFilter(booking, bookingHistoryKind));
+}
+
+function getBookingsEmptyMessage(scope) {
+  const kindLabel = bookingHistoryKind === "staff" ? "staff" : bookingHistoryKind === "rooms" ? "room" : "booking";
+  const kindPrefix = bookingHistoryKind === "all" ? "" : `${kindLabel} `;
+  if (scope === "upcoming") {
+    return bookingHistoryKind === "all"
+      ? "No upcoming bookings yet. New room and staff reservations will appear here."
+      : `No upcoming ${kindPrefix}bookings yet.`;
+  }
+  return bookingHistoryKind === "all"
+    ? "No past or cancelled bookings yet."
+    : `No past or cancelled ${kindPrefix}bookings yet.`;
 }
 
 function getBookingPromoCodeInput() {
@@ -203,32 +321,34 @@ async function applyBookingPromoPreview(currentState) {
   renderBookingSummary(currentState);
 }
 
-function getRecentBookingSearchValue() {
-  return recentBookingSearchQuery.trim().toLowerCase();
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
-function getRecentBookingSectionKey(booking) {
-  if (booking.status === "Completed") {
-    return "Completed";
+function getBookingStatusLabel(booking) {
+  if (booking.status === "PendingPayment") {
+    return "Pending payment";
   }
   if (booking.status === "Paid") {
-    return "Paid";
+    return isBookingUpcoming(booking) ? "Confirmed" : "Paid";
   }
-  if (booking.status === "Refunded") {
-    return "Refunded";
-  }
-  if (booking.status === "Cancelled") {
-    return "Cancelled";
-  }
-  return "Cancelled";
+  return formatStatusLabel(booking.status);
 }
 
-function getRecentBookingTimeValue(booking) {
-  if (booking.status === "Completed") {
-    return getBookingSortValue(booking.checked_in_at || booking.start_time || booking.created_at);
+function getBookingLifecycleTimeValue(booking) {
+  if (booking.status === "PendingPayment") {
+    return getBookingSortValue(booking.payment_expires_at || booking.start_time || booking.created_at);
   }
   if (booking.status === "Paid") {
-    return getBookingSortValue(booking.confirmed_at || booking.created_at || booking.start_time);
+    return getBookingSortValue(booking.confirmed_at || booking.start_time || booking.created_at);
+  }
+  if (booking.status === "Completed") {
+    return getBookingSortValue(booking.checked_in_at || booking.end_time || booking.start_time || booking.created_at);
   }
   if (booking.status === "Refunded") {
     return getBookingSortValue(booking.updated_at || booking.created_at || booking.start_time);
@@ -239,68 +359,55 @@ function getRecentBookingTimeValue(booking) {
   return getBookingSortValue(booking.start_time || booking.created_at);
 }
 
-function renderRecentBookingSections(bookings) {
-  const sections = RECENT_BOOKING_SECTIONS.map((section) => {
-    const groupedBookings = bookings
-      .filter((booking) => getRecentBookingSectionKey(booking) === section.key)
-      .sort((left, right) => getRecentBookingTimeValue(right) - getRecentBookingTimeValue(left));
+function isBookingUpcoming(booking) {
+  if (booking.status === "PendingPayment") {
+    return true;
+  }
+  if (booking.status !== "Paid") {
+    return false;
+  }
+  return getBookingSortValue(booking.end_time || booking.start_time) > Date.now();
+}
 
-    return {
-      ...section,
-      bookings: groupedBookings,
-    };
-  }).filter((section) => section.bookings.length);
+function getUpcomingBookings(bookings) {
+  return bookings
+    .filter((booking) => isBookingUpcoming(booking))
+    .sort((left, right) => {
+      return (
+        getBookingSortValue(left.start_time || left.payment_expires_at || left.created_at) -
+        getBookingSortValue(right.start_time || right.payment_expires_at || right.created_at)
+      );
+    });
+}
 
-  if (!sections.length) {
+function getHistoryBookings(bookings) {
+  return bookings
+    .filter((booking) => !isBookingUpcoming(booking) && ["Paid", "Completed", "Cancelled", "Refunded"].includes(booking.status))
+    .sort((left, right) => getBookingLifecycleTimeValue(right) - getBookingLifecycleTimeValue(left));
+}
+
+function renderBookingCollection(bookings, emptyMessage, { upcoming = false } = {}) {
+  if (!bookings.length) {
     return `
       <div class="empty-state">
-        No recent bookings yet.
+        ${emptyMessage}
       </div>
     `;
   }
 
-  return sections
-    .map(
-      (section) => `
-        <section class="booking-history-group">
-          <div class="booking-history-group-header">
-            <div class="booking-history-group-copy">
-              <p class="panel-kicker">${section.label}</p>
-              <p>${section.description}</p>
-            </div>
-            <span class="pill">${formatBookingCount(section.bookings.length)}</span>
-          </div>
-          <div class="booking-list">
-            ${section.bookings.map((booking) => renderBookingCard(booking)).join("")}
-          </div>
-        </section>
-      `,
-    )
-    .join("");
+  return bookings.map((booking) => renderBookingCard(booking, { upcoming })).join("");
 }
 
-function getFilteredRecentBookings(bookings) {
-  const normalizedQuery = getRecentBookingSearchValue();
-  return bookings.filter((booking) => {
-    if (recentBookingStatusFilter !== "all" && booking.status !== recentBookingStatusFilter) {
-      return false;
-    }
-    if (!normalizedQuery) {
-      return true;
-    }
+function getBookingGuestFields() {
+  return document.getElementById("booking-guest-fields");
+}
 
-    const searchBlob = [
-      booking.booking_code,
-      booking.room_name,
-      booking.note,
-      booking.status,
-      formatStatusLabel(booking.status),
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-    return searchBlob.includes(normalizedQuery);
-  });
+function getBookingGuestNameInput() {
+  return document.getElementById("booking-guest-name");
+}
+
+function getBookingGuestPhoneInput() {
+  return document.getElementById("booking-guest-phone");
 }
 
 function buildDurationValues(limitMinutes = MAX_DURATION_MINUTES) {
@@ -617,220 +724,261 @@ function renderBookingSummary(currentState) {
           `
           : `<div class="summary-line"><span>Estimated total</span><strong>${formatCurrency(estimatedPrice)} CAD</strong></div>`
       }
-      <div class="summary-line"><span>Booking access</span><strong>${currentState.currentUser ? "Ready to submit" : "Log in required"}</strong></div>
+      <div class="summary-line"><span>Booking access</span><strong>${currentState.currentUser ? "Ready to submit" : "Guest checkout ready"}</strong></div>
     </div>
   `;
 }
 
-function renderBookingCard(booking, { highlight = false } = {}) {
-  const isPending = booking.status === "PendingPayment";
-  const actionLabel = isPending ? "Finish payment" : "View details";
-  const countdownLine =
-    isPending && booking.payment_expires_at
-      ? `
-        <div class="summary-line">
-          <span>Payment window</span>
-          <strong>
-            Saved until ${formatBookingDate(booking.payment_expires_at)}${
-              typeof booking.payment_seconds_remaining === "number"
-                ? ` • ${formatCountdown(booking.payment_seconds_remaining)} left`
-                : ""
-            }
-          </strong>
-        </div>
-      `
-      : "";
-
+function renderBookingCard(booking, { upcoming = false } = {}) {
+  const pendingPayment = booking.status === "PendingPayment";
+  const kind = getBookingKind(booking);
+  const category = inferBookingCategory(booking);
+  const categoryLabel = category.charAt(0).toUpperCase() + category.slice(1);
+  const bookingVisual = getBookingImage(booking);
+  const bookingTypeLabel = getBookingTypeLabel(booking);
+  const bookingTitle = getBookingDisplayName(booking);
+  const bookingServiceLabel = booking.service_type || booking.location_label || getBookingLocationLabel(booking);
+  const bookingStatusLabel = getBookingStatusLabel(booking);
+  const bookingDateLabel = formatBookingDay(booking.start_time);
+  const bookingTimeLabel = `${formatTimeOnly(booking.start_time)} · ${formatDuration(booking.duration_minutes)}`;
+  const bookingTotalLabel = formatCurrency(booking.price_cents);
+  const actionLabel = pendingPayment ? "Finish payment" : upcoming ? "Manage booking" : "View details";
+  const actionClass = pendingPayment ? "primary-button primary-link" : "ghost-button ghost-link";
+  const canCancel = upcoming && ["PendingPayment", "Paid"].includes(booking.status);
+  const supportCopy = pendingPayment
+    ? typeof booking.payment_seconds_remaining === "number"
+      ? `Checkout expires in ${formatCountdown(booking.payment_seconds_remaining)}`
+      : kind === "staff"
+        ? "Finish payment to keep the staff session reserved."
+        : "Finish payment to keep the reservation"
+    : upcoming
+      ? "No refunds within 24h"
+      : booking.status === "Cancelled"
+        ? "Reservation cancelled"
+        : "Reservation history";
   return `
-    <article class="booking-card ${highlight ? "booking-card-pending" : "booking-card-secondary"}">
-      <div class="booking-card-top">
-        <div class="booking-card-copy">
-          <div class="room-meta">
-            <span class="pill ${getStatusClassName(booking.status)}">${formatStatusLabel(booking.status)}</span>
-            <span class="pill">${booking.booking_code}</span>
-          </div>
-          <h4>${booking.room_name || "Studio booking"}</h4>
-          <p>${formatBookingDate(booking.start_time)} to ${formatBookingDate(booking.end_time)}</p>
+    <article class="booking-card ${pendingPayment ? "booking-card-pending" : "booking-card-secondary"}">
+      <a class="booking-card-main" href="${getBookingDetailHref(booking)}">
+        <div class="booking-card-media">
+          <img class="booking-card-image" src="${bookingVisual}" alt="${escapeHtml(bookingTitle)}" loading="lazy" />
         </div>
-        <strong class="booking-card-price">${formatCurrency(booking.price_cents)}</strong>
-      </div>
-      <div class="summary-stack booking-card-summary">
-        <div class="summary-line"><span>Duration</span><strong>${formatDuration(booking.duration_minutes)}</strong></div>
-        ${countdownLine}
-        ${booking.note ? `<div class="summary-line"><span>Notes</span><strong>${booking.note}</strong></div>` : ""}
-      </div>
-      <div class="room-actions">
-        <a class="${isPending ? "primary-button primary-link" : "ghost-button ghost-link"}" href="/booking?id=${booking.id}">${actionLabel}</a>
-        ${
-          booking.status === "PendingPayment" || booking.status === "Paid"
-            ? `<button class="ghost-button" type="button" data-booking-action="cancel" data-booking-id="${booking.id}">Cancel</button>`
-            : ""
-        }
+        <div class="booking-card-copy">
+          <div class="booking-card-heading">
+            <div class="booking-card-title-row">
+              <h4>${escapeHtml(bookingTitle)}</h4>
+              <span class="pill ${kind === "staff" ? "booking-card-type-booking" : getBookingTypeBadgeClass(booking)}">${bookingTypeLabel}</span>
+              ${kind === "staff" && bookingServiceLabel ? `<span class="pill booking-card-category">${escapeHtml(bookingServiceLabel)}</span>` : `<span class="pill booking-card-category">${categoryLabel}</span>`}
+            </div>
+            <div class="booking-card-meta-row">
+              <span>${bookingDateLabel}</span>
+              <span>${bookingTimeLabel}</span>
+              <span>${bookingTotalLabel}</span>
+              <span>${escapeHtml(getBookingLocationLabel(booking))}</span>
+            </div>
+          </div>
+        </div>
+      </a>
+      <div class="booking-card-side">
+        <div class="booking-card-status-group">
+          <span class="pill ${getStatusClassName(booking.status)}">${bookingStatusLabel}</span>
+          <span class="booking-card-status-note">${supportCopy}</span>
+        </div>
+        <div class="booking-card-actions">
+          <a class="${actionClass}" href="${getBookingDetailHref(booking)}">${actionLabel}</a>
+          ${canCancel ? `<button class="ghost-button" type="button" data-booking-action="cancel" data-booking-id="${booking.id}">Cancel</button>` : ""}
+        </div>
       </div>
     </article>
   `;
 }
 
 export function initBookingsView(actions) {
-  if (
-    !elements.bookingEmpty ||
-    !elements.availabilityForm ||
-    !elements.bookingForm ||
-    !elements.bookingHistoryPanel ||
-    !elements.pendingBookingsList ||
-    !elements.recentBookingsList
-  ) {
+  if (!elements.bookingHistoryPanel || !elements.pendingBookingsList || !elements.recentBookingsList || !elements.recentBookingsShell) {
     return;
   }
 
-  elements.bookingDateInput.value = todayString();
+  const hasPlanner =
+    Boolean(
+      elements.bookingEmpty &&
+        elements.availabilityForm &&
+        elements.bookingForm &&
+        elements.bookingRoomSelect &&
+        elements.bookingDateInput &&
+        elements.bookingStartSelect &&
+        elements.bookingDurationSelect,
+    );
 
-  elements.bookingRoomSelect?.addEventListener("change", () => {
-    selectedStaffIds = new Set();
-    clearBookingPromoState(getBookingPromoInputValue() ? "Room changed. Apply promo again to refresh the total." : "");
-    setState({ availability: null });
-    if (elements.bookingStartSelect) {
-      elements.bookingStartSelect.innerHTML = "";
-    }
-    if (elements.bookingDurationSelect) {
-      elements.bookingDurationSelect.innerHTML = "";
-    }
-    if (elements.bookingSlotList) {
-      elements.bookingSlotList.innerHTML = "";
-      elements.bookingSlotList.classList.add("hidden");
-    }
-    renderStaffOptions(state);
-    renderBookingPromoFeedback();
-    renderBookingSummary(state);
-  });
+  if (hasPlanner) {
+    elements.bookingDateInput.value = todayString();
 
-  elements.availabilityForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const roomId = elements.bookingRoomSelect.value;
-    const date = elements.bookingDateInput.value;
-
-    if (!roomId || !date) {
-      setState({ message: "Choose a room and date first." });
-      return;
-    }
-
-    try {
-      setState({ message: "Loading availability..." });
-      const availability = await api.getAvailability(roomId, date);
-      setState({ availability, message: "Availability loaded." });
-    } catch (error) {
-      elements.bookingStartSelect.innerHTML = "";
-      elements.bookingDurationSelect.innerHTML = "";
+    elements.bookingRoomSelect?.addEventListener("change", () => {
       selectedStaffIds = new Set();
-      renderStaffOptions(state);
+      clearBookingPromoState(getBookingPromoInputValue() ? "Room changed. Apply promo again to refresh the total." : "");
+      setState({ availability: null });
+      if (elements.bookingStartSelect) {
+        elements.bookingStartSelect.innerHTML = "";
+      }
+      if (elements.bookingDurationSelect) {
+        elements.bookingDurationSelect.innerHTML = "";
+      }
       if (elements.bookingSlotList) {
         elements.bookingSlotList.innerHTML = "";
+        elements.bookingSlotList.classList.add("hidden");
       }
-      setState({ availability: null, message: error.message });
-    }
-  });
-
-  elements.bookingStartSelect.addEventListener("change", () => {
-    renderDurationOptions();
-    renderSlotList(state);
-    renderBookingSummary(state);
-  });
-
-  elements.bookingDurationSelect.addEventListener("change", () => {
-    const selectedRoom = getSelectedRoom();
-    invalidateBookingPromoIfNeeded(selectedRoom, getSelectedDuration());
-    renderBookingPromoFeedback();
-    renderBookingSummary(state);
-  });
-
-  elements.bookingStaffOptions?.addEventListener("change", (event) => {
-    const input = event.target.closest("input[type='checkbox']");
-    if (!input) {
-      return;
-    }
-
-    if (input.checked) {
-      selectedStaffIds.add(input.value);
-    } else {
-      selectedStaffIds.delete(input.value);
-    }
-    const selectedRoom = getSelectedRoom();
-    invalidateBookingPromoIfNeeded(selectedRoom, getSelectedDuration());
-    renderBookingPromoFeedback();
-    renderBookingSummary(state);
-  });
-
-  document.getElementById("booking-promo-preview-button")?.addEventListener("click", async () => {
-    await applyBookingPromoPreview(state);
-  });
-
-  getBookingPromoCodeInput()?.addEventListener("input", () => {
-    if (!getBookingPromoInputValue()) {
-      clearBookingPromoState("");
+      renderStaffOptions(state);
       renderBookingPromoFeedback();
       renderBookingSummary(state);
-      return;
-    }
+    });
 
-    if (bookingPromoPreview && bookingPromoPreview.code !== getBookingPromoInputValue()) {
-      clearBookingPromoState("Promo code changed. Apply again to refresh the total.");
-      renderBookingPromoFeedback();
-      renderBookingSummary(state);
-    }
-  });
+    elements.availabilityForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const roomId = elements.bookingRoomSelect.value;
+      const date = elements.bookingDateInput.value;
 
-  if (elements.bookingSlotList) {
-    elements.bookingSlotList.addEventListener("click", (event) => {
-      const button = event.target.closest("[data-slot-start]");
-      if (!button) {
+      if (!roomId || !date) {
+        setState({ message: "Choose a room and date first." });
         return;
       }
-      elements.bookingStartSelect.value = button.dataset.slotStart;
+
+      try {
+        setState({ message: "Loading availability..." });
+        const availability = await api.getAvailability(roomId, date);
+        setState({ availability, message: "Availability loaded." });
+      } catch (error) {
+        elements.bookingStartSelect.innerHTML = "";
+        elements.bookingDurationSelect.innerHTML = "";
+        selectedStaffIds = new Set();
+        renderStaffOptions(state);
+        if (elements.bookingSlotList) {
+          elements.bookingSlotList.innerHTML = "";
+        }
+        setState({ availability: null, message: error.message });
+      }
+    });
+
+    elements.bookingStartSelect.addEventListener("change", () => {
       renderDurationOptions();
       renderSlotList(state);
       renderBookingSummary(state);
     });
-  }
 
-  elements.bookingForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (!state.currentUser) {
-      setState({ message: "Log in to complete a booking." });
-      return;
-    }
+    elements.bookingDurationSelect.addEventListener("change", () => {
+      const selectedRoom = getSelectedRoom();
+      invalidateBookingPromoIfNeeded(selectedRoom, getSelectedDuration());
+      renderBookingPromoFeedback();
+      renderBookingSummary(state);
+    });
 
-    const roomId = elements.bookingRoomSelect.value;
-    const startTime = elements.bookingStartSelect.value;
-    const duration = Number(elements.bookingDurationSelect.value);
+    elements.bookingStaffOptions?.addEventListener("change", (event) => {
+      const input = event.target.closest("input[type='checkbox']");
+      if (!input) {
+        return;
+      }
 
-    if (!roomId || !startTime || !duration) {
-      setState({ message: "Load availability and choose a valid slot first." });
-      return;
-    }
+      if (input.checked) {
+        selectedStaffIds.add(input.value);
+      } else {
+        selectedStaffIds.delete(input.value);
+      }
+      const selectedRoom = getSelectedRoom();
+      invalidateBookingPromoIfNeeded(selectedRoom, getSelectedDuration());
+      renderBookingPromoFeedback();
+      renderBookingSummary(state);
+    });
 
-    try {
-      setState({ message: "Creating booking..." });
-      const booking = await api.createBooking({
-        room_id: roomId,
-        start_time: startTime,
-        duration_minutes: duration,
-        promo_code: getBookingPromoInputValue() || null,
-        note: elements.bookingNoteInput?.value?.trim() || null,
-        staff_assignments: [...selectedStaffIds],
+    document.getElementById("booking-promo-preview-button")?.addEventListener("click", async () => {
+      await applyBookingPromoPreview(state);
+    });
+
+    getBookingPromoCodeInput()?.addEventListener("input", () => {
+      if (!getBookingPromoInputValue()) {
+        clearBookingPromoState("");
+        renderBookingPromoFeedback();
+        renderBookingSummary(state);
+        return;
+      }
+
+      if (bookingPromoPreview && bookingPromoPreview.code !== getBookingPromoInputValue()) {
+        clearBookingPromoState("Promo code changed. Apply again to refresh the total.");
+        renderBookingPromoFeedback();
+        renderBookingSummary(state);
+      }
+    });
+
+    if (elements.bookingSlotList) {
+      elements.bookingSlotList.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-slot-start]");
+        if (!button) {
+          return;
+        }
+        elements.bookingStartSelect.value = button.dataset.slotStart;
+        renderDurationOptions();
+        renderSlotList(state);
+        renderBookingSummary(state);
       });
-      if (elements.bookingNoteInput) {
-        elements.bookingNoteInput.value = "";
-      }
-      if (getBookingPromoCodeInput()) {
-        getBookingPromoCodeInput().value = "";
-      }
-      clearBookingPromoState("");
-      selectedStaffIds = new Set();
-      window.location.href = `/booking?id=${booking.id}`;
-    } catch (error) {
-      setState({ message: error.message });
     }
-  });
+
+    elements.bookingForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const roomId = elements.bookingRoomSelect.value;
+      const startTime = elements.bookingStartSelect.value;
+      const duration = Number(elements.bookingDurationSelect.value);
+
+      if (!roomId || !startTime || !duration) {
+        setState({ message: "Load availability and choose a valid slot first." });
+        return;
+      }
+
+      try {
+        setState({ message: "Creating booking..." });
+        const payload = {
+          room_id: roomId,
+          start_time: startTime,
+          duration_minutes: duration,
+          promo_code: getBookingPromoInputValue() || null,
+          note: elements.bookingNoteInput?.value?.trim() || null,
+          staff_assignments: [...selectedStaffIds],
+        };
+        let booking = null;
+        if (state.currentUser) {
+          booking = await api.createBooking(payload);
+        } else {
+          const guestName = getBookingGuestNameInput()?.value?.trim() || "";
+          const guestPhone = getBookingGuestPhoneInput()?.value?.trim() || "";
+          if (!guestName || !guestPhone) {
+            setState({ message: "Enter your name and phone number to continue as guest." });
+            return;
+          }
+          const guestSession = await api.createGuestBooking({
+            ...payload,
+            guest_name: guestName,
+            guest_phone: guestPhone,
+          });
+          booking = guestSession.booking;
+          persistToken(guestSession.access_token);
+        }
+        if (elements.bookingNoteInput) {
+          elements.bookingNoteInput.value = "";
+        }
+        if (getBookingGuestNameInput()) {
+          getBookingGuestNameInput().value = "";
+        }
+        if (getBookingGuestPhoneInput()) {
+          getBookingGuestPhoneInput().value = "";
+        }
+        if (getBookingPromoCodeInput()) {
+          getBookingPromoCodeInput().value = "";
+        }
+        clearBookingPromoState("");
+        selectedStaffIds = new Set();
+        persistLastBookingId(booking.id);
+        persistCheckoutDraft({ booking });
+        window.location.href = `/booking?id=${booking.id}`;
+      } catch (error) {
+        setState({ message: error.message });
+      }
+    });
+  }
 
   elements.bookingHistoryPanel.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-booking-action='cancel']");
@@ -838,146 +986,168 @@ export function initBookingsView(actions) {
       return;
     }
 
+    const booking = state.bookings.find((item) => String(item.id) === String(button.dataset.bookingId));
+    const bookingKind = getBookingKind(booking);
+
     try {
       const confirmed = window.confirm("Are you sure you want to cancel this booking?");
       if (!confirmed) {
         return;
       }
       setState({ message: "Cancelling booking..." });
-      await api.cancelBooking(button.dataset.bookingId, { reason: "Cancelled by user" });
+      if (bookingKind === "staff") {
+        await api.cancelStaffBooking(button.dataset.bookingId, { reason: "Cancelled by user" });
+      } else {
+        await api.cancelBooking(button.dataset.bookingId, { reason: "Cancelled by user" });
+      }
       await actions.refreshAvailabilityAndBookings("Booking cancelled.");
     } catch (error) {
       setState({ message: error.message });
     }
   });
 
-  const recentBookingsSearch = document.getElementById("recent-bookings-search");
-  const recentBookingsStatus = document.getElementById("recent-bookings-status-filter");
-
-  recentBookingsSearch?.addEventListener("input", (event) => {
-    recentBookingSearchQuery = event.target.value || "";
+  elements.bookingHistoryAllTab?.addEventListener("click", () => {
+    bookingHistoryKind = "all";
+    renderBookingsView(state);
+  });
+  elements.bookingHistoryRoomsTab?.addEventListener("click", () => {
+    bookingHistoryKind = "rooms";
+    renderBookingsView(state);
+  });
+  elements.bookingHistoryStaffTab?.addEventListener("click", () => {
+    bookingHistoryKind = "staff";
     renderBookingsView(state);
   });
 
-  recentBookingsStatus?.addEventListener("change", (event) => {
-    recentBookingStatusFilter = event.target.value || "all";
+  const upcomingTab = document.getElementById("booking-history-upcoming-tab");
+  const historyTab = document.getElementById("booking-history-history-tab");
+
+  upcomingTab?.addEventListener("click", () => {
+    bookingHistoryTab = "upcoming";
+    renderBookingsView(state);
+  });
+
+  historyTab?.addEventListener("click", () => {
+    bookingHistoryTab = "history";
     renderBookingsView(state);
   });
 }
 
 export function renderBookingsView(currentState) {
-  if (
-    !elements.bookingEmpty ||
-    !elements.availabilityForm ||
-    !elements.bookingForm ||
-    !elements.pendingBookingsList ||
-    !elements.recentBookingsList ||
-    !elements.recentBookingsShell
-  ) {
+  if (!elements.pendingBookingsList || !elements.recentBookingsList || !elements.recentBookingsShell) {
     return;
   }
 
+  const hasPlanner =
+    Boolean(
+      elements.bookingEmpty &&
+        elements.availabilityForm &&
+        elements.bookingForm &&
+        elements.bookingRoomSelect &&
+        elements.bookingDateInput &&
+        elements.bookingStartSelect &&
+        elements.bookingDurationSelect,
+    );
   const isSignedIn = Boolean(currentState.currentUser);
-  elements.bookingEmpty.classList.toggle("hidden", isSignedIn);
-  elements.availabilityForm.classList.remove("hidden");
-  elements.bookingForm.classList.remove("hidden");
-  elements.availabilitySummary.classList.toggle("hidden", !currentState.availability);
+  if (hasPlanner) {
+    elements.bookingEmpty.classList.toggle("hidden", isSignedIn);
+    elements.availabilityForm.classList.remove("hidden");
+    elements.bookingForm.classList.remove("hidden");
+    elements.availabilitySummary.classList.toggle("hidden", !currentState.availability);
 
-  const existingRoomId = elements.bookingRoomSelect.value;
-  const roomOptions = currentState.rooms
-    .filter((room) => room.active)
-    .map((room) => `<option value="${room.id}">${room.name}</option>`);
-  elements.bookingRoomSelect.innerHTML = roomOptions.length
-    ? roomOptions.join("")
-    : '<option value="">No active rooms available</option>';
-  if (roomOptions.length && currentState.rooms.some((room) => room.id === existingRoomId && room.active)) {
-    elements.bookingRoomSelect.value = existingRoomId;
+    const existingRoomId = elements.bookingRoomSelect.value;
+    const roomOptions = currentState.rooms
+      .filter((room) => room.active)
+      .map((room) => `<option value="${room.id}">${room.name}</option>`);
+    elements.bookingRoomSelect.innerHTML = roomOptions.length
+      ? roomOptions.join("")
+      : '<option value="">No active rooms available</option>';
+    if (roomOptions.length && currentState.rooms.some((room) => room.id === existingRoomId && room.active)) {
+      elements.bookingRoomSelect.value = existingRoomId;
+    }
+    applyRequestedRoomSelection(currentState);
+
+    if (!elements.bookingDateInput.value) {
+      elements.bookingDateInput.value = todayString();
+    }
+
+    renderStartTimeOptions(currentState);
+    renderAvailabilitySummary();
+    renderSlotList(currentState);
+    renderStaffOptions(currentState);
+    invalidateBookingPromoIfNeeded(getSelectedRoom(), getSelectedDuration());
+    renderBookingPromoFeedback();
+    renderBookingSummary(currentState);
+
+    const bookingSubmitButton = elements.bookingForm.querySelector("button[type='submit']");
+    if (bookingSubmitButton) {
+      bookingSubmitButton.disabled = !elements.bookingStartSelect?.value;
+      bookingSubmitButton.textContent = isSignedIn ? "Save 5-minute spot hold" : "Continue as guest";
+    }
+    getBookingGuestFields()?.classList.toggle("hidden", isSignedIn);
   }
-  applyRequestedRoomSelection(currentState);
 
-  if (!elements.bookingDateInput.value) {
-    elements.bookingDateInput.value = todayString();
+  const filteredBookings = getFilteredBookingCollection(currentState.bookings);
+  const bookingCounts = getFilteredBookingCounts(currentState.bookings);
+  const upcomingBookings = getUpcomingBookings(filteredBookings);
+  const historyBookings = getHistoryBookings(filteredBookings);
+
+  if (elements.bookingHistoryAllCount) {
+    elements.bookingHistoryAllCount.textContent = String(bookingCounts.all);
   }
-
-  renderStartTimeOptions(currentState);
-  renderAvailabilitySummary();
-  renderSlotList(currentState);
-  renderStaffOptions(currentState);
-  invalidateBookingPromoIfNeeded(getSelectedRoom(), getSelectedDuration());
-  renderBookingPromoFeedback();
-  renderBookingSummary(currentState);
-
-  const bookingSubmitButton = elements.bookingForm.querySelector("button[type='submit']");
-  if (bookingSubmitButton) {
-    bookingSubmitButton.disabled = !isSignedIn;
-    bookingSubmitButton.textContent = isSignedIn ? "Save 5-minute spot hold" : "Log in to book";
+  if (elements.bookingHistoryRoomsCount) {
+    elements.bookingHistoryRoomsCount.textContent = String(bookingCounts.rooms);
   }
-
-  const pendingBookings = currentState.bookings
-    .filter((booking) => booking.status === "PendingPayment")
-    .sort((left, right) => {
-      return (
-        getBookingSortValue(left.payment_expires_at || left.start_time) -
-        getBookingSortValue(right.payment_expires_at || right.start_time)
-      );
-    });
-  const recentBookings = currentState.bookings
-    .filter((booking) => booking.status !== "PendingPayment")
-    .sort((left, right) => getRecentBookingTimeValue(right) - getRecentBookingTimeValue(left));
-  const filteredRecentBookings = getFilteredRecentBookings(recentBookings);
-
+  if (elements.bookingHistoryStaffCount) {
+    elements.bookingHistoryStaffCount.textContent = String(bookingCounts.staff);
+  }
   if (elements.pendingBookingsCount) {
-    elements.pendingBookingsCount.classList.toggle("hidden", !isSignedIn);
-    elements.pendingBookingsCount.textContent = `${pendingBookings.length} pending`;
+    elements.pendingBookingsCount.classList.toggle("hidden", upcomingBookings.length === 0);
+    elements.pendingBookingsCount.textContent = upcomingBookings.length ? formatBookingCount(upcomingBookings.length) : "";
   }
 
   if (elements.recentBookingsCount) {
-    elements.recentBookingsCount.textContent =
-      filteredRecentBookings.length === recentBookings.length
-        ? formatBookingCount(filteredRecentBookings.length)
-        : `${formatBookingCount(filteredRecentBookings.length)} of ${formatBookingCount(recentBookings.length)}`;
+    elements.recentBookingsCount.textContent = formatBookingCount(historyBookings.length);
   }
 
-  if (!isSignedIn) {
-    elements.pendingBookingsList.innerHTML = `
-      <div class="empty-state">
-        Log in to view your booking history and complete a booking after checking availability.
-      </div>
-    `;
-    elements.recentBookingsShell.classList.add("hidden");
-    elements.recentBookingsList.innerHTML = "";
-  } else if (!currentState.bookings.length) {
-    elements.pendingBookingsList.innerHTML = `
-      <div class="empty-state">
-        No pending bookings right now. Create a new booking from the availability flow above.
-      </div>
-    `;
-    elements.recentBookingsShell.classList.remove("hidden");
-    elements.recentBookingsShell.open = false;
-    elements.recentBookingsList.innerHTML = `
-      <div class="empty-state">
-        No recent bookings yet.
-      </div>
-    `;
-  } else {
-    elements.pendingBookingsList.innerHTML = pendingBookings.length
-      ? pendingBookings.map((booking) => renderBookingCard(booking, { highlight: true })).join("")
-      : `
-        <div class="empty-state">
-          No pending bookings right now. Finished and older bookings are kept in the recent bookings dropdown below.
-        </div>
-      `;
+  const upcomingTab = document.getElementById("booking-history-upcoming-tab");
+  const historyTab = document.getElementById("booking-history-history-tab");
+  const allTypeTab = elements.bookingHistoryAllTab;
+  const roomTypeTab = elements.bookingHistoryRoomsTab;
+  const staffTypeTab = elements.bookingHistoryStaffTab;
+  const upcomingPanel = document.getElementById("booking-history-upcoming-panel");
+  const historyPanel = document.getElementById("booking-history-history-panel");
+  const upcomingTabCount = document.getElementById("booking-history-upcoming-count");
+  const historyTabCount = document.getElementById("booking-history-history-count");
 
-    elements.recentBookingsShell.classList.remove("hidden");
-    if (!recentBookings.length) {
-      elements.recentBookingsShell.open = false;
-    }
-    elements.recentBookingsList.innerHTML = filteredRecentBookings.length
-      ? renderRecentBookingSections(filteredRecentBookings)
-      : `
-        <div class="empty-state">
-          No recent bookings match the current search or status filter.
-        </div>
-      `;
+  if (upcomingTabCount) {
+    upcomingTabCount.textContent = String(upcomingBookings.length);
   }
+  if (historyTabCount) {
+    historyTabCount.textContent = String(historyBookings.length);
+  }
+
+  allTypeTab?.classList.toggle("is-active", bookingHistoryKind === "all");
+  roomTypeTab?.classList.toggle("is-active", bookingHistoryKind === "rooms");
+  staffTypeTab?.classList.toggle("is-active", bookingHistoryKind === "staff");
+  allTypeTab?.setAttribute("aria-selected", bookingHistoryKind === "all" ? "true" : "false");
+  roomTypeTab?.setAttribute("aria-selected", bookingHistoryKind === "rooms" ? "true" : "false");
+  staffTypeTab?.setAttribute("aria-selected", bookingHistoryKind === "staff" ? "true" : "false");
+
+  const upcomingViewActive = bookingHistoryTab !== "history";
+  upcomingTab?.classList.toggle("is-active", upcomingViewActive);
+  historyTab?.classList.toggle("is-active", !upcomingViewActive);
+  upcomingTab?.setAttribute("aria-selected", upcomingViewActive ? "true" : "false");
+  historyTab?.setAttribute("aria-selected", upcomingViewActive ? "false" : "true");
+  upcomingPanel?.classList.toggle("hidden", !upcomingViewActive);
+  historyPanel?.classList.toggle("hidden", upcomingViewActive);
+
+  if (elements.recentBookingsShell) {
+    elements.recentBookingsShell.classList.remove("hidden");
+  }
+
+  elements.pendingBookingsList.innerHTML = renderBookingCollection(upcomingBookings, getBookingsEmptyMessage("upcoming"), {
+    upcoming: true,
+  });
+  elements.recentBookingsList.innerHTML = renderBookingCollection(historyBookings, getBookingsEmptyMessage("history"));
 }

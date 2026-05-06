@@ -1,9 +1,75 @@
-import { api } from "../api.js?v=20260408e";
-import { elements } from "../dom.js?v=20260401r";
-import { setState, state } from "../state.js?v=20260401r";
+import { api } from "../api.js?v=20260427a";
+import { elements } from "../dom.js?v=20260427a";
+import { setState, state } from "../state.js?v=20260427a";
 
 let editingRoomId = null;
 let selectedCreateStaffIds = new Set();
+let roomsViewBound = false;
+let selectedRoomCategory = "all";
+let roomsCatalogSort = "recommended";
+let roomsFiltersOpen = false;
+
+const ROOM_CATEGORY_ORDER = [
+  "all",
+  "recording",
+  "podcast",
+  "production",
+  "photography",
+  "dance",
+  "film",
+];
+
+const ROOM_CATEGORY_LABELS = {
+  all: "All",
+  recording: "Recording",
+  podcast: "Podcast",
+  production: "Production",
+  photography: "Photography",
+  dance: "Dance",
+  film: "Film",
+};
+
+const ROOM_CATEGORY_RATINGS = {
+  recording: 4.9,
+  podcast: 4.8,
+  production: 5.0,
+  photography: 4.7,
+  dance: 4.6,
+  film: 4.9,
+};
+
+const ROOM_CATEGORY_VISUALS = {
+  recording: "/assets/media/studio-room-2.png",
+  podcast: "/assets/media/studio-lobby-2.png",
+  production: "/assets/media/studio-room-2.png",
+  photography: "/assets/media/studio-room-2.png",
+  dance: "/assets/media/studio-exterior-2.png",
+  film: "/assets/media/studio-exterior-2.png",
+};
+
+function roomsSearchTextInput() {
+  return document.getElementById("rooms-search-text");
+}
+
+function roomsSortSelect() {
+  return document.getElementById("rooms-sort-select");
+}
+
+function roomsCategoryBar() {
+  return document.getElementById("rooms-category-bar");
+}
+
+function roomsResultsCount() {
+  return document.getElementById("rooms-results-count");
+}
+
+function roomsFilterToggleButton() {
+  return document.getElementById("rooms-filter-toggle");
+}
+
+function roomsFilterPanel() {
+  return document.getElementById("rooms-filter-panel");
+}
 
 function formatCurrency(cents) {
   return new Intl.NumberFormat("en-US", {
@@ -21,6 +87,11 @@ function formatPreviewTimes(availableStartTimes) {
   );
 }
 
+function extractStudioTime(startTime) {
+  const match = String(startTime || "").match(/T(\d{2}:\d{2})/);
+  return match ? match[1] : "";
+}
+
 function formatDuration(minutes) {
   const hours = minutes / 60;
   return `${hours} hour${hours === 1 ? "" : "s"}`;
@@ -28,6 +99,101 @@ function formatDuration(minutes) {
 
 function getPrimaryPhoto(room) {
   return Array.isArray(room.photos) && room.photos.length ? room.photos[0] : null;
+}
+
+function getRoomCategory(room) {
+  const haystack = `${room.name || ""} ${room.description || ""}`.toLowerCase();
+  if (haystack.includes("podcast")) {
+    return "podcast";
+  }
+  if (haystack.includes("production")) {
+    return "production";
+  }
+  if (haystack.includes("photo")) {
+    return "photography";
+  }
+  if (haystack.includes("dance")) {
+    return "dance";
+  }
+  if (haystack.includes("film") || haystack.includes("video")) {
+    return "film";
+  }
+  return "recording";
+}
+
+function getRoomRating(room) {
+  return ROOM_CATEGORY_RATINGS[getRoomCategory(room)] || 4.8;
+}
+
+function getRoomVisual(room) {
+  const category = getRoomCategory(room);
+  const photo = getPrimaryPhoto(room);
+  const fallback = ROOM_CATEGORY_VISUALS[category] || "/assets/media/studio-room-2.png";
+  if (!photo || String(photo).includes("/assets/media/rooms/")) {
+    return { photo: fallback, fallback, category };
+  }
+  return { photo, fallback, category };
+}
+
+function getRoomSearchText(room) {
+  return `${room.name || ""} ${room.description || ""} ${ROOM_CATEGORY_LABELS[getRoomCategory(room)] || ""}`.toLowerCase();
+}
+
+function formatRoomCategoryLabel(category) {
+  return ROOM_CATEGORY_LABELS[category] || "Studio";
+}
+
+function formatCompactCurrency(cents) {
+  return formatCurrency(cents).replace(".00", "");
+}
+
+function formatRoomCount(count) {
+  return `${count} studio${count === 1 ? "" : "s"} found`;
+}
+
+function formatRoomDescription(room) {
+  const description = String(room.description || "").trim();
+  if (!description) {
+    return "A flexible studio space ready for your next session.";
+  }
+  return description.length > 132 ? `${description.slice(0, 129).trim()}...` : description;
+}
+
+function renderCategoryFilterBar(rooms) {
+  const target = roomsCategoryBar();
+  if (!target) {
+    return;
+  }
+
+  const availableCategories = new Set((rooms || []).map(getRoomCategory));
+  const categories = ROOM_CATEGORY_ORDER.filter((category) => category === "all" || availableCategories.has(category));
+  if (selectedRoomCategory !== "all" && !availableCategories.has(selectedRoomCategory)) {
+    selectedRoomCategory = "all";
+  }
+
+  target.innerHTML = categories.map(
+    (category) => `
+      <button
+        class="rooms-category-chip ${selectedRoomCategory === category ? "is-active" : ""}"
+        type="button"
+        data-room-category="${category}"
+      >
+        ${formatRoomCategoryLabel(category)}
+      </button>
+    `,
+  ).join("");
+}
+
+function renderRoomsFilterPanelState() {
+  const panel = roomsFilterPanel();
+  const button = roomsFilterToggleButton();
+  if (!panel || !button) {
+    return;
+  }
+
+  panel.classList.toggle("hidden", !roomsFiltersOpen);
+  button.classList.toggle("is-active", roomsFiltersOpen);
+  button.setAttribute("aria-expanded", roomsFiltersOpen ? "true" : "false");
 }
 
 function getRoomPhotoUrlInput() {
@@ -183,17 +349,12 @@ function collectCreateRoomStaffPayload() {
 }
 
 function renderAvailabilityPreview(roomId) {
-  const supportsRoomPreview = Boolean(elements.roomsPreviewDate && elements.roomsPreviewButton);
-  if (!supportsRoomPreview) {
-    return "";
-  }
-
   const preview = state.roomAvailabilityPreview?.[roomId];
   if (!preview) {
     return `
-      <div class="availability-preview">
-        <span class="availability-label">Availability preview</span>
-        <p>Choose a date and click "Show availability" to preview open start times.</p>
+      <div class="availability-preview availability-preview-idle">
+        <span class="availability-label">Live openings</span>
+        <p>Use filters to check a specific day, or book now to see today's openings.</p>
       </div>
     `;
   }
@@ -202,7 +363,7 @@ function renderAvailabilityPreview(roomId) {
     return `
       <div class="availability-preview">
         <span class="availability-label">Availability preview</span>
-        <p>No available start times for ${preview.date}.</p>
+        <p>No live openings were returned for ${preview.date}. Try another date or open the booking flow for a different room.</p>
       </div>
     `;
   }
@@ -213,16 +374,17 @@ function renderAvailabilityPreview(roomId) {
   return `
     <div class="availability-preview">
       <span class="availability-label">${preview.available_start_times.length} starts open on ${preview.date}</span>
+      <p>Times are shown in local studio time and update from the live availability feed.</p>
       <div class="preview-pill-row">${previewTimes}</div>
     </div>
   `;
 }
 
 function renderRoomCard(room, canManageRooms) {
-  const photoCount = Array.isArray(room.photos) ? room.photos.length : 0;
-  const primaryPhoto = getPrimaryPhoto(room);
-  const activeLabel = room.active ? "Active" : "Inactive";
-  const staffCount = (room.staff_roles || []).length;
+  const { photo: primaryPhoto, fallback, category } = getRoomVisual(room);
+  const categoryLabel = formatRoomCategoryLabel(category);
+  const statusLabel = room.active ? "Available" : "Inactive";
+  const rating = getRoomRating(room);
   const canEditRoom = canManageRooms && Boolean(elements.roomForm);
   const managementActions = canManageRooms
     ? [
@@ -237,34 +399,52 @@ function renderRoomCard(room, canManageRooms) {
     : "";
 
   return `
-    <article class="room-card room-card-rich">
-      <div class="room-card-media">
+    <article class="room-card room-catalog-card">
+      <div class="room-catalog-media">
         ${
           primaryPhoto
-            ? `<img class="room-card-image" src="${primaryPhoto}" alt="${room.name}" loading="lazy" />`
+            ? `<img class="room-card-image" src="${primaryPhoto}" alt="${room.name}" loading="lazy" onerror="this.onerror=null;this.src='${fallback}';" />`
             : '<div class="room-card-placeholder">No room image yet.</div>'
         }
-      </div>
-      <div class="room-card-top">
-        <div>
-          <h3>${room.name}</h3>
-          <p>${room.description || "No description yet."}</p>
+        <div class="room-catalog-media-badges">
+          <span class="room-catalog-pill room-catalog-pill-category">${categoryLabel}</span>
+          <span class="room-catalog-pill room-catalog-pill-status ${room.active ? "is-available" : "is-booked"}">${statusLabel}</span>
         </div>
-        <span class="pill ${room.active ? "" : "muted"}">${activeLabel}</span>
       </div>
-      <div class="room-meta">
-        <span class="pill">${formatCurrency(room.hourly_rate_cents)}/hour CAD</span>
-        <span class="pill">Max ${formatDuration(room.max_booking_duration_minutes || 300)}</span>
-        <span class="pill">Capacity ${room.capacity || "n/a"}</span>
-        <span class="pill">${photoCount} image${photoCount === 1 ? "" : "s"}</span>
-        <span class="pill">${staffCount} staff option${staffCount === 1 ? "" : "s"}</span>
+      <div class="room-catalog-content">
+        <div class="room-catalog-title-row">
+          <h3 class="room-catalog-title ${category === "podcast" ? "is-accent" : ""}">${room.name}</h3>
+          <span class="room-catalog-rating"><span aria-hidden="true">★</span> ${rating.toFixed(1).replace(".0", "")}</span>
+        </div>
+        <p class="room-catalog-description">${formatRoomDescription(room)}</p>
+        <div class="room-catalog-feature-row" aria-label="Room highlights">
+          <span>${categoryLabel}</span>
+          <span>${formatDuration(room.max_booking_duration_minutes || 300)} max</span>
+          <span>${room.active ? "Bookable now" : "Inactive"}</span>
+        </div>
+        ${renderAvailabilityPreview(room.id)}
+        <div class="room-catalog-meta-row">
+          <span class="room-catalog-capacity">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <circle cx="7" cy="7" r="2.2"></circle>
+              <path d="M2.8 15.2c.8-2.3 2.6-3.5 4.2-3.5s3.4 1.2 4.2 3.5"></path>
+              <circle cx="14.1" cy="8" r="1.8"></circle>
+              <path d="M11.8 15c.5-1.6 1.9-2.7 3.4-2.7 1 0 2 .5 2.8 1.5"></path>
+            </svg>
+            Up to ${room.capacity || "n/a"}
+          </span>
+          <strong class="room-catalog-price">${formatCompactCurrency(room.hourly_rate_cents)}<span>/hr</span></strong>
+        </div>
+        <div class="room-actions room-catalog-actions">
+          <a class="primary-button room-catalog-book-button" href="/reserve?id=${room.id}">Book now</a>
+          <a class="ghost-button room-catalog-details-button" href="/room?id=${room.id}">View details</a>
+        </div>
       </div>
-      ${renderAvailabilityPreview(room.id)}
-      <div class="room-actions">
-        <a class="ghost-button ghost-link" href="/room?id=${room.id}">View details</a>
-        <a class="primary-button" href="/bookings?room=${room.id}">Book this room</a>
-        ${managementActions}
-      </div>
+      ${
+        managementActions
+          ? `<div class="room-actions room-actions-admin">${managementActions}</div>`
+          : ""
+      }
     </article>
   `;
 }
@@ -276,12 +456,12 @@ async function previewRoomsAvailability() {
 
   const previewDate = elements.roomsPreviewDate.value;
   if (!previewDate) {
-    setState({ message: "Choose a date to preview room availability." });
+    setState({ message: "Choose a date to preview live openings." });
     return;
   }
 
   try {
-    setState({ message: "Loading room availability..." });
+    setState({ message: "Loading live room availability..." });
     const previews = await Promise.all(
       state.rooms
         .filter((room) => room.active)
@@ -290,14 +470,95 @@ async function previewRoomsAvailability() {
     setState({
       roomPreviewDate: previewDate,
       roomAvailabilityPreview: Object.fromEntries(previews),
-      message: "Room availability loaded.",
+      message: "Live availability loaded.",
     });
   } catch (error) {
     setState({ message: error.message });
   }
 }
 
+async function searchRoomsByAvailability() {
+  const searchDate = elements.roomsSearchDate?.value;
+  const searchTime = elements.roomsSearchTime?.value;
+  const duration = Number(elements.roomsSearchDuration?.value || 60);
+  if (!searchDate || !searchTime) {
+    setState({ message: "Choose a date and start time to search for rooms." });
+    return;
+  }
+
+  try {
+    setState({ message: "Searching rooms for that exact time..." });
+    const availabilityRows = await Promise.all(
+      state.rooms
+        .filter((room) => room.active)
+        .map(async (room) => [room.id, await api.getAvailability(room.id, searchDate)]),
+    );
+    const matchingRoomIds = availabilityRows
+      .filter(([, availability]) =>
+        (availability.available_start_times || []).some(
+          (startTime) =>
+            extractStudioTime(startTime) === searchTime &&
+            Number(availability.max_duration_minutes_by_start?.[startTime] || 0) >= duration,
+        ),
+      )
+      .map(([roomId]) => String(roomId));
+
+    setState({
+      roomAvailabilitySearch: {
+        date: searchDate,
+        time: searchTime,
+        duration,
+        matchingRoomIds,
+        hasSearched: true,
+      },
+      message: matchingRoomIds.length
+        ? `Found ${matchingRoomIds.length} matching room${matchingRoomIds.length === 1 ? "" : "s"}.`
+        : "No rooms matched that time.",
+    });
+  } catch (error) {
+    setState({ message: error.message });
+  }
+}
+
+function clearRoomAvailabilitySearch() {
+  setState({
+    roomAvailabilitySearch: {
+      date: elements.roomsSearchDate?.value || state.roomAvailabilitySearch.date,
+      time: elements.roomsSearchTime?.value || "15:00",
+      duration: Number(elements.roomsSearchDuration?.value || 60),
+      matchingRoomIds: [],
+      hasSearched: false,
+    },
+    message: "Room search cleared.",
+  });
+}
+
 export function initRoomsView(actions) {
+  if (!roomsViewBound) {
+    roomsViewBound = true;
+    roomsSearchTextInput()?.addEventListener("input", () => {
+      renderRoomsView(state);
+    });
+    roomsSortSelect()?.addEventListener("change", (event) => {
+      roomsCatalogSort = event.target.value || "recommended";
+      renderRoomsView(state);
+    });
+    roomsFilterToggleButton()?.addEventListener("click", () => {
+      roomsFiltersOpen = !roomsFiltersOpen;
+      renderRoomsFilterPanelState();
+    });
+    roomsCategoryBar()?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-room-category]");
+      if (!button) {
+        return;
+      }
+      selectedRoomCategory = button.dataset.roomCategory || "all";
+      renderRoomsView(state);
+    });
+  }
+
+  renderRoomsFilterPanelState();
+
   if (elements.showInactiveToggle) {
     elements.showInactiveToggle.addEventListener("change", async (event) => {
       setState({
@@ -312,12 +573,27 @@ export function initRoomsView(actions) {
   if (elements.roomsPreviewDate) {
     elements.roomsPreviewDate.value = state.roomPreviewDate;
   }
+  if (elements.roomsSearchDate) {
+    elements.roomsSearchDate.value = state.roomAvailabilitySearch.date;
+  }
+  if (elements.roomsSearchTime) {
+    elements.roomsSearchTime.value = state.roomAvailabilitySearch.time;
+  }
+  if (elements.roomsSearchDuration) {
+    elements.roomsSearchDuration.value = String(state.roomAvailabilitySearch.duration);
+  }
 
   if (elements.roomsPreviewButton) {
     elements.roomsPreviewButton.addEventListener("click", async () => {
       await previewRoomsAvailability();
     });
   }
+  elements.roomsSearchButton?.addEventListener("click", async () => {
+    await searchRoomsByAvailability();
+  });
+  elements.roomsSearchClearButton?.addEventListener("click", () => {
+    clearRoomAvailabilitySearch();
+  });
 
   if (elements.roomForm) {
     elements.roomFormCancel?.addEventListener("click", () => {
@@ -470,6 +746,8 @@ export function initRoomsView(actions) {
 
 export function renderRoomsView(currentState) {
   const canManageRooms = Boolean(currentState.currentUser?.is_admin);
+  renderCategoryFilterBar(currentState.rooms);
+  renderRoomsFilterPanelState();
   if (elements.roomsToolbar) {
     elements.roomsToolbar.classList.toggle("hidden", !canManageRooms);
   }
@@ -479,6 +757,15 @@ export function renderRoomsView(currentState) {
   if (elements.roomsPreviewDate && elements.roomsPreviewDate.value !== currentState.roomPreviewDate) {
     elements.roomsPreviewDate.value = currentState.roomPreviewDate;
   }
+  if (elements.roomsSearchDate && elements.roomsSearchDate.value !== currentState.roomAvailabilitySearch.date) {
+    elements.roomsSearchDate.value = currentState.roomAvailabilitySearch.date;
+  }
+  if (elements.roomsSearchTime && elements.roomsSearchTime.value !== currentState.roomAvailabilitySearch.time) {
+    elements.roomsSearchTime.value = currentState.roomAvailabilitySearch.time;
+  }
+  if (elements.roomsSearchDuration && elements.roomsSearchDuration.value !== String(currentState.roomAvailabilitySearch.duration)) {
+    elements.roomsSearchDuration.value = String(currentState.roomAvailabilitySearch.duration);
+  }
 
   renderCreateRoomStaffOptions(currentState);
 
@@ -486,14 +773,79 @@ export function renderRoomsView(currentState) {
     return;
   }
 
-  if (!currentState.rooms.length) {
+  if (elements.roomsSearchSummary) {
+    const search = currentState.roomAvailabilitySearch;
+    if (!search.hasSearched) {
+      elements.roomsSearchSummary.classList.add("hidden");
+      elements.roomsSearchSummary.innerHTML = "";
+    } else if (!search.matchingRoomIds.length) {
+      elements.roomsSearchSummary.classList.remove("hidden");
+      elements.roomsSearchSummary.innerHTML = `
+        <strong>No rooms available</strong>
+        <span>No active rooms are open on ${search.date} at ${search.time} for ${formatDuration(search.duration)}.</span>
+      `;
+    } else {
+      elements.roomsSearchSummary.classList.remove("hidden");
+      elements.roomsSearchSummary.innerHTML = `
+        <strong>${search.matchingRoomIds.length} matching room${search.matchingRoomIds.length === 1 ? "" : "s"}</strong>
+        <span>Showing rooms available on ${search.date} at ${search.time} for ${formatDuration(search.duration)}.</span>
+      `;
+    }
+  }
+
+  const availabilityScopedRooms = currentState.roomAvailabilitySearch.hasSearched
+    ? currentState.rooms.filter((room) => currentState.roomAvailabilitySearch.matchingRoomIds.includes(String(room.id)))
+    : currentState.rooms;
+  const searchText = roomsSearchTextInput()?.value.trim().toLowerCase() || "";
+
+  let visibleRooms = availabilityScopedRooms.filter((room) => {
+    if (selectedRoomCategory !== "all" && getRoomCategory(room) !== selectedRoomCategory) {
+      return false;
+    }
+    if (searchText && !getRoomSearchText(room).includes(searchText)) {
+      return false;
+    }
+    return true;
+  });
+
+  visibleRooms = [...visibleRooms].sort((left, right) => {
+    if (roomsCatalogSort === "price-low") {
+      return (left.hourly_rate_cents || 0) - (right.hourly_rate_cents || 0);
+    }
+    if (roomsCatalogSort === "price-high") {
+      return (right.hourly_rate_cents || 0) - (left.hourly_rate_cents || 0);
+    }
+    if (roomsCatalogSort === "capacity") {
+      return (right.capacity || 0) - (left.capacity || 0);
+    }
+    if (roomsCatalogSort === "name") {
+      return String(left.name || "").localeCompare(String(right.name || ""));
+    }
+
+    const ratingDelta = getRoomRating(right) - getRoomRating(left);
+    if (ratingDelta !== 0) {
+      return ratingDelta;
+    }
+    return (left.hourly_rate_cents || 0) - (right.hourly_rate_cents || 0);
+  });
+
+  if (roomsResultsCount()) {
+    const categoryLabel = selectedRoomCategory === "all" ? "all categories" : formatRoomCategoryLabel(selectedRoomCategory).toLowerCase();
+    roomsResultsCount().textContent = `${formatRoomCount(visibleRooms.length)} in ${categoryLabel}`;
+  }
+
+  if (!visibleRooms.length) {
     elements.roomsGrid.innerHTML = `
       <div class="empty-state">
-        No rooms match this view yet. Create one from the admin panel or change the inactive filter.
+        ${
+          currentState.roomAvailabilitySearch.hasSearched
+            ? "No rooms match the current availability search. Change the date, time, or duration and try again."
+            : "No rooms match this view yet. Turn off the inactive filter or create a room from the admin panel."
+        }
       </div>
     `;
   } else {
-    elements.roomsGrid.innerHTML = currentState.rooms
+    elements.roomsGrid.innerHTML = visibleRooms
       .map((room) => renderRoomCard(room, canManageRooms))
       .join("");
   }

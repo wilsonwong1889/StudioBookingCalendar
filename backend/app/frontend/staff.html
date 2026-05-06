@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Staff | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260427a" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260505c" />
   </head>
   <body data-page="staff">
     <div class="site-frame">
@@ -15,12 +15,10 @@
         </a>
         <nav class="site-nav" aria-label="Primary">
           <a class="nav-link" href="/">Home</a>
-          <a class="nav-link" href="/info">Info</a>
-          <a class="nav-link is-active" href="/staff">Staff</a>
-          <a class="nav-link" href="/faq">FAQ</a>
-          <a class="nav-link" href="/contact">Contact</a>
+          <a class="nav-link is-active" href="/staff" aria-current="page">Staff</a>
           <a class="nav-link" href="/rooms">Rooms</a>
           <a class="nav-link" href="/bookings">Bookings</a>
+          <a class="nav-link" href="/info">Help</a>
         </nav>
         <div class="header-actions">
           <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
@@ -46,164 +44,181 @@
         </div>
       </header>
 
-      <main class="page-grid page-grid-public">
-        <section class="hero-card hero-card-wide page-hero-polish">
-          <div class="page-hero-layout">
-            <div class="page-hero-copy-block">
-              <p class="eyebrow">Staff</p>
-              <h1>Meet the founders and staff behind the studio.</h1>
-              <p class="hero-copy">
-                Book staff independently from rooms. Choose a person, pick a time, and hold their session without leaving this page.
+      <main class="page-grid rooms-page-grid-modern staff-page-grid-modern">
+        <section class="rooms-catalog-shell staff-catalog-shell" id="staff-team-section">
+          <div class="rooms-catalog-header">
+            <h1><span class="rooms-title-ink">All</span> <span class="rooms-title-accent">Staff</span></h1>
+            <p>Search, compare specialties, and jump straight into a staff booking.</p>
+          </div>
+
+          <div class="rooms-catalog-toolbar">
+            <label class="rooms-search-input-shell" for="staff-search-text">
+              <span class="rooms-search-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <circle cx="8.5" cy="8.5" r="5.4"></circle>
+                  <path d="M12.5 12.5L17 17"></path>
+                </svg>
+              </span>
+              <input
+                id="staff-search-text"
+                type="search"
+                autocomplete="off"
+                placeholder="Search staff by name, skill, or service..."
+              />
+            </label>
+            <button id="staff-filter-toggle" class="ghost-button rooms-filter-toggle" type="button">
+              <span class="rooms-filter-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M4 5h12"></path>
+                  <path d="M7 10h9"></path>
+                  <path d="M10 15h6"></path>
+                  <circle cx="5" cy="10" r="1.4"></circle>
+                  <circle cx="8" cy="15" r="1.4"></circle>
+                  <circle cx="12" cy="5" r="1.4"></circle>
+                </svg>
+              </span>
+              Filters
+            </button>
+          </div>
+
+          <div id="staff-category-bar" class="rooms-category-bar"></div>
+          <div class="rooms-results-row">
+            <strong id="staff-results-count">0 staff found</strong>
+          </div>
+
+          <section id="staff-filter-panel" class="rooms-filter-panel hidden">
+            <div class="rooms-filter-sort-row">
+              <label class="rooms-sort-shell" for="staff-sort-select">
+                <span class="rooms-sort-icon" aria-hidden="true">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M6 4v12"></path>
+                    <path d="M3.5 6.5L6 4l2.5 2.5"></path>
+                    <path d="M14 16V4"></path>
+                    <path d="M11.5 13.5L14 16l2.5-2.5"></path>
+                  </svg>
+                </span>
+                <select id="staff-sort-select">
+                  <option value="recommended">Recommended</option>
+                  <option value="rate-low">Rate: Low to High</option>
+                  <option value="rate-high">Rate: High to Low</option>
+                  <option value="name">Name</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <div id="staff-team-grid" class="rooms-grid rooms-grid-catalog staff-catalog-grid"></div>
+        </section>
+
+        <section class="panel panel-wide reserve-studio-shell staff-booking-shell staff-reserve-shell" id="staff-booking-shell">
+          <div class="reserve-studio-main staff-reserve-main">
+            <a class="room-detail-back" href="#staff-team-section">← Back to Staff</a>
+            <div id="staff-booking-selected-card" class="staff-booking-selected-card empty-state">
+              Choose staff from the catalog to load a booking workspace.
+            </div>
+            <div class="reserve-studio-copy staff-reserve-copy">
+              <div class="room-meta">
+                <span class="pill reserve-room-pill">Staff booking</span>
+                <span class="pill reserve-room-pill">Guest checkout</span>
+                <span class="pill reserve-room-pill">Stripe payment</span>
+              </div>
+              <h1>Book staff the same way you book a room.</h1>
+              <p class="panel-copy">
+                Pick staff, choose a date, select an available start, set the duration, and continue to the same secure checkout flow.
               </p>
-              <div class="hero-actions">
-                <a class="primary-button hero-primary" href="#book-staff">Book staff</a>
-                <a class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
+            </div>
+          </div>
+
+          <aside class="reserve-booking-sidebar staff-booking-summary">
+            <div id="staff-booking-step-list" class="reserve-step-list" aria-label="Staff booking progress">
+              <div class="reserve-step-item is-active" data-staff-step="staff">
+                <span>1</span>
+                <strong>Staff</strong>
+              </div>
+              <div class="reserve-step-item" data-staff-step="time">
+                <span>2</span>
+                <strong>Time</strong>
+              </div>
+              <div class="reserve-step-item" data-staff-step="details">
+                <span>3</span>
+                <strong>Details</strong>
+              </div>
+              <div class="reserve-step-item" data-staff-step="checkout">
+                <span>4</span>
+                <strong>Checkout</strong>
               </div>
             </div>
-            <aside class="page-hero-summary">
-              <p class="panel-kicker">Quick Read</p>
-              <div class="summary-line"><span>Book staff</span><strong>Pick a person first, then move into a staff-only booking flow</strong></div>
-              <div class="summary-line"><span>Availability</span><strong>See openings before you commit to a time</strong></div>
-              <div class="summary-line"><span>Guest flow</span><strong>Name and phone is enough to start when you are not signed in</strong></div>
-            </aside>
-          </div>
-        </section>
 
-        <section class="panel panel-wide">
-          <div class="panel-header">
-            <p class="panel-kicker">Help</p>
-            <h2>Need a quick path to the right place?</h2>
-            <p class="panel-copy">Use these if you are deciding between staff, rooms, or booking support before you reserve.</p>
-          </div>
-          <div class="story-grid">
-            <article class="story-card">
-              <span>1</span>
-              <strong>Need room advice</strong>
-              <p>Start with Rooms to compare layouts, capacity, and the room photo set.</p>
-            </article>
-            <article class="story-card">
-              <span>2</span>
-              <strong>Need to ask the team</strong>
-              <p>Use Contact when you want help with timing, setup, or a custom booking question.</p>
-            </article>
-            <article class="story-card">
-              <span>3</span>
-              <strong>Need guest checkout</strong>
-              <p>Guest booking stays available on supported booking screens when you do not want to sign in.</p>
-            </article>
-          </div>
-          <div class="hero-actions">
-            <a class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
-            <a class="ghost-button ghost-link" href="/contact">Contact us</a>
-            <a class="ghost-button ghost-link" href="/faq">Read FAQ</a>
-          </div>
-        </section>
-
-        <section class="panel panel-wide panel-soft staff-booking-intro" id="book-staff">
-          <div class="panel-header">
-            <p class="panel-kicker">Book staff</p>
-            <h2>Choose a person, pick a time, and continue to checkout.</h2>
-            <p class="panel-copy">
-              This flow stays separate from rooms so you can book support, guidance, or a creative session with the right person.
-            </p>
-          </div>
-          <div class="story-grid staff-booking-steps">
-            <article class="story-card">
-              <span>1</span>
-              <strong>Select staff</strong>
-              <p>Open a profile card and choose the person you want to book.</p>
-            </article>
-            <article class="story-card">
-              <span>2</span>
-              <strong>Choose a slot</strong>
-              <p>Pick a date, time, and duration using the staff availability shell below.</p>
-            </article>
-            <article class="story-card">
-              <span>3</span>
-              <strong>Confirm booking</strong>
-              <p>Submit the booking and continue directly to checkout for payment.</p>
-            </article>
-          </div>
-          <div class="hero-actions">
-            <a class="primary-button" href="#staff-booking-shell">Open booking shell</a>
-            <a class="ghost-button ghost-link" href="/contact">Ask a question</a>
-          </div>
-        </section>
-
-        <section class="panel panel-wide panel-soft">
-          <div class="panel-header">
-            <p class="panel-kicker">Founders</p>
-            <h2>Studio founders</h2>
-            <p class="panel-copy">Use these founder slots for the people who built and lead the space.</p>
-          </div>
-          <div id="staff-founders-grid" class="admin-staff-catalog-list"></div>
-        </section>
-
-        <section class="panel panel-wide panel-soft" id="staff-team-section">
-          <div class="panel-header">
-            <p class="panel-kicker">Team</p>
-            <h2>Book staff</h2>
-            <p class="panel-copy">Active staff profiles created in admin will appear here automatically with a direct booking action.</p>
-          </div>
-          <div id="staff-team-grid" class="admin-staff-catalog-list"></div>
-        </section>
-
-        <section class="panel panel-wide panel-soft staff-booking-shell" id="staff-booking-shell">
-          <div class="panel-header">
-            <p class="panel-kicker">Staff booking</p>
-            <h2>Reserve a staff member independently from rooms.</h2>
-            <p class="panel-copy">
-              Select a person from the directory, then choose a date, time, duration, and contact details before confirming.
-            </p>
-          </div>
-          <div class="staff-booking-layout">
-            <div class="staff-booking-main">
-              <div id="staff-booking-selected-card" class="staff-booking-selected-card empty-state">
-                Select a staff member above to start booking.
-              </div>
-              <div class="staff-booking-card">
-                <div class="staff-booking-card-head">
-                  <p class="panel-kicker">Availability</p>
-                  <strong>Choose a day and time</strong>
+            <form id="staff-booking-form" class="stack-form reserve-booking-form staff-booking-form">
+              <section class="reserve-booking-section">
+                <div class="reserve-section-heading">
+                  <strong>Select Time</strong>
                 </div>
-                <div class="staff-booking-fields staff-booking-grid-two">
-                  <label>
-                    <span>Date</span>
-                    <input id="staff-booking-date" type="date" />
-                  </label>
-                  <label>
-                    <span>Duration</span>
-                    <select id="staff-booking-duration">
-                      <option value="60">1 hour</option>
-                      <option value="90">1.5 hours</option>
-                      <option value="120">2 hours</option>
-                      <option value="180">3 hours</option>
-                    </select>
-                  </label>
-                </div>
-                <div id="staff-booking-availability" class="empty-state staff-booking-availability">
+                <label class="inline-field">
+                  <span>Date</span>
+                  <input id="staff-booking-date" type="date" />
+                </label>
+                <div id="staff-booking-availability" class="reserve-helper-copy staff-booking-availability">
                   Pick a staff member and date to see openings.
                 </div>
-                <div id="staff-booking-time-grid" class="reserve-slot-grid staff-booking-time-grid"></div>
-              </div>
-              <form id="staff-booking-form" class="booking-form staff-booking-form">
-                <div class="staff-booking-card-head">
-                  <p class="panel-kicker">Contact</p>
-                  <strong>Who is this booking for?</strong>
+                <div id="staff-booking-time-grid" class="slot-grid reserve-slot-grid staff-booking-time-grid"></div>
+              </section>
+
+              <section class="reserve-booking-section">
+                <div class="reserve-section-heading">
+                  <strong>Duration</strong>
                 </div>
-                <div class="booking-contact-grid">
+                <select id="staff-booking-duration" class="hidden" name="duration_minutes">
+                  <option value="60">1 hour</option>
+                  <option value="120">2 hours</option>
+                  <option value="180">3 hours</option>
+                  <option value="240">4 hours</option>
+                  <option value="300">5 hours</option>
+                </select>
+                <div class="reserve-duration-stepper staff-duration-stepper">
+                  <button id="staff-booking-duration-decrease" class="reserve-duration-button" type="button" aria-label="Decrease duration">−</button>
+                  <div class="reserve-duration-value">
+                    <strong id="staff-booking-duration-display">1</strong>
+                    <span id="staff-booking-duration-unit">hour</span>
+                  </div>
+                  <button id="staff-booking-duration-increase" class="reserve-duration-button" type="button" aria-label="Increase duration">+</button>
+                </div>
+              </section>
+
+              <div id="staff-booking-summary-card" class="staff-booking-summary-card empty-state">
+                Choose a staff member to see their summary here.
+              </div>
+              <div class="reserve-price-stack staff-booking-summary-lines">
+                <div class="reserve-price-line"><span>Date</span><strong id="staff-booking-summary-date">Select a date</strong></div>
+                <div class="reserve-price-line"><span>Start time</span><strong id="staff-booking-summary-time">Choose an opening</strong></div>
+                <div class="reserve-price-line"><span>Duration</span><strong id="staff-booking-summary-duration">1 hour</strong></div>
+                <div class="reserve-price-line"><span>Service fee</span><strong class="reserve-price-free">Free</strong></div>
+                <div class="reserve-price-total"><span>Total</span><strong id="staff-booking-summary-total">CAD $0.00</strong></div>
+              </div>
+
+              <section class="reserve-booking-section">
+                <div class="reserve-section-heading">
+                  <strong>Contact</strong>
+                </div>
+                <div class="profile-grid profile-grid-tight staff-reserve-contact-grid">
                   <label>
-                    <span>Full name</span>
-                    <input id="staff-booking-name" type="text" placeholder="Jane Doe" />
+                    <span>Name</span>
+                    <input id="staff-booking-name" type="text" placeholder="Jane Doe" autocomplete="name" />
                   </label>
                   <label>
-                    <span>Phone</span>
-                    <input id="staff-booking-phone" type="tel" placeholder="+1 555 123 4567" />
+                    <span>Phone number</span>
+                    <input id="staff-booking-phone" type="tel" placeholder="+1 555 123 4567" autocomplete="tel" />
                   </label>
                   <label class="profile-span-2">
                     <span>Email</span>
-                    <input id="staff-booking-email" type="email" placeholder="jane@example.com" />
+                    <input id="staff-booking-email" type="email" placeholder="jane@example.com" autocomplete="email" />
                   </label>
+                </div>
+              </section>
+
+              <details class="reserve-advanced-details">
+                <summary>Optional details</summary>
+                <div class="reserve-advanced-body">
                   <label class="profile-span-2">
                     <span>Service type</span>
                     <select id="staff-booking-service">
@@ -215,41 +230,24 @@
                     </select>
                   </label>
                   <label class="profile-span-2">
-                    <span>Notes</span>
+                    <span>Booking notes</span>
                     <textarea
                       id="staff-booking-notes"
-                      rows="4"
+                      rows="3"
                       placeholder="Setup requests, creative goals, or anything the staff member should know."
                     ></textarea>
                   </label>
                 </div>
-              </form>
-            </div>
-            <aside class="staff-booking-summary">
-              <p class="panel-kicker">Summary</p>
-              <div id="staff-booking-summary-card" class="staff-booking-summary-card empty-state">
-                Choose a staff member to see their summary here.
-              </div>
-              <div class="staff-booking-summary-lines">
-                <div class="summary-line"><span>Date</span><strong id="staff-booking-summary-date">Select a date</strong></div>
-                <div class="summary-line"><span>Time</span><strong id="staff-booking-summary-time">Choose an opening</strong></div>
-                <div class="summary-line"><span>Duration</span><strong id="staff-booking-summary-duration">1 hour</strong></div>
-                <div class="summary-line"><span>Estimated total</span><strong id="staff-booking-summary-total">CAD $0.00</strong></div>
-              </div>
-              <button
-                id="staff-booking-submit"
-                class="primary-button staff-booking-submit"
-                type="submit"
-                form="staff-booking-form"
-                disabled
-              >
-                Confirm booking
+              </details>
+
+              <button id="staff-booking-submit" class="primary-button reserve-confirm-button staff-booking-submit" type="submit" disabled>
+                Continue to checkout
               </button>
               <div id="staff-booking-status" class="signal-copy staff-booking-status">
                 Select a staff member above to start a booking.
               </div>
-            </aside>
-          </div>
+            </form>
+          </aside>
         </section>
       </main>
 
@@ -304,6 +302,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260427a"></script>
+    <script type="module" src="/assets/js/main.js?v=20260505b"></script>
   </body>
 </html>

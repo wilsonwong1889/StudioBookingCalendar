@@ -151,13 +151,27 @@ function formatRoomCount(count) {
   return `${count} studio${count === 1 ? "" : "s"} found`;
 }
 
+function formatRoomDescription(room) {
+  const description = String(room.description || "").trim();
+  if (!description) {
+    return "A flexible studio space ready for your next session.";
+  }
+  return description.length > 132 ? `${description.slice(0, 129).trim()}...` : description;
+}
+
 function renderCategoryFilterBar(rooms) {
   const target = roomsCategoryBar();
   if (!target) {
     return;
   }
 
-  target.innerHTML = ROOM_CATEGORY_ORDER.map(
+  const availableCategories = new Set((rooms || []).map(getRoomCategory));
+  const categories = ROOM_CATEGORY_ORDER.filter((category) => category === "all" || availableCategories.has(category));
+  if (selectedRoomCategory !== "all" && !availableCategories.has(selectedRoomCategory)) {
+    selectedRoomCategory = "all";
+  }
+
+  target.innerHTML = categories.map(
     (category) => `
       <button
         class="rooms-category-chip ${selectedRoomCategory === category ? "is-active" : ""}"
@@ -337,7 +351,12 @@ function collectCreateRoomStaffPayload() {
 function renderAvailabilityPreview(roomId) {
   const preview = state.roomAvailabilityPreview?.[roomId];
   if (!preview) {
-    return "";
+    return `
+      <div class="availability-preview availability-preview-idle">
+        <span class="availability-label">Live openings</span>
+        <p>Use filters to check a specific day, or book now to see today's openings.</p>
+      </div>
+    `;
   }
 
   if (!preview.available_start_times.length) {
@@ -364,7 +383,7 @@ function renderAvailabilityPreview(roomId) {
 function renderRoomCard(room, canManageRooms) {
   const { photo: primaryPhoto, fallback, category } = getRoomVisual(room);
   const categoryLabel = formatRoomCategoryLabel(category);
-  const statusLabel = room.active ? "Available" : "Booked";
+  const statusLabel = room.active ? "Available" : "Inactive";
   const rating = getRoomRating(room);
   const canEditRoom = canManageRooms && Boolean(elements.roomForm);
   const managementActions = canManageRooms
@@ -397,6 +416,13 @@ function renderRoomCard(room, canManageRooms) {
           <h3 class="room-catalog-title ${category === "podcast" ? "is-accent" : ""}">${room.name}</h3>
           <span class="room-catalog-rating"><span aria-hidden="true">★</span> ${rating.toFixed(1).replace(".0", "")}</span>
         </div>
+        <p class="room-catalog-description">${formatRoomDescription(room)}</p>
+        <div class="room-catalog-feature-row" aria-label="Room highlights">
+          <span>${categoryLabel}</span>
+          <span>${formatDuration(room.max_booking_duration_minutes || 300)} max</span>
+          <span>${room.active ? "Bookable now" : "Inactive"}</span>
+        </div>
+        ${renderAvailabilityPreview(room.id)}
         <div class="room-catalog-meta-row">
           <span class="room-catalog-capacity">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -804,7 +830,8 @@ export function renderRoomsView(currentState) {
   });
 
   if (roomsResultsCount()) {
-    roomsResultsCount().textContent = formatRoomCount(visibleRooms.length);
+    const categoryLabel = selectedRoomCategory === "all" ? "all categories" : formatRoomCategoryLabel(selectedRoomCategory).toLowerCase();
+    roomsResultsCount().textContent = `${formatRoomCount(visibleRooms.length)} in ${categoryLabel}`;
   }
 
   if (!visibleRooms.length) {

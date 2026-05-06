@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260427a" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260505c" />
   </head>
   <body data-page="admin">
     <div class="site-frame">
@@ -15,12 +15,10 @@
         </a>
         <nav class="site-nav" aria-label="Primary">
           <a class="nav-link" href="/">Home</a>
-          <a class="nav-link" href="/info">Info</a>
           <a class="nav-link" href="/staff">Staff</a>
-          <a class="nav-link" href="/faq">FAQ</a>
-          <a class="nav-link" href="/contact">Contact</a>
           <a class="nav-link" href="/rooms">Rooms</a>
           <a class="nav-link" href="/bookings">Bookings</a>
+          <a class="nav-link" href="/info">Help</a>
         </nav>
         <div class="header-actions">
           <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
@@ -47,49 +45,37 @@
       </header>
 
       <main class="page-grid">
-        <section class="hero-card hero-card-wide">
-          <p class="eyebrow">Admin</p>
-          <h1>Start with the queue, then move into lookup, refunds, or room setup.</h1>
-          <p class="hero-copy">
-            This page stays compact so the highest-priority work is visible first: pending payments, today's sessions, and the next action to take.
-          </p>
-          <div class="hero-actions">
-            <button class="primary-button hero-primary" type="button" data-admin-focus-tab="bookings" data-admin-focus-subpage="queue">Open queue</button>
-            <button class="ghost-button ghost-link" type="button" data-admin-focus-tab="bookings" data-admin-focus-subpage="lookup">Find booking</button>
-            <button class="ghost-button ghost-link" type="button" data-admin-focus-tab="bookings" data-admin-focus-subpage="manual">Create manual booking</button>
+        <section class="admin-command-center">
+          <div class="admin-command-copy">
+            <p class="eyebrow">Admin</p>
+            <h1>Today, queue, lookup, setup.</h1>
+            <p>Start with live booking work, then jump directly into customer support or inventory changes.</p>
           </div>
-        </section>
-
-        <section class="panel panel-wide">
-          <div class="panel-header">
-            <p class="panel-kicker">Triage</p>
-            <h2>Start here when you sign in</h2>
-            <p class="panel-copy">Pending payments, today's arrivals, and manual follow-up are the fastest way to clear work.</p>
-          </div>
-          <div class="story-grid">
-            <article class="story-card">
-              <span>1</span>
+          <div class="admin-command-actions" aria-label="Admin quick actions">
+            <button class="admin-command-card is-primary" type="button" data-admin-focus-tab="bookings" data-admin-focus-subpage="schedule">
+              <span>Today</span>
+              <strong>Day board</strong>
+            </button>
+            <button class="admin-command-card" type="button" data-admin-focus-tab="bookings" data-admin-focus-subpage="queue">
+              <span>Queue</span>
               <strong>Needs attention</strong>
-              <p>Review pending payments, refunds, and any booking that needs a manual decision.</p>
-            </article>
-            <article class="story-card">
-              <span>2</span>
-              <strong>Today's sessions</strong>
-              <p>Use the day board to check who is arriving, who is late, and what rooms are active.</p>
-            </article>
-            <article class="story-card">
-              <span>3</span>
-              <strong>Lookup fast</strong>
-              <p>Search by email or booking code before you open a booking record or take action.</p>
-            </article>
+            </button>
+            <button class="admin-command-card" type="button" data-admin-focus-tab="bookings" data-admin-focus-subpage="lookup">
+              <span>Lookup</span>
+              <strong>Find booking</strong>
+            </button>
+            <button class="admin-command-card" type="button" data-admin-focus-tab="rooms" data-admin-focus-subpage="editor">
+              <span>Setup</span>
+              <strong>Rooms</strong>
+            </button>
           </div>
         </section>
 
         <section class="panel panel-wide">
           <div class="panel-header">
-            <p class="panel-kicker">Access</p>
+            <p class="panel-kicker">Workspace</p>
             <h2>Admin workspace</h2>
-            <p class="panel-copy">Visible only when the current session is an admin account. The overview dashboard is the fastest way to clear today’s work.</p>
+            <p class="panel-copy">Use the switcher for focused admin surfaces. Booking work stays first because it is the highest-frequency task.</p>
           </div>
 
           <div id="admin-empty" class="empty-state">
@@ -99,9 +85,9 @@
           <div id="admin-workspace-shell" class="hidden">
             <div class="admin-workspace-nav">
               <div class="auth-switcher admin-tab-switcher" role="tablist" aria-label="Admin workspaces">
-                <button class="tab-button active" type="button" role="tab" data-admin-tab="overview">Overview</button>
+                <button class="tab-button" type="button" role="tab" data-admin-tab="overview">Overview</button>
                 <button class="tab-button" type="button" role="tab" data-admin-tab="accounts">Accounts</button>
-                <button class="tab-button" type="button" role="tab" data-admin-tab="bookings">Bookings</button>
+                <button class="tab-button active" type="button" role="tab" data-admin-tab="bookings">Bookings</button>
                 <button class="tab-button" type="button" role="tab" data-admin-tab="staff">Staff catalog</button>
                 <button class="tab-button" type="button" role="tab" data-admin-tab="rooms">Room management</button>
                 <button class="tab-button" type="button" role="tab" data-admin-tab="qa">Backend test cases</button>
@@ -111,7 +97,7 @@
                 <select id="admin-workspace-select">
                   <option value="overview">Overview</option>
                   <option value="accounts">Accounts</option>
-                  <option value="bookings">Bookings</option>
+                  <option value="bookings" selected>Bookings</option>
                   <option value="staff">Staff catalog</option>
                   <option value="rooms">Room management</option>
                   <option value="qa">Backend test cases</option>
@@ -119,7 +105,7 @@
               </label>
             </div>
 
-            <section id="admin-panel-overview" class="admin-tab-panel" data-admin-panel="overview">
+            <section id="admin-panel-overview" class="admin-tab-panel hidden" data-admin-panel="overview">
               <div class="panel-header">
                 <p class="panel-kicker">Overview</p>
                 <h3>Today-first snapshot</h3>
@@ -219,7 +205,7 @@
               <div id="admin-test-cases-list" class="admin-test-cases-list"></div>
             </section>
 
-            <section id="admin-panel-bookings" class="admin-tab-panel hidden" data-admin-panel="bookings">
+            <section id="admin-panel-bookings" class="admin-tab-panel" data-admin-panel="bookings">
               <div class="panel-header">
                 <p class="panel-kicker">Bookings</p>
                 <h3>Lookup, booking creation, and payment actions</h3>
@@ -228,9 +214,9 @@
 
               <div class="admin-subpage-nav" data-admin-subpage-group="bookings">
                 <div class="auth-switcher admin-subpage-switcher" role="tablist" aria-label="Booking tools">
-                  <button class="tab-button active" type="button" data-admin-subpage-button="bookings" data-admin-subpage="schedule">Day board</button>
+                  <button class="tab-button active" type="button" data-admin-subpage-button="bookings" data-admin-subpage="queue">Queue</button>
+                  <button class="tab-button" type="button" data-admin-subpage-button="bookings" data-admin-subpage="schedule">Day board</button>
                   <button class="tab-button" type="button" data-admin-subpage-button="bookings" data-admin-subpage="calendar">Room calendar</button>
-                  <button class="tab-button" type="button" data-admin-subpage-button="bookings" data-admin-subpage="queue">Queue</button>
                   <button class="tab-button" type="button" data-admin-subpage-button="bookings" data-admin-subpage="lookup">Lookup</button>
                   <button class="tab-button" type="button" data-admin-subpage-button="bookings" data-admin-subpage="manual">Manual booking</button>
                   <button class="tab-button" type="button" data-admin-subpage-button="bookings" data-admin-subpage="promos">Promos</button>
@@ -239,9 +225,9 @@
                 <label class="inline-field admin-subpage-picker">
                   <span>View</span>
                   <select data-admin-subpage-select="bookings">
+                    <option value="queue" selected>Queue</option>
                     <option value="schedule">Day board</option>
                     <option value="calendar">Room calendar</option>
-                    <option value="queue">Queue</option>
                     <option value="lookup">Lookup</option>
                     <option value="manual">Manual booking</option>
                     <option value="promos">Promos</option>
@@ -250,7 +236,7 @@
                 </label>
               </div>
 
-              <section class="admin-bookings-shell admin-subpage-panel" data-admin-subpage-panel="bookings" data-admin-subpage="schedule">
+              <section class="admin-bookings-shell admin-subpage-panel hidden" data-admin-subpage-panel="bookings" data-admin-subpage="schedule">
                 <div class="admin-bookings-toolbar">
                   <label class="inline-field">
                     <span>Day view</span>
@@ -301,7 +287,7 @@
 
               <div id="admin-booking-quick-summary" class="admin-summary-grid admin-booking-summary-grid"></div>
 
-              <section class="admin-bookings-results-shell admin-subpage-panel hidden" data-admin-subpage-panel="bookings" data-admin-subpage="queue">
+              <section class="admin-bookings-results-shell admin-subpage-panel" data-admin-subpage-panel="bookings" data-admin-subpage="queue">
                 <div class="panel-header">
                   <p class="panel-kicker">Records</p>
                   <h3>Live booking queue</h3>

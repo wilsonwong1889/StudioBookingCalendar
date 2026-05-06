@@ -3,90 +3,239 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Booking Detail | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
+    <title>Checkout | StudioBookingSoftware</title>
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260505c" />
   </head>
   <body data-page="booking">
     <div class="site-frame">
-      <header class="site-header">
-        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+      <header class="site-header site-header-simple site-header-public">
+        <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
+          <span class="brand-mark-icon" aria-hidden="true">♪</span>
+          <span class="brand-mark-label">StudioBook</span>
+        </a>
         <nav class="site-nav" aria-label="Primary">
           <a class="nav-link" href="/">Home</a>
-          <a class="nav-link" href="/info">Info</a>
           <a class="nav-link" href="/staff">Staff</a>
-          <a class="nav-link" href="/faq">FAQ</a>
-          <a class="nav-link" href="/contact">Contact</a>
           <a class="nav-link" href="/rooms">Rooms</a>
-          <a class="nav-link is-active" href="/bookings">Bookings</a>
-          <a class="nav-link" href="/account">Account</a>
-          <a class="nav-link" href="/admin">Admin</a>
+          <a class="nav-link is-active" href="/bookings" aria-current="page">Bookings</a>
+          <a class="nav-link" href="/info">Help</a>
         </nav>
-        <div class="header-side">
-          <div class="header-actions">
-            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Sign in</a>
-            <a id="header-secondary-link" class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
-            <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
-          </div>
-          <div class="status-strip">
-            <div class="status-chip">
-              <span class="status-chip-label">Backend</span>
-              <strong id="health-status">Checking...</strong>
-              <span id="health-detail" class="status-detail">Waiting for health probe.</span>
-            </div>
-            <div class="status-chip">
-              <span class="status-chip-label">Session</span>
-              <strong id="session-status">Signed out</strong>
-              <span id="session-detail" class="status-detail">Create an account or log in to continue.</span>
+        <div class="header-actions">
+          <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
+          <a id="header-secondary-link" class="primary-button site-header-book-button" href="/account?mode=signup">Create account</a>
+          <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
+            <button
+              id="header-user-trigger"
+              class="ghost-button header-user-trigger"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            >
+              <span id="header-user-email" class="header-user-trigger-label">account@example.com</span>
+              <span class="header-user-trigger-caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="header-user-menu" class="header-user-menu hidden" role="menu" aria-label="Account menu">
+              <a id="header-profile-link" class="header-user-menu-item is-primary" href="/account" role="menuitem">My Profile</a>
+              <a id="header-bookings-link" class="header-user-menu-item" href="/bookings" role="menuitem">My Bookings</a>
+              <a id="header-admin-link" class="header-user-menu-item hidden" href="/admin" role="menuitem">Admin</a>
+              <button id="header-logout-button" class="header-user-menu-item header-user-menu-signout" type="button" role="menuitem">Sign Out</button>
             </div>
           </div>
         </div>
       </header>
 
-      <main class="page-grid">
-        <section class="hero-card hero-card-wide">
-          <p class="eyebrow">Booking detail</p>
-          <h1>See the full booking state on its own page.</h1>
-          <p class="hero-copy">This keeps confirmation, cancellation, and payment state readable instead of burying it in the booking list.</p>
+      <main class="page-grid booking-checkout-page-grid">
+        <section id="booking-detail-empty" class="hero-card hero-card-wide page-hero-polish">
+          <div class="page-hero-layout">
+            <div class="page-hero-copy-block">
+              <p class="eyebrow">Checkout</p>
+              <h1 id="booking-empty-title">Resume your booking checkout</h1>
+              <p id="booking-empty-copy" class="hero-copy">
+                Start from Rooms or My Bookings to open the active checkout with the correct booking details.
+              </p>
+              <div class="hero-actions">
+                <a id="booking-empty-primary-link" class="primary-button hero-primary" href="/rooms">Browse studios</a>
+                <a id="booking-empty-secondary-link" class="ghost-button ghost-link" href="/bookings">My bookings</a>
+              </div>
+            </div>
+            <aside class="page-hero-summary">
+              <p class="panel-kicker">Checkout path</p>
+              <div class="summary-line"><span>Browse</span><strong>Choose a room from the landing flow or the rooms catalog</strong></div>
+              <div class="summary-line"><span>Review</span><strong>Confirm the date, time, duration, and guest details</strong></div>
+              <div class="summary-line"><span>Pay</span><strong>Finish Stripe checkout to lock the booking and keep the receipt attached</strong></div>
+            </aside>
+          </div>
         </section>
 
-        <section class="panel panel-wide">
-          <div id="booking-detail-empty" class="empty-state">
-            Log in and open a booking from the bookings page to view its full details.
+        <article id="booking-detail-card" class="booking-checkout-shell hidden">
+          <div class="booking-checkout-header">
+            <div class="booking-checkout-header-copy">
+              <p id="booking-detail-kicker" class="panel-kicker booking-checkout-kicker">Secure checkout</p>
+              <h1 id="booking-detail-title">Complete your booking</h1>
+              <p id="booking-detail-window" class="panel-copy booking-checkout-window">
+                Review your reservation and confirm payment to lock in your slot.
+              </p>
+            </div>
+            <a class="ghost-button ghost-link booking-checkout-back" href="/bookings">Back to bookings</a>
           </div>
 
-          <article id="booking-detail-card" class="detail-card hidden">
-            <div class="detail-card-header">
-              <div>
-                <p class="panel-kicker">Booking</p>
-                <h2 id="booking-detail-title">Booking</h2>
-              </div>
-              <a class="ghost-button ghost-link" href="/bookings">Back to bookings</a>
+          <div class="booking-checkout-layout">
+            <div class="booking-checkout-main">
+              <section class="detail-card booking-checkout-panel booking-checkout-contact">
+                <div class="booking-checkout-section-head">
+                  <div>
+                    <p class="panel-kicker">Secure checkout</p>
+                    <h2>Contact information</h2>
+                  </div>
+                  <span class="booking-checkout-step">Step 1 of 2</span>
+                </div>
+                <div id="booking-detail-contact" class="booking-contact-grid"></div>
+              </section>
+
+              <section id="booking-payment-panel" class="detail-card booking-checkout-panel booking-checkout-payment hidden">
+                <div class="booking-checkout-section-head">
+                  <div>
+                    <p class="panel-kicker">Payment</p>
+                    <h2>Payment details</h2>
+                  </div>
+                  <span class="booking-checkout-step">Step 2 of 2</span>
+                </div>
+                <p id="booking-payment-deadline" class="panel-copy hidden"></p>
+                <p id="booking-payment-copy" class="panel-copy">Load the payment session to continue checkout.</p>
+                <div id="booking-payment-element" class="hidden"></div>
+                <div class="booking-payment-demo-note">
+                  Stripe securely handles the payment fields. Card numbers and CVV are never stored in this app.
+                </div>
+              </section>
+
+              <section id="booking-session-panel" class="detail-card booking-checkout-panel">
+                <div class="booking-checkout-section-head">
+                  <div>
+                    <p class="panel-kicker">Session</p>
+                    <h2>Booking details</h2>
+                  </div>
+                  <span id="booking-overview-status" class="pill">Pending</span>
+                </div>
+                <div class="booking-detail-note-wrap">
+                  <p id="booking-detail-note" class="panel-copy booking-checkout-note"></p>
+                </div>
+                <div id="booking-session-overview" class="detail-stack booking-checkout-stack"></div>
+              </section>
+
+              <section id="booking-staff-panel" class="detail-card booking-checkout-panel">
+                <div class="booking-checkout-section-head">
+                  <div>
+                    <p class="panel-kicker">Booked staff</p>
+                    <h2>Support attached to this session</h2>
+                  </div>
+                </div>
+                <div id="booking-detail-staff-list" class="booking-checkout-staff-list"></div>
+              </section>
+
+              <section id="booking-reschedule-panel" class="detail-card booking-checkout-panel hidden">
+                <div class="booking-checkout-section-head">
+                  <div>
+                    <p class="panel-kicker">Reschedule</p>
+                    <h2>Move this booking</h2>
+                  </div>
+                </div>
+                <p class="panel-copy">Choose a new start time for the same room and duration. Payment stays attached to the booking.</p>
+                <div class="booking-reschedule-grid">
+                  <label class="inline-field">
+                    <span>New date</span>
+                    <input id="booking-reschedule-date" type="date" />
+                  </label>
+                  <label class="inline-field">
+                    <span>Available start</span>
+                    <select id="booking-reschedule-start"></select>
+                  </label>
+                  <button id="booking-reschedule-submit" class="ghost-button" type="button">Move booking</button>
+                </div>
+                <p id="booking-reschedule-status" class="field-help"></p>
+              </section>
+
+              <section id="booking-review-panel" class="detail-card booking-checkout-panel hidden">
+                <div class="booking-checkout-section-head">
+                  <div>
+                    <p class="panel-kicker">Review</p>
+                    <h2>Rate the session</h2>
+                  </div>
+                </div>
+                <p id="booking-review-status" class="panel-copy">Leave a short rating after the session finishes.</p>
+                <form id="booking-review-form" class="stack-form profile-grid-tight">
+                  <label>
+                    <span>Rating</span>
+                    <select name="rating">
+                      <option value="5">5 stars</option>
+                      <option value="4">4 stars</option>
+                      <option value="3">3 stars</option>
+                      <option value="2">2 stars</option>
+                      <option value="1">1 star</option>
+                    </select>
+                  </label>
+                  <label class="profile-span-2">
+                    <span>Comment</span>
+                    <textarea name="comment" rows="3" placeholder="What went well, what stood out, or what future guests should know"></textarea>
+                  </label>
+                  <button class="primary-button" type="submit">Save review</button>
+                </form>
+              </section>
             </div>
-            <p id="booking-detail-window" class="panel-copy"></p>
-            <div id="booking-detail-meta" class="room-meta"></div>
-            <p id="booking-detail-note" class="panel-copy"></p>
-            <section class="detail-section">
-              <h3>Booked staff</h3>
-              <div id="booking-detail-staff-list" class="detail-stack"></div>
-            </section>
-            <div id="booking-detail-actions" class="room-actions"></div>
-            <section id="booking-payment-panel" class="detail-section hidden">
-              <h3>Payment</h3>
-              <p id="booking-payment-deadline" class="panel-copy hidden"></p>
-              <p id="booking-payment-copy" class="panel-copy">
-                Load the payment session to continue checkout.
-              </p>
-              <div id="booking-payment-element" class="hidden"></div>
-              <div id="booking-payment-controls" class="room-actions"></div>
-            </section>
-          </article>
-        </section>
+
+            <aside class="detail-card booking-checkout-summary">
+              <div class="booking-checkout-summary-head">
+                <div>
+                  <p class="panel-kicker">Booking summary</p>
+                  <h2 id="booking-summary-room">Studio booking</h2>
+                </div>
+              </div>
+              <div id="booking-summary-media" class="booking-summary-media"></div>
+              <div id="booking-summary-meta" class="booking-summary-stack"></div>
+              <div id="booking-summary-pricing" class="booking-summary-pricing"></div>
+              <div id="booking-payment-controls" class="booking-summary-primary-actions"></div>
+              <div id="booking-detail-actions" class="booking-summary-secondary-actions"></div>
+              <div id="booking-summary-support" class="booking-summary-support"></div>
+            </aside>
+          </div>
+        </article>
       </main>
 
-      <footer class="signal-ribbon">
-        <div class="signal-panel">
-          <strong>Activity</strong>
-          <div id="app-message" class="signal-copy">Frontend booting.</div>
+      <footer class="studio-footer studio-footer-compact">
+        <div class="studio-footer-grid">
+          <div class="studio-footer-brand">
+            <div class="studio-footer-logo">StudioBook</div>
+            <p>Premium studio spaces for creators. Finish payment, review your receipt, and keep every reservation in one place.</p>
+            <p class="studio-footer-support-copy">
+              Questions about checkout or a booking issue?
+              <a href="mailto:hello@studiobook.app">hello@studiobook.app</a>
+            </p>
+          </div>
+          <div>
+            <h3>Explore</h3>
+            <a href="/rooms">All Studios</a>
+            <a href="/info">How It Works</a>
+            <a href="/contact">Contact</a>
+          </div>
+          <div>
+            <h3>Account</h3>
+            <a href="/account">My Profile</a>
+            <a href="/bookings">My Bookings</a>
+            <a href="/faq">Support</a>
+          </div>
+          <div>
+            <h3>Checkout</h3>
+            <a href="/rooms">Book another room</a>
+            <a href="/contact">Studio location</a>
+            <a href="/faq">Policies</a>
+          </div>
+        </div>
+        <div class="studio-footer-bottom">
+          <span>© 2026 StudioBook. All rights reserved.</span>
+          <div class="studio-footer-inline-links">
+            <a href="/faq">Privacy</a>
+            <a href="/faq">Terms</a>
+            <a href="/faq">Cookies</a>
+          </div>
         </div>
       </footer>
       <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
@@ -103,6 +252,6 @@
     </div>
 
     <script src="https://js.stripe.com/v3/"></script>
-    <script type="module" src="/assets/js/main.js?v=20260409a"></script>
+    <script type="module" src="/assets/js/main.js?v=20260505b"></script>
   </body>
 </html>

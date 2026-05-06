@@ -12,16 +12,16 @@ import {
 } from "./state.js?v=20260427a";
 import { initAdminView, renderAdminView } from "./views/admin.js?v=20260502a";
 import { initAuthView, renderAuthView } from "./views/auth.js?v=20260424c";
-import { initBookingDetailView, renderBookingDetailView } from "./views/booking-detail.js?v=20260427a";
+import { initBookingDetailView, renderBookingDetailView } from "./views/booking-detail.js?v=20260505b";
 import { initBookingsView, renderBookingsView } from "./views/bookings.js?v=20260427a";
 import { initHomeView, renderHomeView } from "./views/home.js?v=20260422e";
 import { initInfoView, renderInfoView } from "./views/info.js?v=20260424b";
 import { initPaymentSuccessView, renderPaymentSuccessView } from "./views/payment-success.js?v=20260424b";
 import { initProfileView, renderProfileView } from "./views/profile.js?v=20260424c";
-import { initRoomBookingView, renderRoomBookingView } from "./views/room-booking.js?v=20260424d";
+import { initRoomBookingView, renderRoomBookingView } from "./views/room-booking.js?v=20260505b";
 import { initRoomDetailView, renderRoomDetailView } from "./views/room-detail.js?v=20260424b";
 import { initRoomsView, renderRoomsView } from "./views/rooms.js?v=20260424c";
-import { initStaffDirectoryView, renderStaffDirectoryView } from "./views/staff-directory.js?v=20260424b";
+import { initStaffDirectoryView, renderStaffDirectoryView } from "./views/staff-directory.js?v=20260505b";
 import { renderStatus } from "./views/status.js?v=20260424b";
 
 const PAGE_DATA_REQUIREMENTS = {

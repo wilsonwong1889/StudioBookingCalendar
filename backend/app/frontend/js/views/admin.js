@@ -3,7 +3,7 @@ import { elements } from "../dom.js?v=20260427a";
 import { setState } from "../state.js?v=20260427a";
 
 let editingStaffProfileId = null;
-let activeAdminTab = "overview";
+let activeAdminTab = "bookings";
 let selectedAdminScheduleDate = new Date().toISOString().slice(0, 10);
 let selectedAdminScheduleRoomId = "all";
 let selectedAdminCalendarMonth = new Date().toISOString().slice(0, 7);
@@ -14,7 +14,7 @@ let selectedAdminBookingQuickFilter = "all";
 const DEFAULT_ADMIN_SUBPAGES = {
   overview: "dashboard",
   accounts: "directory",
-  bookings: "schedule",
+  bookings: "queue",
   staff: "editor",
   rooms: "editor",
 };
@@ -2109,7 +2109,7 @@ export function renderAdminView(currentState) {
   }
 
   if (!isAdmin) {
-    setActiveAdminTab("overview");
+    setActiveAdminTab("bookings");
     Object.assign(activeAdminSubpages, DEFAULT_ADMIN_SUBPAGES);
     adminSearchResults = null;
     elements.adminAnalyticsGrid && (elements.adminAnalyticsGrid.innerHTML = "");

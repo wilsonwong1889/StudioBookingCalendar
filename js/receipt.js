@@ -1,5 +1,5 @@
-import { API_BASE_URL } from "./config.js?v=20260401r";
-import { state } from "./state.js?v=20260401r";
+import { API_BASE_URL } from "./config.js?v=20260422d";
+import { state } from "./state.js?v=20260427a";
 
 function getDownloadFilename(contentDisposition, fallback) {
   const match = /filename="([^"]+)"/i.exec(contentDisposition || "");

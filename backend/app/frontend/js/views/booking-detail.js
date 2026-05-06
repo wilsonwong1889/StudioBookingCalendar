@@ -22,9 +22,12 @@ let rescheduleBookingId = null;
 let rescheduleDateValue = "";
 let rescheduleLoading = false;
 let rescheduleStatusMessage = "";
+let rescheduleRequestToken = 0;
 let reviewFormFingerprint = null;
 let autoLoadingPaymentBookingId = null;
 let publicConfigPromise = null;
+let paymentSessionStatus = "idle";
+let paymentSessionMessage = "";
 
 const BOOKING_VISUALS = {
   recording: "/assets/media/studio-room-2.png",
@@ -125,6 +128,43 @@ function formatCountdown(seconds) {
 function formatDuration(minutes) {
   const hours = minutes / 60;
   return `${hours} hour${hours === 1 ? "" : "s"}`;
+}
+
+function parseRescheduleAvailabilityStarts(payload) {
+  const durationMap = payload?.max_duration_minutes_by_start || {};
+  const rawStarts =
+    payload?.available_start_times ||
+    payload?.available_slots ||
+    payload?.slots ||
+    payload?.times ||
+    [];
+
+  return rawStarts
+    .map((slot) => {
+      if (typeof slot === "string") {
+        return {
+          value: slot,
+          maxDurationMinutes: Number(durationMap[slot] || 0),
+        };
+      }
+
+      const value = slot?.value || slot?.start_time || slot?.start || slot?.time || "";
+      if (!value || slot?.available === false) {
+        return null;
+      }
+
+      return {
+        value,
+        maxDurationMinutes: Number(slot.max_duration_minutes || slot.maxDurationMinutes || durationMap[value] || 0),
+      };
+    })
+    .filter(Boolean);
+}
+
+function getValidRescheduleStarts(booking) {
+  return parseRescheduleAvailabilityStarts(rescheduleAvailability).filter(
+    (slot) => slot.maxDurationMinutes >= Number(booking?.duration_minutes || 0) && slot.value !== booking?.start_time,
+  );
 }
 
 function formatShortDate(value) {
@@ -324,6 +364,10 @@ function renderSummaryLine(label, value) {
   return `<div class="summary-line"><span>${label}</span><strong>${value}</strong></div>`;
 }
 
+function idsMatch(left, right) {
+  return left !== null && left !== undefined && right !== null && right !== undefined && String(left) === String(right);
+}
+
 function renderReadonlyField(label, value, className = "") {
   return `
     <label class="booking-contact-field ${className}">
@@ -342,6 +386,8 @@ function clearPaymentElement() {
   stripeClient = null;
   activePaymentSession = null;
   autoLoadingPaymentBookingId = null;
+  paymentSessionStatus = "idle";
+  paymentSessionMessage = "";
 }
 
 function clearPaymentDeadlineTimer() {
@@ -412,31 +458,57 @@ async function getPublicConfig() {
 }
 
 async function mountStripePaymentForm(session) {
+  const paymentContainer = elements.bookingPaymentElement || document.getElementById("booking-payment-element");
+  if (!paymentContainer) {
+    throw new Error("Payment form container is missing");
+  }
+  if (!session?.payment_client_secret) {
+    throw new Error("Stripe payment client secret is missing");
+  }
   if (!window.Stripe || !session.stripe_publishable_key) {
     throw new Error("Stripe publishable key is not configured");
   }
 
   clearPaymentElement();
+  toggleHidden(paymentContainer, false);
+  const nextStripeClient = window.Stripe(session.stripe_publishable_key);
+  const nextStripeElements = nextStripeClient.elements({
+    clientSecret: session.payment_client_secret,
+    appearance: {
+      theme: "stripe",
+      variables: {
+        colorPrimary: "#c83a3f",
+        colorText: "#243453",
+        colorDanger: "#b3261e",
+        borderRadius: "10px",
+        fontFamily: "Inter, Avenir Next, Segoe UI, sans-serif",
+      },
+    },
+  });
+  const nextPaymentElement = nextStripeElements.create("payment", { layout: "tabs" });
+  nextPaymentElement.mount(paymentContainer);
+  stripeClient = nextStripeClient;
+  stripeElements = nextStripeElements;
+  paymentElement = nextPaymentElement;
   activePaymentSession = session;
-  toggleHidden(elements.bookingPaymentElement, false);
-  stripeClient = window.Stripe(session.stripe_publishable_key);
-  stripeElements = stripeClient.elements({ clientSecret: session.payment_client_secret });
-  paymentElement = stripeElements.create("payment");
-  paymentElement.mount("#booking-payment-element");
-  elements.bookingPaymentElement?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  paymentSessionStatus = "ready";
+  paymentSessionMessage = "Secure Stripe payment is ready.";
 }
 
 async function ensureStripePaymentSession(booking) {
   if (
     !booking ||
     !isCheckoutMode(booking) ||
-    activePaymentSession?.booking_id === booking.id ||
-    autoLoadingPaymentBookingId === booking.id
+    idsMatch(activePaymentSession?.booking_id, booking.id) ||
+    idsMatch(autoLoadingPaymentBookingId, booking.id)
   ) {
     return;
   }
 
   autoLoadingPaymentBookingId = booking.id;
+  paymentSessionStatus = "loading";
+  paymentSessionMessage = "Preparing the secure Stripe checkout...";
+  let nextMessage = "";
   try {
     if (booking.payment_client_secret) {
       const publicConfig = await getPublicConfig().catch(() => null);
@@ -451,7 +523,7 @@ async function ensureStripePaymentSession(booking) {
           payment_seconds_remaining: booking.payment_seconds_remaining || null,
         };
         await mountStripePaymentForm(draftSession);
-        setState({ message: "Secure payment is ready." });
+        nextMessage = "Secure payment is ready.";
         return;
       }
     }
@@ -459,18 +531,23 @@ async function ensureStripePaymentSession(booking) {
     const session = await loadPaymentSession(booking);
     if (session.payment_backend === "stripe") {
       await mountStripePaymentForm(session);
-      setState({ message: "Secure payment is ready." });
+      nextMessage = "Secure payment is ready.";
     } else {
       toggleHidden(elements.bookingPaymentElement, true);
-      setState({
-        message:
-          "Stub payment mode is active. Switch PAYMENT_BACKEND to stripe and configure Stripe keys to use live test checkout.",
-      });
+      paymentSessionStatus = "stub";
+      paymentSessionMessage =
+        "Stripe is not active for this running server. Start the API with PAYMENT_BACKEND=stripe and configured Stripe keys to show the secure payment form.";
+      nextMessage = paymentSessionMessage;
     }
   } catch (error) {
-    setState({ message: error.message || "Unable to load the payment form right now." });
+    paymentSessionStatus = "error";
+    paymentSessionMessage = error.message || "Unable to load the payment form right now.";
+    nextMessage = paymentSessionMessage;
   } finally {
     autoLoadingPaymentBookingId = null;
+    if (nextMessage) {
+      setState({ message: nextMessage });
+    }
   }
 }
 
@@ -489,22 +566,21 @@ function renderPaymentPanel(state, booking) {
     return;
   }
 
-  elements.bookingPaymentCopy.textContent =
-    activePaymentSession?.booking_id === booking.id && activePaymentSession.payment_backend === "stripe"
-      ? "Review your details, enter payment in the secure Stripe form below, and confirm to lock in the session."
-      : autoLoadingPaymentBookingId === booking.id
-        ? "Preparing the secure Stripe checkout..."
-        : state.message || "Preparing the secure Stripe checkout...";
+  const hasStripeSession =
+    idsMatch(activePaymentSession?.booking_id, booking.id) && activePaymentSession.payment_backend === "stripe";
+  const isPaymentLoading = idsMatch(autoLoadingPaymentBookingId, booking.id) || paymentSessionStatus === "loading";
+  elements.bookingPaymentCopy.textContent = hasStripeSession
+    ? "Enter payment details in the secure Stripe form, then confirm to lock in the session."
+    : isPaymentLoading
+      ? "Preparing the secure Stripe checkout..."
+      : paymentSessionMessage || "Preparing the secure Stripe checkout...";
   const primaryAction =
-    activePaymentSession?.booking_id === booking.id && activePaymentSession.payment_backend === "stripe"
-      ? "confirm-payment"
-      : "load-payment";
+    hasStripeSession ? "confirm-payment" : "load-payment";
   const primaryLabel =
-    activePaymentSession?.booking_id === booking.id && activePaymentSession.payment_backend === "stripe"
-      ? `Pay ${formatCurrency(booking.price_cents, booking.currency)}`
-      : "Secure payment";
+    hasStripeSession ? `Pay ${formatCurrency(booking.price_cents, booking.currency)}` : "Secure payment";
+  const primaryDisabled = isPaymentLoading ? "disabled" : "";
   elements.bookingPaymentControls.innerHTML = `
-    <button class="primary-button" type="button" data-booking-detail-action="${primaryAction}" data-booking-id="${booking.id}">
+    <button class="primary-button" type="button" data-booking-detail-action="${primaryAction}" data-booking-id="${booking.id}" ${primaryDisabled}>
       ${primaryLabel}
     </button>
     ${
@@ -523,10 +599,11 @@ function renderPaymentPanel(state, booking) {
     }
   `;
 
-  if (activePaymentSession?.booking_id === booking.id) {
+  if (idsMatch(activePaymentSession?.booking_id, booking.id)) {
     if (activePaymentSession.payment_backend !== "stripe") {
       elements.bookingPaymentCopy.textContent =
-        "Stub payment mode is active. Switch PAYMENT_BACKEND to stripe and configure Stripe keys to use live test checkout.";
+        paymentSessionMessage ||
+        "Stripe is not active for this running server. Start the API with PAYMENT_BACKEND=stripe and configured Stripe keys to show the secure payment form.";
     }
   } else {
     toggleHidden(elements.bookingPaymentElement, true);
@@ -538,36 +615,53 @@ async function loadRescheduleAvailability(booking, targetDate) {
     return;
   }
 
+  const requestToken = rescheduleRequestToken + 1;
+  rescheduleRequestToken = requestToken;
+  const bookingId = booking.id;
   rescheduleBookingId = booking.id;
   rescheduleDateValue = targetDate;
   rescheduleLoading = true;
+  rescheduleAvailability = null;
   rescheduleStatusMessage = "Loading available start times...";
   setState({ message: state.message });
 
   try {
+    let nextAvailability = null;
     if (getBookingKind(booking) === "staff") {
       const staffId = booking.staff_profile_id || booking.staff_id || booking.staff_profile?.id;
       if (!staffId) {
         throw new Error("This staff booking does not include a staff profile id.");
       }
-      rescheduleAvailability = await api.getStaffAvailability(staffId, targetDate).catch(() => null);
+      nextAvailability = await api.getStaffAvailability(staffId, targetDate).catch(() => null);
     } else {
-      rescheduleAvailability = await api.getAvailability(booking.room_id, targetDate);
+      nextAvailability = await api.getAvailability(booking.room_id, targetDate);
     }
-    const validStarts = (rescheduleAvailability?.available_start_times || []).filter(
-      (startTime) =>
-        Number(rescheduleAvailability?.max_duration_minutes_by_start?.[startTime] || 0) >= booking.duration_minutes &&
-        startTime !== booking.start_time,
-    );
+
+    if (
+      requestToken !== rescheduleRequestToken ||
+      rescheduleBookingId !== bookingId ||
+      rescheduleDateValue !== targetDate
+    ) {
+      return;
+    }
+
+    rescheduleAvailability = nextAvailability;
+    const validStarts = getValidRescheduleStarts(booking);
     rescheduleStatusMessage = validStarts.length
       ? `Choose from ${validStarts.length} open start time${validStarts.length === 1 ? "" : "s"} on ${targetDate}.`
       : "No alternate starts are open for this booking duration on that date.";
   } catch (error) {
+    if (requestToken !== rescheduleRequestToken) {
+      return;
+    }
+
     rescheduleAvailability = null;
     rescheduleStatusMessage = error.message;
   } finally {
-    rescheduleLoading = false;
-    setState({ message: state.message });
+    if (requestToken === rescheduleRequestToken) {
+      rescheduleLoading = false;
+      setState({ message: state.message });
+    }
   }
 }
 
@@ -597,17 +691,13 @@ function renderReschedulePanel(booking) {
     void loadRescheduleAvailability(booking, nextDate);
   }
 
-  const validStarts = (rescheduleAvailability?.available_start_times || []).filter(
-    (startTime) =>
-      Number(rescheduleAvailability?.max_duration_minutes_by_start?.[startTime] || 0) >= booking.duration_minutes &&
-      startTime !== booking.start_time,
-  );
+  const validStarts = getValidRescheduleStarts(booking);
   elements.bookingRescheduleStart.innerHTML = validStarts.length
     ? validStarts
         .map(
-          (startTime) => `
-            <option value="${startTime}">
-              ${formatBookingDate(startTime)}
+          (slot) => `
+            <option value="${slot.value}">
+              ${formatBookingDate(slot.value)}
             </option>
           `,
         )
@@ -963,16 +1053,21 @@ export function initBookingDetailView(actions) {
     void loadRescheduleAvailability(state.selectedBooking, elements.bookingRescheduleDate.value);
   });
   elements.bookingRescheduleSubmit?.addEventListener("click", async () => {
-    if (!state.selectedBooking || !elements.bookingRescheduleStart?.value) {
+    const selectedStart = elements.bookingRescheduleStart?.value || "";
+    const validStarts = state.selectedBooking ? getValidRescheduleStarts(state.selectedBooking) : [];
+    const canUseStart = validStarts.some((slot) => slot.value === selectedStart);
+    if (!state.selectedBooking || rescheduleLoading || !selectedStart || !canUseStart) {
       setState({ message: "Choose a new start time before rescheduling." });
       return;
     }
 
     try {
       setState({ message: "Rescheduling booking..." });
-      const booking = await api.rescheduleBooking(state.selectedBooking.id, {
-        start_time: elements.bookingRescheduleStart.value,
-      });
+      const booking =
+        getBookingKind(state.selectedBooking) === "staff"
+          ? await api.rescheduleStaffBooking(state.selectedBooking.id, { start_time: selectedStart })
+          : await api.rescheduleBooking(state.selectedBooking.id, { start_time: selectedStart });
+      rescheduleRequestToken += 1;
       rescheduleAvailability = null;
       rescheduleBookingId = null;
       rescheduleDateValue = "";
@@ -1029,12 +1124,16 @@ export function renderBookingDetailView(state) {
       : null,
   );
   elements.bookingDetailCard.classList.toggle("is-checkout-mode", checkoutMode);
-  elements.bookingDetailTitle.textContent = checkoutMode
-    ? getBookingPrimaryTitle(booking)
-    : booking.room_name || getBookingPrimaryTitle(booking);
-  elements.bookingDetailWindow.textContent = checkoutMode
-    ? "Review your reservation and confirm payment to lock in your slot."
-    : `${formatDateLine(booking.start_time)} • ${formatTimeLine(booking.start_time, booking.end_time)}`;
+  if (elements.bookingDetailTitle) {
+    elements.bookingDetailTitle.textContent = checkoutMode
+      ? getBookingPrimaryTitle(booking)
+      : booking.room_name || getBookingPrimaryTitle(booking);
+  }
+  if (elements.bookingDetailWindow) {
+    elements.bookingDetailWindow.textContent = checkoutMode
+      ? "Review your reservation and confirm payment to lock in your slot."
+      : `${formatDateLine(booking.start_time)} • ${formatTimeLine(booking.start_time, booking.end_time)}`;
+  }
   if (elements.bookingDetailNote) {
     elements.bookingDetailNote.textContent = booking.note
       ? `Booking note: ${booking.note}`
@@ -1052,11 +1151,13 @@ export function renderBookingDetailView(state) {
   const canPay = booking.status === "PendingPayment";
   const canAddToCalendar = ["Paid", "Completed"].includes(booking.status);
   const canDownloadReceipt = ["Paid", "Completed", "Refunded"].includes(booking.status);
-  elements.bookingDetailActions.innerHTML = `
-    ${canAddToCalendar ? `<button class="ghost-button" type="button" data-booking-detail-action="download-calendar" data-booking-id="${booking.id}">Add to calendar</button>` : ""}
-    ${canDownloadReceipt ? `<button class="ghost-button" type="button" data-booking-detail-action="download-receipt" data-booking-id="${booking.id}">Download receipt PDF</button>` : ""}
-    ${canCancel ? `<button class="ghost-button" type="button" data-booking-detail-action="cancel" data-booking-id="${booking.id}">Cancel booking</button>` : ""}
-  `;
+  if (elements.bookingDetailActions) {
+    elements.bookingDetailActions.innerHTML = `
+      ${canAddToCalendar ? `<button class="ghost-button" type="button" data-booking-detail-action="download-calendar" data-booking-id="${booking.id}">Add to calendar</button>` : ""}
+      ${canDownloadReceipt ? `<button class="ghost-button" type="button" data-booking-detail-action="download-receipt" data-booking-id="${booking.id}">Download receipt PDF</button>` : ""}
+      ${canCancel ? `<button class="ghost-button" type="button" data-booking-detail-action="cancel" data-booking-id="${booking.id}">Cancel booking</button>` : ""}
+    `;
+  }
   toggleHidden(elements.bookingSessionPanel, checkoutMode);
   toggleHidden(elements.bookingStaffPanel, checkoutMode);
   toggleHidden(elements.bookingDetailActions, checkoutMode);

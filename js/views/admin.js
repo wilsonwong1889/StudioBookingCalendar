@@ -1,9 +1,9 @@
-import { api } from "../api.js?v=20260401r";
-import { elements } from "../dom.js?v=20260408p";
-import { setState } from "../state.js?v=20260401r";
+import { api } from "../api.js?v=20260502a";
+import { elements } from "../dom.js?v=20260427a";
+import { setState } from "../state.js?v=20260427a";
 
 let editingStaffProfileId = null;
-let activeAdminTab = "overview";
+let activeAdminTab = "bookings";
 let selectedAdminScheduleDate = new Date().toISOString().slice(0, 10);
 let selectedAdminScheduleRoomId = "all";
 let selectedAdminCalendarMonth = new Date().toISOString().slice(0, 7);
@@ -14,7 +14,7 @@ let selectedAdminBookingQuickFilter = "all";
 const DEFAULT_ADMIN_SUBPAGES = {
   overview: "dashboard",
   accounts: "directory",
-  bookings: "schedule",
+  bookings: "queue",
   staff: "editor",
   rooms: "editor",
 };
@@ -65,6 +65,18 @@ const ADMIN_BOOKING_GROUPS = [
     description: "Refunded bookings remain visible for audit history.",
   },
 ];
+
+function getAdminTriageMetrics(currentState) {
+  const bookings = currentState.adminBookings || [];
+  const today = todayString();
+
+  return {
+    needsAttention: bookings.filter(isAdminBookingNeedsAttention).length,
+    pendingPayment: bookings.filter((booking) => booking.status === "PendingPayment").length,
+    readyForArrival: bookings.filter((booking) => booking.status === "Paid" && !booking.checked_in_at).length,
+    todayCount: bookings.filter((booking) => getDateKey(booking.start_time) === today).length,
+  };
+}
 
 function setActiveAdminTab(tab) {
   activeAdminTab = tab;
@@ -452,7 +464,7 @@ function getAdminBookingUrgencyLabel(booking) {
     return "Needs payment";
   }
   if (booking.status === "Paid" && !booking.checked_in_at) {
-    return "Ready to check in";
+    return booking.booking_kind === "staff" ? "Ready for session" : "Ready to check in";
   }
   if (booking.status === "Cancelled" && booking.price_cents > 0) {
     return "Review refund";
@@ -1066,22 +1078,24 @@ function renderManualBookingStaffOptions(currentState) {
 }
 
 function renderAdminBookingCard(booking) {
+  const isStaffBooking = booking.booking_kind === "staff";
   const refundButton =
+    !isStaffBooking &&
     booking.price_cents > 0 &&
     (booking.status === "Paid" || booking.status === "Cancelled" || booking.status === "Completed")
-      ? `<button class="ghost-button admin-booking-action" type="button" data-admin-action="refund" data-booking-id="${booking.id}" data-amount="${booking.price_cents}">Refund</button>`
+      ? `<button class="ghost-button admin-booking-action" type="button" data-admin-action="refund" data-booking-kind="${booking.booking_kind || "room"}" data-booking-id="${booking.id}" data-amount="${booking.price_cents}">Refund</button>`
       : "";
   const manualPaidButton =
     booking.status === "PendingPayment" && booking.price_cents > 0
-      ? `<button class="ghost-button admin-booking-action" type="button" data-admin-action="mark-paid" data-booking-id="${booking.id}">Mark paid manually</button>`
+      ? `<button class="ghost-button admin-booking-action" type="button" data-admin-action="mark-paid" data-booking-kind="${booking.booking_kind || "room"}" data-booking-id="${booking.id}">Mark paid manually</button>`
       : "";
   const waivePaymentButton =
     booking.status === "PendingPayment"
-      ? `<button class="ghost-button admin-booking-action" type="button" data-admin-action="waive-payment" data-booking-id="${booking.id}">Skip Stripe and mark free</button>`
+      ? `<button class="ghost-button admin-booking-action" type="button" data-admin-action="waive-payment" data-booking-kind="${booking.booking_kind || "room"}" data-booking-id="${booking.id}">Skip Stripe and mark free</button>`
       : "";
   const checkInButton =
-    booking.status === "Paid" && !booking.checked_in_at
-      ? `<button class="primary-button admin-booking-action" type="button" data-admin-action="check-in" data-booking-id="${booking.id}">Mark arrived</button>`
+    !isStaffBooking && booking.status === "Paid" && !booking.checked_in_at
+      ? `<button class="primary-button admin-booking-action" type="button" data-admin-action="check-in" data-booking-kind="${booking.booking_kind || "room"}" data-booking-id="${booking.id}">Mark arrived</button>`
       : "";
   const staffAssignments = booking.staff_assignments || [];
   const guestName = booking.user_full_name || "Guest name not set";
@@ -1094,9 +1108,17 @@ function renderAdminBookingCard(booking) {
   const cancelledAt = booking.cancelled_at ? formatBookingDate(booking.cancelled_at) : "Not cancelled";
   const paymentReference = booking.payment_intent_id || "No payment reference yet";
   const originalAmount = booking.original_price_cents ?? booking.price_cents;
-  const staffMarkup = staffAssignments.length
-    ? staffAssignments.map((assignment) => `<span class="pill">${assignment.name}</span>`).join("")
-    : '<span class="pill muted">No staff attached</span>';
+  const headingTitle = isStaffBooking
+    ? booking.staff_name || booking.service_type || "Staff booking"
+    : booking.room_name || "Room";
+  const staffMarkup = isStaffBooking
+    ? `
+        <span class="pill">${booking.staff_name || "Assigned staff"}</span>
+        ${booking.service_type ? `<span class="pill">${booking.service_type}</span>` : ""}
+      `
+    : staffAssignments.length
+      ? staffAssignments.map((assignment) => `<span class="pill">${assignment.name}</span>`).join("")
+      : '<span class="pill muted">No staff attached</span>';
 
   return `
     <article class="booking-card admin-booking-record ${getStatusClass(booking.status)}">
@@ -1104,9 +1126,10 @@ function renderAdminBookingCard(booking) {
         <div class="admin-booking-heading">
           <div class="admin-booking-topline">
             <span class="admin-booking-code">${booking.booking_code}</span>
+            <span class="pill">${isStaffBooking ? "Staff booking" : "Room booking"}</span>
             ${urgencyLabel ? `<span class="pill admin-booking-urgency">${urgencyLabel}</span>` : ""}
           </div>
-          <h4>${booking.room_name || "Room"}</h4>
+          <h4>${headingTitle}</h4>
           <p>${formatBookingDate(booking.start_time)} to ${formatBookingDate(booking.end_time)}</p>
         </div>
         <div class="room-meta admin-booking-pill-stack">
@@ -1131,7 +1154,7 @@ function renderAdminBookingCard(booking) {
           <span class="availability-label">Timeline</span>
           ${renderAdminBookingTimelineRow("Booked", bookedAt)}
           ${renderAdminBookingTimelineRow("Paid", paidAt)}
-          ${renderAdminBookingTimelineRow("Checked in", checkedInAt)}
+          ${!isStaffBooking ? renderAdminBookingTimelineRow("Checked in", checkedInAt) : ""}
           ${renderAdminBookingTimelineRow("Cancelled", cancelledAt)}
         </div>
         <div class="availability-preview admin-booking-panel-card">
@@ -1146,9 +1169,10 @@ function renderAdminBookingCard(booking) {
       </div>
       <div class="admin-booking-secondary-grid">
         <div class="admin-booking-info-block">
-          <span class="availability-label">Staff</span>
+          <span class="availability-label">${isStaffBooking ? "Session details" : "Staff"}</span>
           <div class="preview-pill-row">${staffMarkup}</div>
         </div>
+        ${booking.location_label ? `<div class="admin-booking-info-block"><span class="availability-label">Location</span><p>${booking.location_label}</p></div>` : ""}
         ${booking.note ? `<div class="admin-booking-info-block"><span class="availability-label">Notes</span><p>${booking.note}</p></div>` : ""}
         ${booking.cancellation_reason ? `<div class="admin-booking-info-block"><span class="availability-label">Cancellation reason</span><p>${booking.cancellation_reason}</p></div>` : ""}
       </div>
@@ -1164,6 +1188,7 @@ function renderAdminBookingCard(booking) {
 
 function getFilteredScheduleBookings(currentState) {
   return (currentState.adminBookings || [])
+    .filter((booking) => booking.booking_kind !== "staff")
     .filter((booking) => getDateKey(booking.start_time) === selectedAdminScheduleDate)
     .filter((booking) => selectedAdminScheduleRoomId === "all" || String(booking.room_id) === selectedAdminScheduleRoomId)
     .sort((left, right) => new Date(left.start_time).getTime() - new Date(right.start_time).getTime());
@@ -1279,6 +1304,7 @@ function renderAdminDaySchedule(currentState) {
 function getFilteredRoomCalendarBookings(currentState) {
   const monthValue = safeMonthValue(selectedAdminCalendarMonth);
   return (currentState.adminBookings || [])
+    .filter((booking) => booking.booking_kind !== "staff")
     .filter((booking) => getDateKey(booking.start_time).startsWith(monthValue))
     .filter((booking) => selectedAdminCalendarRoomId === "all" || String(booking.room_id) === selectedAdminCalendarRoomId)
     .sort((left, right) => new Date(left.start_time).getTime() - new Date(right.start_time).getTime());
@@ -1664,6 +1690,15 @@ export function initAdminView(actions) {
     setActiveAdminTab(elements.adminWorkspaceSelect.value || "overview");
   });
 
+  document.querySelectorAll("[data-admin-focus-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const tab = button.dataset.adminFocusTab || "overview";
+      const subpage = button.dataset.adminFocusSubpage || DEFAULT_ADMIN_SUBPAGES[tab] || "overview";
+      setActiveAdminTab(tab);
+      setActiveAdminSubpage(tab, subpage);
+    });
+  });
+
   elements.adminAccountsList?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-admin-action='select-account']");
     if (!button) {
@@ -1817,7 +1852,11 @@ export function initAdminView(actions) {
           return;
         }
         setState({ message: "Marking booking free..." });
-        await api.adminWaiveBookingPayment(button.dataset.bookingId);
+        if (button.dataset.bookingKind === "staff") {
+          await api.adminWaiveStaffBookingPayment(button.dataset.bookingId);
+        } else {
+          await api.adminWaiveBookingPayment(button.dataset.bookingId);
+        }
         adminSearchResults = null;
         setActiveAdminSubpage("bookings", "queue");
         await actions.refreshAll("Booking marked paid without Stripe.");
@@ -1830,7 +1869,11 @@ export function initAdminView(actions) {
           return;
         }
         setState({ message: "Marking booking paid manually..." });
-        await api.adminMarkBookingPaid(button.dataset.bookingId);
+        if (button.dataset.bookingKind === "staff") {
+          await api.adminMarkStaffBookingPaid(button.dataset.bookingId);
+        } else {
+          await api.adminMarkBookingPaid(button.dataset.bookingId);
+        }
         adminSearchResults = null;
         setActiveAdminSubpage("bookings", "queue");
         await actions.refreshAll("Booking marked paid manually.");
@@ -2066,7 +2109,7 @@ export function renderAdminView(currentState) {
   }
 
   if (!isAdmin) {
-    setActiveAdminTab("overview");
+    setActiveAdminTab("bookings");
     Object.assign(activeAdminSubpages, DEFAULT_ADMIN_SUBPAGES);
     adminSearchResults = null;
     elements.adminAnalyticsGrid && (elements.adminAnalyticsGrid.innerHTML = "");
@@ -2109,15 +2152,14 @@ export function renderAdminView(currentState) {
 
   if (elements.adminAnalyticsGrid) {
     const analytics = currentState.adminAnalytics;
+    const triage = getAdminTriageMetrics(currentState);
     const cards = analytics
       ? [
-          { label: "Total bookings", value: analytics.total_bookings },
-          { label: "Pending", value: analytics.pending_bookings },
-          { label: "Paid", value: analytics.paid_bookings },
-          { label: "Refunded", value: analytics.refunded_bookings },
+          { label: "Needs attention", value: triage.needsAttention },
+          { label: "Pending payment", value: triage.pendingPayment },
+          { label: "Ready for arrival", value: triage.readyForArrival },
+          { label: "Today", value: triage.todayCount },
           { label: "Active rooms", value: analytics.active_rooms },
-          { label: "Staff profiles", value: analytics.total_staff_profiles },
-          { label: "Active staff", value: analytics.active_staff_profiles },
           { label: "Staff add-ons booked", value: analytics.staff_assignment_count },
           {
             label: "Net revenue",

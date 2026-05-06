@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Reserve Room | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260427a" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260505c" />
   </head>
   <body data-page="reserve">
     <div class="site-frame">
@@ -15,12 +15,10 @@
         </a>
         <nav class="site-nav" aria-label="Primary">
           <a class="nav-link" href="/">Home</a>
-          <a class="nav-link" href="/info">Info</a>
           <a class="nav-link" href="/staff">Staff</a>
-          <a class="nav-link" href="/faq">FAQ</a>
-          <a class="nav-link" href="/contact">Contact</a>
-          <a class="nav-link is-active" href="/rooms">Rooms</a>
+          <a class="nav-link is-active" href="/rooms" aria-current="page">Rooms</a>
           <a class="nav-link" href="/bookings">Bookings</a>
+          <a class="nav-link" href="/info">Help</a>
         </nav>
         <div class="header-actions">
           <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
@@ -68,6 +66,24 @@
           </div>
 
           <aside id="reserve-planner-panel" class="reserve-booking-sidebar hidden">
+            <div id="reserve-step-list" class="reserve-step-list" aria-label="Booking progress">
+              <div class="reserve-step-item is-active" data-reserve-step="date">
+                <span>1</span>
+                <strong>Date</strong>
+              </div>
+              <div class="reserve-step-item" data-reserve-step="time">
+                <span>2</span>
+                <strong>Time</strong>
+              </div>
+              <div class="reserve-step-item" data-reserve-step="details">
+                <span>3</span>
+                <strong>Details</strong>
+              </div>
+              <div class="reserve-step-item" data-reserve-step="checkout">
+                <span>4</span>
+                <strong>Checkout</strong>
+              </div>
+            </div>
             <input id="reserve-date-input" type="date" class="hidden" />
             <button id="reserve-date-button" class="hidden" type="button">Load times</button>
 
@@ -166,7 +182,7 @@
                 </div>
               </details>
 
-              <button id="reserve-submit-button" class="primary-button reserve-confirm-button" type="submit">Confirm Booking</button>
+              <button id="reserve-submit-button" class="primary-button reserve-confirm-button" type="submit">Continue to checkout</button>
             </form>
           </aside>
         </section>
@@ -223,6 +239,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260427a"></script>
+    <script type="module" src="/assets/js/main.js?v=20260505b"></script>
   </body>
 </html>

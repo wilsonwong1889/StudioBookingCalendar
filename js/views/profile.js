@@ -1,7 +1,7 @@
-import { api } from "../api.js?v=20260401r";
-import { STORAGE_KEYS } from "../config.js?v=20260401r";
-import { elements, toggleHidden } from "../dom.js?v=20260401r";
-import { persistToken, setState } from "../state.js?v=20260401r";
+import { api } from "../api.js?v=20260427a";
+import { STORAGE_KEYS } from "../config.js?v=20260422d";
+import { elements, toggleHidden } from "../dom.js?v=20260427a";
+import { persistToken, setState } from "../state.js?v=20260427a";
 
 let draftSaveTimer = null;
 let lastHydratedFingerprint = null;
@@ -9,6 +9,7 @@ let activeDraftKey = null;
 let lastDraftTimestamp = null;
 let hasRestorableDraft = false;
 let applyingDraft = false;
+let pendingAvatarPreviewUrl = null;
 
 function asText(value) {
   if (typeof value !== "string") {
@@ -35,6 +36,7 @@ function buildProfilePayload() {
   const form = new FormData(elements.profileForm);
   return {
     full_name: asText(form.get("full_name")),
+    avatar_url: asText(form.get("avatar_url")),
     phone: asText(form.get("phone")),
     birthday: asText(form.get("birthday")),
     billing_address: buildBillingAddress(form),
@@ -49,8 +51,27 @@ function buildProfileSnapshot() {
   const payload = buildProfilePayload();
   return {
     ...payload,
+    avatar_url: elements.profileForm.avatar_url.value || "",
     email: elements.profileForm.email.value || "",
   };
+}
+
+function renderAvatarPreview(avatarUrl, label = "Profile") {
+  if (!elements.profileAvatarPreview) {
+    return;
+  }
+
+  const safeLabel = String(label || "Profile").trim() || "Profile";
+  if (avatarUrl) {
+    elements.profileAvatarPreview.innerHTML = `
+      <img class="profile-avatar-image" src="${avatarUrl}" alt="${safeLabel}" loading="lazy" />
+    `;
+    return;
+  }
+
+  elements.profileAvatarPreview.innerHTML = `
+    <div class="profile-avatar-fallback">${safeLabel.slice(0, 1).toUpperCase()}</div>
+  `;
 }
 
 function applySnapshot(snapshot) {
@@ -60,6 +81,7 @@ function applySnapshot(snapshot) {
 
   applyingDraft = true;
   elements.profileForm.full_name.value = snapshot.full_name || "";
+  elements.profileForm.avatar_url.value = snapshot.avatar_url || "";
   elements.profileForm.email.value = snapshot.email || elements.profileForm.email.value || "";
   elements.profileForm.phone.value = snapshot.phone || "";
   elements.profileForm.birthday.value = snapshot.birthday || "";
@@ -73,6 +95,7 @@ function applySnapshot(snapshot) {
   elements.profileForm.opt_in_sms.checked = Boolean(snapshot.opt_in_sms);
   elements.profileForm.two_factor_enabled.checked = Boolean(snapshot.two_factor_enabled);
   elements.profileForm.two_factor_method.value = snapshot.two_factor_method || "email";
+  renderAvatarPreview(snapshot.avatar_url || null, snapshot.full_name || snapshot.email || "Profile");
   applyingDraft = false;
 }
 
@@ -81,6 +104,7 @@ function profileFingerprint(user) {
     id: user.id,
     email: user.email,
     full_name: user.full_name,
+    avatar_url: user.avatar_url,
     phone: user.phone,
     birthday: user.birthday,
     billing_address: user.billing_address,
@@ -144,6 +168,40 @@ function formatTimestamp(timestamp) {
   }).format(new Date(timestamp));
 }
 
+function clearPasswordMatchFeedback() {
+  if (!elements.profilePasswordMatchFeedback) {
+    return;
+  }
+  elements.profilePasswordMatchFeedback.textContent = "";
+  elements.profilePasswordMatchFeedback.classList.add("hidden");
+  elements.profilePasswordMatchFeedback.classList.remove("is-match", "is-mismatch");
+}
+
+function updatePasswordMatchFeedback() {
+  if (!elements.passwordForm || !elements.profilePasswordMatchFeedback) {
+    return true;
+  }
+
+  const password = String(elements.passwordForm.elements.new_password?.value || "");
+  const confirm = String(elements.passwordForm.elements.confirm_password?.value || "");
+
+  if (!password && !confirm) {
+    clearPasswordMatchFeedback();
+    return true;
+  }
+
+  elements.profilePasswordMatchFeedback.classList.remove("hidden", "is-match", "is-mismatch");
+  if (password && confirm && password === confirm) {
+    elements.profilePasswordMatchFeedback.textContent = "Passwords match.";
+    elements.profilePasswordMatchFeedback.classList.add("is-match");
+    return true;
+  }
+
+  elements.profilePasswordMatchFeedback.textContent = "Passwords do not match.";
+  elements.profilePasswordMatchFeedback.classList.add("is-mismatch");
+  return false;
+}
+
 function clearDraft({ keepMessage = false } = {}) {
   if (draftSaveTimer) {
     window.clearTimeout(draftSaveTimer);
@@ -205,6 +263,7 @@ function scheduleDraftSave() {
 function hydrateFromUser(user) {
   applySnapshot({
     full_name: user.full_name,
+    avatar_url: user.avatar_url,
     email: user.email,
     phone: user.phone,
     birthday: user.birthday,
@@ -240,6 +299,28 @@ export function initProfileView(actions) {
     return;
   }
 
+  elements.profileAvatarFile?.addEventListener("change", () => {
+    if (pendingAvatarPreviewUrl) {
+      URL.revokeObjectURL(pendingAvatarPreviewUrl);
+      pendingAvatarPreviewUrl = null;
+    }
+
+    const file = elements.profileAvatarFile.files?.[0];
+    if (!file) {
+      renderAvatarPreview(
+        elements.profileForm?.elements?.avatar_url?.value || null,
+        elements.profileForm?.elements?.full_name?.value || elements.profileForm?.elements?.email?.value || "Profile",
+      );
+      return;
+    }
+
+    pendingAvatarPreviewUrl = URL.createObjectURL(file);
+    renderAvatarPreview(
+      pendingAvatarPreviewUrl,
+      elements.profileForm?.elements?.full_name?.value || file.name,
+    );
+  });
+
   elements.profileForm.addEventListener("input", () => {
     scheduleDraftSave();
   });
@@ -272,9 +353,22 @@ export function initProfileView(actions) {
       if (elements.profileSaveButton) {
         elements.profileSaveButton.disabled = true;
       }
+      const avatarFile = elements.profileAvatarFile?.files?.[0];
+      if (avatarFile) {
+        const upload = await api.uploadProfileAvatar(avatarFile);
+        elements.profileForm.avatar_url.value = upload.avatar_url;
+        payload.avatar_url = upload.avatar_url;
+      }
       const user = await api.updateProfile(payload);
       lastHydratedFingerprint = profileFingerprint(user);
       hydrateFromUser(user);
+      if (elements.profileAvatarFile) {
+        elements.profileAvatarFile.value = "";
+      }
+      if (pendingAvatarPreviewUrl) {
+        URL.revokeObjectURL(pendingAvatarPreviewUrl);
+        pendingAvatarPreviewUrl = null;
+      }
       clearDraft({ keepMessage: true });
       setSaveState("Profile saved.", "Your account details are now stored on the server.", {
         success: true,
@@ -293,6 +387,10 @@ export function initProfileView(actions) {
   elements.passwordForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = new FormData(elements.passwordForm);
+    if (!updatePasswordMatchFeedback()) {
+      setState({ message: "Passwords do not match yet." });
+      return;
+    }
     const payload = {
       current_password: form.get("current_password"),
       new_password: form.get("new_password"),
@@ -301,11 +399,15 @@ export function initProfileView(actions) {
     try {
       await api.updatePassword(payload);
       elements.passwordForm.reset();
+      clearPasswordMatchFeedback();
       setState({ message: "Password updated." });
     } catch (error) {
       setState({ message: error.message });
     }
   });
+
+  elements.passwordForm.elements.new_password?.addEventListener("input", updatePasswordMatchFeedback);
+  elements.passwordForm.elements.confirm_password?.addEventListener("input", updatePasswordMatchFeedback);
 
   elements.profileDeleteButton?.addEventListener("click", async () => {
     const confirmed = window.confirm(
@@ -365,6 +467,8 @@ export function renderProfileView(state) {
     if (!isSessionRestoring) {
       setSaveState("Account details are ready.", "You can save now or continue later.");
     }
+    renderAvatarPreview(null, "Profile");
+    clearPasswordMatchFeedback();
     return;
   }
 

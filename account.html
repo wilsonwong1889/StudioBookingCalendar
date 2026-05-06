@@ -4,56 +4,71 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Account | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260505c" />
   </head>
   <body data-page="account">
     <div class="site-frame">
-      <header class="site-header">
-        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+      <header class="site-header site-header-simple site-header-public">
+        <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
+          <span class="brand-mark-icon" aria-hidden="true">♪</span>
+          <span class="brand-mark-label">StudioBook</span>
+        </a>
         <nav class="site-nav" aria-label="Primary">
           <a class="nav-link" href="/">Home</a>
-          <a class="nav-link" href="/info">Info</a>
           <a class="nav-link" href="/staff">Staff</a>
-          <a class="nav-link" href="/faq">FAQ</a>
-          <a class="nav-link" href="/contact">Contact</a>
           <a class="nav-link" href="/rooms">Rooms</a>
           <a class="nav-link" href="/bookings">Bookings</a>
-          <a class="nav-link is-active" href="/account">Account</a>
-          <a class="nav-link" href="/admin">Admin</a>
+          <a class="nav-link" href="/info">Help</a>
         </nav>
-        <div class="header-side">
-          <div class="header-actions">
-            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Sign in</a>
-            <a id="header-secondary-link" class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
-            <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
-          </div>
-          <div class="status-strip">
-            <div class="status-chip">
-              <span class="status-chip-label">Backend</span>
-              <strong id="health-status">Checking...</strong>
-              <span id="health-detail" class="status-detail">Waiting for health probe.</span>
-            </div>
-            <div class="status-chip">
-              <span class="status-chip-label">Session</span>
-              <strong id="session-status">Signed out</strong>
-              <span id="session-detail" class="status-detail">Create an account or log in to continue.</span>
+        <div class="header-actions">
+          <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
+          <a id="header-secondary-link" class="primary-button site-header-book-button" href="/account?mode=signup">Create account</a>
+          <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
+            <button
+              id="header-user-trigger"
+              class="ghost-button header-user-trigger"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            >
+              <span id="header-user-email" class="header-user-trigger-label">account@example.com</span>
+              <span class="header-user-trigger-caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="header-user-menu" class="header-user-menu hidden" role="menu" aria-label="Account menu">
+              <a id="header-profile-link" class="header-user-menu-item is-primary" href="/account" role="menuitem">My Profile</a>
+              <a id="header-bookings-link" class="header-user-menu-item" href="/bookings" role="menuitem">My Bookings</a>
+              <a id="header-admin-link" class="header-user-menu-item hidden" href="/admin" role="menuitem">Admin</a>
+              <button id="header-logout-button" class="header-user-menu-item header-user-menu-signout" type="button" role="menuitem">Sign Out</button>
             </div>
           </div>
         </div>
       </header>
 
-      <main class="page-grid account-page-grid">
-        <section class="hero-card hero-card-wide account-hero">
-          <p class="eyebrow">Account</p>
-          <h1 id="account-hero-title">Access and profile live in one clean place.</h1>
-          <p class="hero-copy">
-            <span id="account-hero-copy">
-              Use this page for account entry, profile updates, password changes, and reminder preferences.
-            </span>
-          </p>
-          <div id="account-summary-card" class="account-summary hidden">
-            <strong id="account-summary-name">Welcome back.</strong>
-            <span id="account-summary-email" class="status-detail">Your account details live here.</span>
+      <main class="page-grid page-grid-public account-page-grid">
+        <section class="hero-card hero-card-wide account-hero page-hero-polish">
+          <div class="page-hero-layout">
+            <div class="page-hero-copy-block">
+              <p class="eyebrow">Account</p>
+              <h1 id="account-hero-title">Access and profile live in one clean place.</h1>
+              <p class="hero-copy">
+                <span id="account-hero-copy">
+                  Use this page for account entry, profile updates, password changes, and reminder preferences.
+                </span>
+              </p>
+              <div class="hero-actions">
+                <a class="primary-button hero-primary" href="/rooms">Browse rooms</a>
+                <a class="ghost-button ghost-link" href="/bookings">Go to bookings</a>
+              </div>
+            </div>
+            <aside class="page-hero-summary">
+              <p class="panel-kicker">Account Snapshot</p>
+              <div class="summary-line"><span>Sign in</span><strong>Use email, password, Google, or reset flow from one place</strong></div>
+              <div class="summary-line"><span>Profile</span><strong>Update your name, avatar, password, and reminder preferences</strong></div>
+              <div id="account-summary-card" class="account-summary hidden">
+                <strong id="account-summary-name">Welcome back.</strong>
+                <span id="account-summary-email" class="status-detail">Your account details live here.</span>
+              </div>
+            </aside>
           </div>
         </section>
 
@@ -64,18 +79,62 @@
             <button class="tab-button active" type="button" data-auth-tab="login">Log in</button>
             <button class="tab-button" type="button" data-auth-tab="signup">Create account</button>
           </div>
+          <div id="auth-feedback" class="auth-feedback hidden" role="status" aria-live="polite"></div>
 
           <form id="login-form" class="stack-form" data-auth-form="login">
             <label>
               <span>Email</span>
               <input type="email" name="email" autocomplete="username" required />
+              <span id="login-email-feedback" class="field-help auth-field-feedback hidden"></span>
             </label>
             <label>
               <span>Password</span>
               <input type="password" name="password" autocomplete="current-password" required />
+              <span id="login-password-feedback" class="field-help auth-field-feedback hidden"></span>
             </label>
             <button class="primary-button" type="submit">Log in</button>
+            <div class="form-divider"><span>or</span></div>
+            <button id="google-login-button" class="google-auth-button hidden" type="button">
+              Continue with Google
+            </button>
             <a class="ghost-button ghost-link" href="/rooms">Continue as guest</a>
+            <div class="auth-inline-row">
+              <button id="forgot-password-link" class="text-button" type="button">Forgot password?</button>
+              <span class="field-help">We can send a reset link to your email.</span>
+            </div>
+          </form>
+
+          <form id="forgot-password-form" class="stack-form hidden" data-auth-form="forgot-password">
+            <p class="form-note">
+              Enter the email on your account and we will send a secure password reset link.
+            </p>
+            <label>
+              <span>Email</span>
+              <input type="email" name="email" autocomplete="email" required />
+            </label>
+            <div class="auth-inline-row">
+              <button class="primary-button" type="submit">Send reset link</button>
+              <button id="forgot-password-back-button" class="ghost-button" type="button">Back to login</button>
+            </div>
+          </form>
+
+          <form id="reset-password-form" class="stack-form hidden" data-auth-form="reset-password">
+            <p class="form-note">
+              Choose a new password for your account. Reset links expire after 30 minutes.
+            </p>
+            <label>
+              <span>New password</span>
+              <input type="password" name="new_password" autocomplete="new-password" minlength="8" required />
+            </label>
+            <label>
+              <span>Confirm new password</span>
+              <input type="password" name="confirm_password" autocomplete="new-password" minlength="8" required />
+            </label>
+            <p id="reset-password-match-feedback" class="password-match-feedback hidden" aria-live="polite"></p>
+            <div class="auth-inline-row">
+              <button class="primary-button" type="submit">Save new password</button>
+              <button id="reset-password-back-button" class="ghost-button" type="button">Back to login</button>
+            </div>
           </form>
 
           <form id="login-2fa-form" class="stack-form hidden" data-auth-form="two-factor">
@@ -94,6 +153,9 @@
           </form>
 
           <form id="signup-form" class="stack-form hidden" data-auth-form="signup">
+            <div id="google-auth-note" class="form-note hidden">
+              Gmail sign-in creates your account automatically the first time.
+            </div>
             <label>
               <span>Full name</span>
               <input type="text" name="full_name" autocomplete="name" required />
@@ -104,13 +166,22 @@
             </label>
             <label>
               <span>Password</span>
-              <input type="password" name="password" autocomplete="new-password" required />
+              <input type="password" name="password" autocomplete="new-password" minlength="8" required />
             </label>
+            <label>
+              <span>Confirm password</span>
+              <input type="password" name="confirm_password" autocomplete="new-password" minlength="8" required />
+            </label>
+            <p id="signup-password-match-feedback" class="password-match-feedback hidden" aria-live="polite"></p>
             <label>
               <span>Phone</span>
               <input type="tel" name="phone" autocomplete="tel" />
             </label>
             <button class="primary-button" type="submit">Create account</button>
+            <div class="form-divider"><span>or</span></div>
+            <button id="google-signup-button" class="google-auth-button hidden" type="button">
+              Sign up with Google
+            </button>
             <a class="ghost-button ghost-link" href="/rooms">Continue as guest</a>
           </form>
 
@@ -140,6 +211,25 @@
                 <button id="profile-save-button" class="primary-button" type="submit">Save profile</button>
               </div>
             </div>
+
+            <fieldset class="profile-fieldset profile-span-2">
+              <legend>Avatar</legend>
+              <div class="profile-avatar-shell">
+                <div id="profile-avatar-preview" class="profile-avatar-preview">
+                  <div class="profile-avatar-fallback">?</div>
+                </div>
+                <div class="stack-form">
+                  <p class="form-note">
+                    Upload a JPG avatar so your account has a recognizable identity across the booking flow.
+                  </p>
+                  <label>
+                    <span>Avatar image</span>
+                    <input id="profile-avatar-file" type="file" accept=".jpg,.jpeg,image/jpeg" />
+                  </label>
+                  <input type="hidden" name="avatar_url" />
+                </div>
+              </div>
+            </fieldset>
 
             <fieldset class="profile-fieldset profile-span-2">
               <legend>Personal details</legend>
@@ -224,12 +314,17 @@
             <div class="profile-legend">Security</div>
             <label>
               <span>Current password</span>
-              <input type="password" name="current_password" autocomplete="current-password" />
+              <input type="password" name="current_password" autocomplete="current-password" required />
             </label>
             <label>
               <span>New password</span>
-              <input type="password" name="new_password" autocomplete="new-password" />
+              <input type="password" name="new_password" autocomplete="new-password" minlength="8" required />
             </label>
+            <label>
+              <span>Confirm new password</span>
+              <input type="password" name="confirm_password" autocomplete="new-password" minlength="8" required />
+            </label>
+            <p id="profile-password-match-feedback" class="password-match-feedback hidden" aria-live="polite"></p>
             <button class="ghost-button" type="submit">Change password</button>
           </form>
 
@@ -243,7 +338,7 @@
         </section>
       </main>
 
-      <footer class="signal-ribbon">
+      <footer class="signal-ribbon signal-ribbon-public">
         <div class="signal-panel">
           <strong>Activity</strong>
           <div id="app-message" class="signal-copy">Frontend booting.</div>
@@ -262,6 +357,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260408m"></script>
+    <script type="module" src="/assets/js/main.js?v=20260427a"></script>
   </body>
 </html>

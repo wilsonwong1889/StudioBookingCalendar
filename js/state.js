@@ -1,4 +1,4 @@
-import { STORAGE_KEYS } from "./config.js?v=20260401r";
+import { STORAGE_KEYS } from "./config.js?v=20260422d";
 
 const listeners = new Set();
 
@@ -8,6 +8,13 @@ export const state = {
   rooms: [],
   roomAvailabilityPreview: {},
   roomPreviewDate: new Date().toISOString().slice(0, 10),
+  roomAvailabilitySearch: {
+    date: new Date().toISOString().slice(0, 10),
+    time: "15:00",
+    duration: 60,
+    matchingRoomIds: [],
+    hasSearched: false,
+  },
   bookings: [],
   adminBookings: [],
   adminAnalytics: null,
@@ -18,7 +25,11 @@ export const state = {
   adminPromoCodes: [],
   publicStaffProfiles: [],
   selectedRoom: null,
+  selectedRoomReviews: [],
+  selectedRoomReviewSummary: null,
   selectedBooking: null,
+  selectedBookingKind: null,
+  selectedBookingReview: null,
   availability: null,
   health: null,
   showInactiveRooms: false,
@@ -42,4 +53,45 @@ export function persistToken(token) {
     localStorage.removeItem(STORAGE_KEYS.token);
   }
   setState({ token });
+}
+
+export function getPersistedLastBookingId() {
+  return localStorage.getItem(STORAGE_KEYS.lastBookingId);
+}
+
+export function persistLastBookingId(bookingId) {
+  if (bookingId) {
+    localStorage.setItem(STORAGE_KEYS.lastBookingId, String(bookingId));
+    return;
+  }
+  localStorage.removeItem(STORAGE_KEYS.lastBookingId);
+}
+
+export function getPersistedCheckoutDraft() {
+  const value = localStorage.getItem(STORAGE_KEYS.checkoutDraft);
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch (_error) {
+    localStorage.removeItem(STORAGE_KEYS.checkoutDraft);
+    return null;
+  }
+}
+
+export function persistCheckoutDraft(draft) {
+  if (!draft) {
+    localStorage.removeItem(STORAGE_KEYS.checkoutDraft);
+    return;
+  }
+
+  localStorage.setItem(
+    STORAGE_KEYS.checkoutDraft,
+    JSON.stringify({
+      ...draft,
+      saved_at: new Date().toISOString(),
+    }),
+  );
 }

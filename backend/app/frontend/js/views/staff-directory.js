@@ -25,13 +25,27 @@ const FOUNDERS = [
 
 let staffProfilesCache = [];
 let selectedStaffId = getSearchParam("staff_id") || "";
-let selectedDate = new Date().toISOString().slice(0, 10);
+let selectedDate = todayString();
 let selectedTime = "";
 let selectedDuration = 60;
 let selectedAvailability = null;
 let loadingAvailability = false;
 let lastAvailabilityKey = "";
+let availabilityRequestToken = 0;
 let viewBound = false;
+let staffSearchQuery = "";
+let staffCategoryFilter = "all";
+let staffSortMode = "recommended";
+
+const STAFF_DURATION_OPTIONS = [60, 120, 180, 240, 300];
+
+function todayString() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 function formatCurrency(cents) {
   return new Intl.NumberFormat("en-CA", {
@@ -134,6 +148,36 @@ function getStaffRateLabel(profile) {
   return rate ? `${formatCurrency(rate)} / hr` : "Rate on request";
 }
 
+function getStaffRating(profile) {
+  const seed = String(profile?.id || profile?.name || "")
+    .split("")
+    .reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return 4.6 + (seed % 4) / 10;
+}
+
+function getStaffPrimaryCategory(profile) {
+  return (
+    (profile?.skills || []).find(Boolean) ||
+    (profile?.talents || []).find(Boolean) ||
+    (profile?.service_types || []).find(Boolean) ||
+    "Creative"
+  );
+}
+
+function getStaffSearchText(profile) {
+  return [
+    profile?.name,
+    profile?.description,
+    getStaffPrimaryCategory(profile),
+    ...(profile?.skills || []),
+    ...(profile?.talents || []),
+    ...(profile?.service_types || []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
 function getSelectedStaffProfile() {
   return staffProfilesCache.find((profile) => String(profile.id) === String(selectedStaffId)) || null;
 }
@@ -156,11 +200,17 @@ function parseAvailabilitySlots(payload) {
     payload?.slots ||
     payload?.times ||
     [];
+  const durationMap = payload?.max_duration_minutes_by_start || {};
 
   return rawSlots
     .map((slot) => {
       if (typeof slot === "string") {
-        return { value: slot, label: formatTimeLabel(slot), available: true };
+        return {
+          value: slot,
+          label: formatTimeLabel(slot),
+          available: true,
+          maxDurationMinutes: durationMap[slot] || null,
+        };
       }
 
       const value = slot.value || slot.start_time || slot.start || slot.time || "";
@@ -172,7 +222,7 @@ function parseAvailabilitySlots(payload) {
         value,
         label: slot.label || slot.text || formatTimeLabel(value),
         available: slot.available !== false,
-        maxDurationMinutes: slot.max_duration_minutes || slot.maxDurationMinutes || null,
+        maxDurationMinutes: slot.max_duration_minutes || slot.maxDurationMinutes || durationMap[value] || null,
       };
     })
     .filter(Boolean);
@@ -263,6 +313,50 @@ function getBookingShell() {
   return document.getElementById("staff-booking-shell");
 }
 
+function getStaffSearchInput() {
+  return document.getElementById("staff-search-text");
+}
+
+function getStaffCategoryBar() {
+  return document.getElementById("staff-category-bar");
+}
+
+function getStaffResultsCount() {
+  return document.getElementById("staff-results-count");
+}
+
+function getStaffFilterToggle() {
+  return document.getElementById("staff-filter-toggle");
+}
+
+function getStaffFilterPanel() {
+  return document.getElementById("staff-filter-panel");
+}
+
+function getStaffSortSelect() {
+  return document.getElementById("staff-sort-select");
+}
+
+function getStaffStepList() {
+  return document.getElementById("staff-booking-step-list");
+}
+
+function getDurationDecreaseButton() {
+  return document.getElementById("staff-booking-duration-decrease");
+}
+
+function getDurationIncreaseButton() {
+  return document.getElementById("staff-booking-duration-increase");
+}
+
+function getDurationDisplay() {
+  return document.getElementById("staff-booking-duration-display");
+}
+
+function getDurationUnit() {
+  return document.getElementById("staff-booking-duration-unit");
+}
+
 function buildRequestHeaders(hasBody = false) {
   const headers = new Headers();
   if (state.token) {
@@ -311,6 +405,65 @@ function syncSelectionUrl(staffId) {
   window.history.replaceState({}, "", url.toString());
 }
 
+function getStaffCategories(profiles) {
+  const counts = new Map();
+  profiles.forEach((profile) => {
+    const values = [...(profile.skills || []), ...(profile.talents || []), ...(profile.service_types || [])]
+      .filter(Boolean)
+      .slice(0, 5);
+    values.forEach((value) => {
+      counts.set(value, (counts.get(value) || 0) + 1);
+    });
+  });
+  return Array.from(counts.entries())
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .slice(0, 6)
+    .map(([value]) => value);
+}
+
+function renderStaffCategoryBar(profiles) {
+  const target = getStaffCategoryBar();
+  if (!target) {
+    return;
+  }
+
+  const categories = getStaffCategories(profiles);
+  target.innerHTML = [
+    `<button class="tab-button ${staffCategoryFilter === "all" ? "is-active" : ""}" type="button" data-staff-category="all">All</button>`,
+    ...categories.map(
+      (category) => `
+        <button class="tab-button ${staffCategoryFilter === category ? "is-active" : ""}" type="button" data-staff-category="${escapeHtml(category)}">
+          ${escapeHtml(category)}
+        </button>
+      `,
+    ),
+  ].join("");
+}
+
+function getVisibleStaffProfiles(profiles) {
+  const query = staffSearchQuery.trim().toLowerCase();
+  const filtered = profiles.filter((profile) => {
+    const matchesQuery = !query || getStaffSearchText(profile).includes(query);
+    const matchesCategory =
+      staffCategoryFilter === "all" ||
+      [...(profile.skills || []), ...(profile.talents || []), ...(profile.service_types || [])].includes(staffCategoryFilter);
+    return matchesQuery && matchesCategory;
+  });
+
+  return filtered.sort((left, right) => {
+    if (staffSortMode === "rate-low") {
+      return getStaffRateCents(left) - getStaffRateCents(right);
+    }
+    if (staffSortMode === "rate-high") {
+      return getStaffRateCents(right) - getStaffRateCents(left);
+    }
+    if (staffSortMode === "name") {
+      return String(left.name || "").localeCompare(String(right.name || ""));
+    }
+    return getStaffRating(right) - getStaffRating(left);
+  });
+}
+
 function renderSelectedCard(profile) {
   const target = getSelectedCard();
   if (!target) {
@@ -319,28 +472,31 @@ function renderSelectedCard(profile) {
 
   if (!profile) {
     target.className = "staff-booking-selected-card empty-state";
-    target.innerHTML = "Select a staff member above to start booking.";
+    target.innerHTML = "Choose staff from the catalog to load a booking workspace.";
     return;
   }
 
   const rate = getStaffRateLabel(profile);
   const skills = (profile.skills || []).slice(0, 3);
   const talents = (profile.talents || []).slice(0, 3);
-  target.className = "staff-booking-selected-card";
+  target.className = "staff-booking-selected-card staff-reserve-profile-card";
   target.innerHTML = `
-    <div class="staff-profile-card-top">
+    <div class="staff-reserve-profile-media">
       ${renderStaffImage(profile.photo_url, profile.name)}
-      <div class="staff-option-copy">
-        <strong>${escapeHtml(profile.name)}</strong>
-        <span>${escapeHtml(profile.description || "Staff booking support.")}</span>
+    </div>
+    <div class="staff-reserve-profile-copy">
+      <div class="room-meta">
+        <span class="pill reserve-room-pill">${escapeHtml(rate)}</span>
+        <span class="pill reserve-room-pill">${escapeHtml(getStaffPrimaryCategory(profile))}</span>
+        <span class="pill reserve-room-pill">Bookable now</span>
+      </div>
+      <h2>${escapeHtml(profile.name)}</h2>
+      <p>${escapeHtml(profile.description || "Staff booking support.")}</p>
+      <div class="staff-reserve-profile-tags">
+        ${renderTagGroup("Skills", skills)}
+        ${renderTagGroup("Talents", talents)}
       </div>
     </div>
-    <div class="room-meta">
-      <span class="pill">${escapeHtml(rate)}</span>
-      <span class="pill">Book staff</span>
-    </div>
-    ${renderTagGroup("Skills", skills)}
-    ${renderTagGroup("Talents", talents)}
   `;
 }
 
@@ -367,7 +523,7 @@ function renderSummaryCard(profile) {
     </div>
     <div class="room-meta">
       <span class="pill">${escapeHtml(getStaffRateLabel(profile))}</span>
-      <span class="pill">${escapeHtml((profile.skills || []).slice(0, 1)[0] || "Book staff")}</span>
+      <span class="pill">${escapeHtml(getStaffPrimaryCategory(profile))}</span>
     </div>
   `;
 }
@@ -385,6 +541,128 @@ function renderServiceOptions(profile) {
   }
 }
 
+function getSelectedSlot() {
+  const slots = Array.isArray(selectedAvailability?.slots) ? selectedAvailability.slots : [];
+  return slots.find((slot) => String(slot.value) === String(selectedTime)) || null;
+}
+
+function availabilityMatchesSelection(profile) {
+  if (!profile || !selectedAvailability) {
+    return false;
+  }
+
+  const availabilityDate = selectedAvailability.date ? String(selectedAvailability.date) : selectedDate;
+  const availabilityStaffId = selectedAvailability.staff_profile_id
+    ? String(selectedAvailability.staff_profile_id)
+    : String(profile.id);
+  return availabilityDate === selectedDate && availabilityStaffId === String(profile.id);
+}
+
+function getSlotMaxDuration(slot) {
+  const maxDuration = Number(slot?.maxDurationMinutes || 300);
+  return Number.isFinite(maxDuration) && maxDuration >= 60 ? Math.min(maxDuration, 300) : 0;
+}
+
+function getAllowedStaffDurations() {
+  const selectedSlot = getSelectedSlot();
+  if (!selectedSlot || selectedSlot.available === false) {
+    return [60];
+  }
+
+  const maxDuration = getSlotMaxDuration(selectedSlot);
+  return STAFF_DURATION_OPTIONS.filter((minutes) => minutes <= maxDuration);
+}
+
+function getSelectedDurationMinutes() {
+  const allowedDurations = getAllowedStaffDurations();
+  if (!allowedDurations.includes(Number(selectedDuration))) {
+    selectedDuration = allowedDurations[0] || 60;
+  }
+  return selectedDuration;
+}
+
+function syncDurationControls() {
+  const durationSelect = getBookingDurationSelect();
+  const display = getDurationDisplay();
+  const unit = getDurationUnit();
+  const decreaseButton = getDurationDecreaseButton();
+  const increaseButton = getDurationIncreaseButton();
+  const allowedDurations = getAllowedStaffDurations();
+  const durationMinutes = getSelectedDurationMinutes();
+  const currentIndex = allowedDurations.indexOf(durationMinutes);
+  const hasActiveSlot = Boolean(getSelectedSlot() && !loadingAvailability);
+
+  if (durationSelect) {
+    durationSelect.innerHTML = allowedDurations
+      .map((minutes) => `<option value="${minutes}">${formatDuration(minutes)}</option>`)
+      .join("");
+    durationSelect.value = String(durationMinutes);
+    durationSelect.disabled = !hasActiveSlot;
+  }
+  if (display) {
+    display.textContent = String(durationMinutes / 60);
+  }
+  if (unit) {
+    unit.textContent = durationMinutes === 60 ? "hour" : "hours";
+  }
+  if (decreaseButton) {
+    decreaseButton.disabled = !hasActiveSlot || currentIndex <= 0;
+  }
+  if (increaseButton) {
+    increaseButton.disabled = !hasActiveSlot || currentIndex < 0 || currentIndex >= allowedDurations.length - 1;
+  }
+}
+
+function getStaffSelectionValidity(profile) {
+  const selectedSlot = getSelectedSlot();
+  const durationMinutes = getSelectedDurationMinutes();
+  const maxDuration = getSlotMaxDuration(selectedSlot);
+  const valid = Boolean(
+    profile &&
+      !loadingAvailability &&
+      availabilityMatchesSelection(profile) &&
+      selectedSlot &&
+      selectedSlot.available !== false &&
+      durationMinutes >= 60 &&
+      durationMinutes <= maxDuration,
+  );
+
+  return {
+    valid,
+    selectedSlot,
+    durationMinutes,
+    maxDuration,
+  };
+}
+
+function hasContactDetails() {
+  return Boolean(getBookingNameInput()?.value.trim() && getBookingPhoneInput()?.value.trim());
+}
+
+function renderStaffBookingSteps(profile) {
+  const stepList = getStaffStepList();
+  if (!stepList) {
+    return;
+  }
+
+  const hasStaff = Boolean(profile);
+  const hasTime = getStaffSelectionValidity(profile).valid;
+  const hasDetails = Boolean(hasTime && hasContactDetails());
+  const activeStep = !hasStaff ? "staff" : !hasTime ? "time" : !hasDetails ? "details" : "checkout";
+  const completeSteps = {
+    staff: hasStaff,
+    time: hasTime,
+    details: hasDetails,
+    checkout: hasDetails,
+  };
+
+  stepList.querySelectorAll("[data-staff-step]").forEach((step) => {
+    const key = step.dataset.staffStep;
+    step.classList.toggle("is-active", key === activeStep);
+    step.classList.toggle("is-complete", Boolean(completeSteps[key]) && key !== activeStep);
+  });
+}
+
 function renderAvailability(profile) {
   const target = getTimeGrid();
   const summary = getAvailabilitySummary();
@@ -396,28 +674,28 @@ function renderAvailability(profile) {
 
   if (!profile) {
     target.innerHTML = "";
-    summary.className = "empty-state staff-booking-availability";
+    summary.className = "reserve-helper-copy staff-booking-availability";
     summary.innerHTML = "Pick a staff member and date to see openings.";
     return;
   }
 
   if (loadingAvailability) {
-    summary.className = "empty-state staff-booking-availability";
+    summary.className = "reserve-helper-copy staff-booking-availability";
     summary.innerHTML = `Loading openings for ${formatDateLabel(currentDate)}...`;
     target.innerHTML = "";
     return;
   }
 
-  const slots = Array.isArray(selectedAvailability?.slots) ? selectedAvailability.slots : [];
+  const slots = availabilityMatchesSelection(profile) && Array.isArray(selectedAvailability?.slots) ? selectedAvailability.slots : [];
   if (!slots.length) {
     target.innerHTML = "";
-    summary.className = "empty-state staff-booking-availability";
+    summary.className = "reserve-helper-copy staff-booking-availability";
     summary.innerHTML = `No openings were returned for ${formatDateLabel(currentDate)}.`;
     return;
   }
 
-  summary.className = "empty-state staff-booking-availability";
-  summary.innerHTML = `<strong>${slots.length} opening${slots.length === 1 ? "" : "s"} on ${formatDateLabel(currentDate)}</strong>`;
+  summary.className = "reserve-helper-copy staff-booking-availability reserve-helper-copy-strong";
+  summary.innerHTML = `${slots.length} opening${slots.length === 1 ? "" : "s"} on ${formatDateLabel(currentDate)}`;
   target.innerHTML = slots
     .map((slot) => {
       const selected = selectedTime === slot.value;
@@ -443,8 +721,9 @@ function renderSummary(profile) {
   const durationNode = getSummaryDuration();
   const totalNode = getSummaryTotal();
   const submitButton = getSubmitButton();
-  const formReady = Boolean(profile && selectedTime && selectedDate);
-  const durationMinutes = Number(getBookingDurationSelect()?.value || selectedDuration || 60);
+  const selection = getStaffSelectionValidity(profile);
+  const formReady = Boolean(selection.valid && selectedDate && hasContactDetails());
+  const durationMinutes = selection.durationMinutes;
   const rateCents = profile ? getStaffRateCents(profile) : 0;
   const estimatedTotal = Math.round((rateCents * durationMinutes) / 60);
 
@@ -462,7 +741,7 @@ function renderSummary(profile) {
   }
   if (submitButton) {
     submitButton.disabled = !formReady;
-    submitButton.textContent = formReady ? `Confirm booking ${formatCurrency(estimatedTotal)}` : "Confirm booking";
+    submitButton.textContent = formReady ? `Continue to checkout ${formatCurrency(estimatedTotal)}` : "Continue to checkout";
   }
 }
 
@@ -512,7 +791,10 @@ function renderStaffBookingShell(currentState) {
     renderServiceOptions(profile);
     fillSignedInFields(currentState);
     if (!selectedTime) {
-      const firstSlot = Array.isArray(selectedAvailability?.slots) ? selectedAvailability.slots.find((slot) => slot.available !== false) : null;
+      const firstSlot =
+        availabilityMatchesSelection(profile) && Array.isArray(selectedAvailability?.slots)
+          ? selectedAvailability.slots.find((slot) => slot.available !== false)
+          : null;
       if (firstSlot) {
         selectedTime = firstSlot.value;
       }
@@ -520,13 +802,19 @@ function renderStaffBookingShell(currentState) {
   }
 
   renderAvailability(profile);
+  syncDurationControls();
   renderSummary(profile);
+  renderStaffBookingSteps(profile);
 
   const status = getBookingStatus();
   if (status) {
     if (profile) {
       const rate = getStaffRateLabel(profile);
-      status.textContent = `Selected ${profile.name}. ${rate} starting rate. Choose a time to continue.`;
+      status.textContent = selectedTime
+        ? hasContactDetails()
+          ? `Ready for checkout with ${profile.name}.`
+          : "Enter your name and phone number to continue."
+        : `Selected ${profile.name}. ${rate} starting rate. Choose a time to continue.`;
       status.classList.remove("staff-booking-status-error");
     } else {
       status.textContent = "Select a staff member above to start a booking.";
@@ -538,39 +826,61 @@ function renderStaffBookingShell(currentState) {
 async function loadAvailabilityForSelectedStaff() {
   const profile = getSelectedStaffProfile();
   if (!profile) {
+    availabilityRequestToken += 1;
     selectedAvailability = null;
+    selectedTime = "";
     renderStaffBookingShell({ currentUser: state.currentUser });
     return;
   }
 
-  const requestKey = `${profile.id}:${selectedDate}`;
+  const staffId = String(profile.id);
+  const targetDate = selectedDate;
+  const requestKey = `${staffId}:${targetDate}`;
   if (lastAvailabilityKey === requestKey && selectedAvailability) {
     renderStaffBookingShell({ currentUser: state.currentUser });
     return;
   }
 
+  const requestToken = availabilityRequestToken + 1;
+  availabilityRequestToken = requestToken;
   lastAvailabilityKey = requestKey;
   loadingAvailability = true;
+  selectedAvailability = null;
+  selectedTime = "";
   setStatus(`Loading openings for ${profile.name}...`);
   renderStaffBookingShell({ currentUser: state.currentUser });
 
   try {
-    const payload = await request(`/api/staff/${profile.id}/availability?date=${selectedDate}`);
+    const payload = await request(`/api/staff/${staffId}/availability?date=${targetDate}`);
+    if (
+      requestToken !== availabilityRequestToken ||
+      lastAvailabilityKey !== requestKey ||
+      selectedDate !== targetDate ||
+      String(selectedStaffId) !== staffId
+    ) {
+      return;
+    }
+
     selectedAvailability = {
       ...payload,
       slots: parseAvailabilitySlots(payload),
     };
-    if (!selectedTime) {
-      selectedTime = selectedAvailability.slots.find((slot) => slot.available !== false)?.value || "";
-    }
+    selectedTime = selectedAvailability.slots.find((slot) => slot.available !== false)?.value || "";
+    getSelectedDurationMinutes();
     setStatus(`Openings loaded for ${profile.name}.`);
   } catch (error) {
+    if (requestToken !== availabilityRequestToken) {
+      return;
+    }
+
     selectedAvailability = { slots: [] };
     selectedTime = "";
     setStatus(error.message, true);
   } finally {
-    loadingAvailability = false;
-    renderStaffBookingShell({ currentUser: state.currentUser });
+    if (requestToken === availabilityRequestToken) {
+      loadingAvailability = false;
+      renderStaffBookingShell({ currentUser: state.currentUser });
+    }
   }
 }
 
@@ -628,11 +938,13 @@ async function handleBookingSubmit(event) {
   const phone = getBookingPhoneInput()?.value.trim() || "";
   const email = getBookingEmailInput()?.value.trim() || "";
   const notes = getBookingNotesInput()?.value.trim() || "";
-  const durationMinutes = Number(getBookingDurationSelect()?.value || selectedDuration || 60);
+  const selection = getStaffSelectionValidity(profile);
+  const durationMinutes = selection.durationMinutes;
   const serviceType = getBookingServiceSelect()?.value || profile.skills?.[0] || "Creative session";
 
-  if (!selectedTime) {
+  if (!selection.valid) {
     setStatus("Choose an available time first.", true);
+    renderStaffBookingShell({ currentUser: state.currentUser });
     return;
   }
   if (!name || !phone) {
@@ -643,7 +955,7 @@ async function handleBookingSubmit(event) {
   const payload = {
     staff_profile_id: profile.id,
     service_type: serviceType,
-    start_time: buildTimeValue(selectedTime),
+    start_time: buildTimeValue(selection.selectedSlot.value),
     duration_minutes: durationMinutes,
     guest_name: name,
     guest_phone: phone,
@@ -692,27 +1004,70 @@ async function handleBookingSubmit(event) {
 function renderStaffCard(profile) {
   const rate = getStaffRateLabel(profile);
   const skills = (profile.skills || []).slice(0, 3);
-  const talents = (profile.talents || []).slice(0, 3);
   const isSelected = String(profile.id) === String(selectedStaffId);
+  const category = getStaffPrimaryCategory(profile);
+  const rating = getStaffRating(profile);
+  const description = profile.description || `Book ${profile.name} for focused studio support, creative direction, or production help.`;
+  const rateCents = getStaffRateCents(profile);
+  const priceMarkup = rateCents
+    ? `${formatCurrency(rateCents)}<span>/hr</span>`
+    : `Request<span>rate</span>`;
+  const featureLabels = [
+    category,
+    "5 hours max",
+    "Bookable now",
+  ];
   return `
-    <article class="staff-profile-card staff-bookable-card ${isSelected ? "is-selected" : ""}" data-staff-id="${escapeHtml(profile.id)}">
-      <div class="staff-profile-card-top">
-        ${renderStaffImage(profile.photo_url, profile.name)}
-        <div class="staff-option-copy">
-          <strong>${escapeHtml(profile.name)}</strong>
-          <span>${escapeHtml(profile.description || "Studio staff profile.")}</span>
+    <article class="room-card room-catalog-card staff-catalog-card ${isSelected ? "is-selected" : ""}" data-staff-id="${escapeHtml(profile.id)}">
+      <div class="room-catalog-media staff-catalog-media">
+        <img
+          class="room-card-image staff-catalog-image"
+          src="${escapeHtml(profile.photo_url || STAFF_PLACEHOLDER_IMAGE)}"
+          alt="${escapeHtml(profile.name)}"
+          loading="lazy"
+          onerror="this.onerror=null;this.src='${STAFF_PLACEHOLDER_IMAGE}';"
+        />
+        <div class="room-catalog-media-badges">
+          <span class="room-catalog-pill room-catalog-pill-category">${escapeHtml(category)}</span>
+          <span class="room-catalog-pill room-catalog-pill-status is-available">Available</span>
         </div>
       </div>
-      <div class="room-meta staff-card-rate-row">
-        <span class="pill">${escapeHtml(rate)}</span>
-        <span class="pill">Book staff</span>
-      </div>
-      ${renderTagGroup("Skills", skills)}
-      ${renderTagGroup("Talents", talents)}
-      <div class="staff-profile-card-actions">
-        <button class="primary-button staff-book-button" type="button" data-staff-book-button="${escapeHtml(profile.id)}">
-          Book staff
-        </button>
+      <div class="room-catalog-content">
+        <div class="room-catalog-title-row">
+          <h3 class="room-catalog-title ${isSelected ? "is-accent" : ""}">${escapeHtml(profile.name)}</h3>
+          <span class="room-catalog-rating"><span aria-hidden="true">★</span> ${rating.toFixed(1).replace(".0", "")}</span>
+        </div>
+        <p class="room-catalog-description">${escapeHtml(description)}</p>
+        <div class="room-catalog-feature-row" aria-label="Staff highlights">
+          ${featureLabels.map((label) => `<span>${escapeHtml(label)}</span>`).join("")}
+        </div>
+        <div class="availability-preview availability-preview-idle">
+          <span class="availability-label">Live openings</span>
+          <p>Select this staff member to load the same date, time, and checkout flow used for room bookings.</p>
+          ${
+            skills.length
+              ? `<div class="preview-pill-row">${skills.map((skill) => `<span class="pill">${escapeHtml(skill)}</span>`).join("")}</div>`
+              : ""
+          }
+        </div>
+        <div class="room-catalog-meta-row">
+          <span class="room-catalog-capacity">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <circle cx="10" cy="6.5" r="2.6"></circle>
+              <path d="M4.5 16c1-3 3.1-4.5 5.5-4.5s4.5 1.5 5.5 4.5"></path>
+            </svg>
+            Staff session
+          </span>
+          <strong class="room-catalog-price">${priceMarkup}</strong>
+        </div>
+        <div class="room-actions room-catalog-actions">
+          <button class="primary-button room-catalog-book-button staff-book-button" type="button" data-staff-book-button="${escapeHtml(profile.id)}">
+            Book now
+          </button>
+          <button class="ghost-button room-catalog-details-button staff-book-button-secondary" type="button" data-staff-book-button="${escapeHtml(profile.id)}">
+            Select
+          </button>
+        </div>
       </div>
     </article>
   `;
@@ -726,6 +1081,25 @@ export function initStaffDirectoryView() {
   viewBound = true;
 
   elements.staffTeamGrid?.addEventListener("click", handleTeamGridClick);
+  getStaffSearchInput()?.addEventListener("input", (event) => {
+    staffSearchQuery = event.target.value || "";
+    renderStaffDirectoryView(state);
+  });
+  getStaffCategoryBar()?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-staff-category]");
+    if (!button) {
+      return;
+    }
+    staffCategoryFilter = button.dataset.staffCategory || "all";
+    renderStaffDirectoryView(state);
+  });
+  getStaffFilterToggle()?.addEventListener("click", () => {
+    getStaffFilterPanel()?.classList.toggle("hidden");
+  });
+  getStaffSortSelect()?.addEventListener("change", (event) => {
+    staffSortMode = event.target.value || "recommended";
+    renderStaffDirectoryView(state);
+  });
   getTimeGrid()?.addEventListener("click", handleTimeGridClick);
   getBookingDateInput()?.addEventListener("change", async (event) => {
     selectedDate = event.target.value || selectedDate;
@@ -739,9 +1113,28 @@ export function initStaffDirectoryView() {
     selectedDuration = Number(getBookingDurationSelect()?.value || 60);
     renderStaffBookingShell({ currentUser: state.currentUser });
   });
+  getDurationDecreaseButton()?.addEventListener("click", () => {
+    const allowedDurations = getAllowedStaffDurations();
+    const currentIndex = allowedDurations.indexOf(getSelectedDurationMinutes());
+    selectedDuration = allowedDurations[Math.max(0, currentIndex - 1)] || selectedDuration;
+    renderStaffBookingShell({ currentUser: state.currentUser });
+  });
+  getDurationIncreaseButton()?.addEventListener("click", () => {
+    const allowedDurations = getAllowedStaffDurations();
+    const currentIndex = allowedDurations.indexOf(getSelectedDurationMinutes());
+    selectedDuration = allowedDurations[Math.min(allowedDurations.length - 1, currentIndex + 1)] || selectedDuration;
+    renderStaffBookingShell({ currentUser: state.currentUser });
+  });
   getBookingServiceSelect()?.addEventListener("change", () => {
     renderStaffBookingShell({ currentUser: state.currentUser });
   });
+  [getBookingNameInput(), getBookingPhoneInput(), getBookingEmailInput(), getBookingNotesInput()]
+    .filter(Boolean)
+    .forEach((input) => {
+      input.addEventListener("input", () => {
+        renderStaffBookingShell({ currentUser: state.currentUser });
+      });
+    });
   getBookingForm()?.addEventListener("submit", handleBookingSubmit);
 
   const initialProfileId = selectedStaffId;
@@ -789,9 +1182,15 @@ export function renderStaffDirectoryView(currentState) {
 
   if (elements.staffTeamGrid) {
     const profiles = staffProfilesCache.filter((profile) => profile?.active !== false);
-    elements.staffTeamGrid.innerHTML = profiles.length
-      ? profiles.map(renderStaffCard).join("")
-      : '<div class="empty-state">No public staff profiles yet. Add active staff profiles in admin to show them here.</div>';
+    renderStaffCategoryBar(profiles);
+    const visibleProfiles = getVisibleStaffProfiles(profiles);
+    const resultsCount = getStaffResultsCount();
+    if (resultsCount) {
+      resultsCount.textContent = `${visibleProfiles.length} staff member${visibleProfiles.length === 1 ? "" : "s"} found`;
+    }
+    elements.staffTeamGrid.innerHTML = visibleProfiles.length
+      ? visibleProfiles.map(renderStaffCard).join("")
+      : '<div class="empty-state">No staff matched those filters. Clear search or choose another specialty.</div>';
   }
 
   if (selectedStaffId && !staffProfilesCache.some((profile) => String(profile.id) === String(selectedStaffId))) {

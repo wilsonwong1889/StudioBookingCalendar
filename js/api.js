@@ -1,5 +1,5 @@
-import { API_BASE_URL } from "./config.js?v=20260401r";
-import { state } from "./state.js?v=20260401r";
+import { API_BASE_URL } from "./config.js?v=20260422d";
+import { state } from "./state.js?v=20260427a";
 
 async function request(path, options = {}) {
   const headers = new Headers(options.headers || {});
@@ -56,6 +56,12 @@ export const api = {
       body: formData,
     });
   },
+  loginWithGoogle(accessToken) {
+    return request("/api/auth/google/exchange", {
+      method: "POST",
+      body: JSON.stringify({ access_token: accessToken }),
+    });
+  },
   verifyTwoFactor(payload) {
     return request("/api/auth/verify-2fa", {
       method: "POST",
@@ -75,6 +81,14 @@ export const api = {
     return request("/api/users/me", {
       method: "PUT",
       body: JSON.stringify(payload),
+    });
+  },
+  uploadProfileAvatar(file) {
+    const formData = new FormData();
+    formData.append("photo", file);
+    return request("/api/users/me/avatar", {
+      method: "POST",
+      body: formData,
     });
   },
   deleteProfile(payload) {
@@ -102,8 +116,26 @@ export const api = {
   getBookings() {
     return request("/api/bookings");
   },
+  getBookingsFeed() {
+    return request("/api/bookings/feed").catch(() => request("/api/bookings"));
+  },
   getBooking(bookingId) {
     return request(`/api/bookings/${bookingId}`);
+  },
+  getBookingByKind(kind, bookingId) {
+    if (String(kind || "").toLowerCase() === "staff") {
+      return this.getStaffBooking(bookingId).catch(() => this.getBooking(bookingId));
+    }
+    return this.getBooking(bookingId);
+  },
+  getBookingReview(bookingId) {
+    return request(`/api/bookings/${bookingId}/review`);
+  },
+  saveBookingReview(bookingId, payload) {
+    return request(`/api/bookings/${bookingId}/review`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
   },
   getBookingPaymentSession(bookingId) {
     return request(`/api/bookings/${bookingId}/payment-session`, {
@@ -112,6 +144,12 @@ export const api = {
   },
   createBooking(payload) {
     return request("/api/bookings", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  createGuestBooking(payload) {
+    return request("/api/bookings/guest", {
       method: "POST",
       body: JSON.stringify(payload),
     });
@@ -130,6 +168,50 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     });
+  },
+  rescheduleBooking(bookingId, payload) {
+    return request(`/api/bookings/${bookingId}/reschedule`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  getStaffBooking(bookingId) {
+    return request(`/api/staff-bookings/${bookingId}`);
+  },
+  getStaffBookingPaymentSession(bookingId) {
+    return request(`/api/staff-bookings/${bookingId}/payment-session`, {
+      method: "POST",
+    });
+  },
+  cancelStaffBooking(bookingId, payload) {
+    return request(`/api/staff-bookings/${bookingId}/cancel`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  rescheduleStaffBooking(bookingId, payload) {
+    return request(`/api/staff-bookings/${bookingId}/reschedule`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  getStaffAvailability(staffId, date) {
+    return request(`/api/staff/${staffId}/availability?date=${date}`);
+  },
+  createStaffBooking(payload) {
+    return request("/api/staff-bookings", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  createGuestStaffBooking(payload) {
+    return request("/api/staff-bookings/guest", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  getRoomReviews(roomId, limit = 6) {
+    return request(`/api/rooms/${roomId}/reviews?limit=${limit}`);
   },
   createRoom(payload) {
     return request("/api/rooms", {
@@ -260,6 +342,16 @@ export const api = {
   },
   adminMarkBookingPaid(bookingId) {
     return request(`/api/admin/bookings/${bookingId}/mark-paid`, {
+      method: "POST",
+    });
+  },
+  adminWaiveStaffBookingPayment(bookingId) {
+    return request(`/api/admin/staff-bookings/${bookingId}/waive-payment`, {
+      method: "POST",
+    });
+  },
+  adminMarkStaffBookingPaid(bookingId) {
+    return request(`/api/admin/staff-bookings/${bookingId}/mark-paid`, {
       method: "POST",
     });
   },

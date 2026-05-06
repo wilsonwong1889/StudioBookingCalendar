@@ -4,49 +4,51 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Room Detail | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260401z" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260505c" />
   </head>
   <body data-page="room">
     <div class="site-frame">
-      <header class="site-header">
-        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+      <header class="site-header site-header-simple site-header-public">
+        <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
+          <span class="brand-mark-icon" aria-hidden="true">♪</span>
+          <span class="brand-mark-label">StudioBook</span>
+        </a>
         <nav class="site-nav" aria-label="Primary">
           <a class="nav-link" href="/">Home</a>
-          <a class="nav-link" href="/info">Info</a>
           <a class="nav-link" href="/staff">Staff</a>
-          <a class="nav-link" href="/faq">FAQ</a>
-          <a class="nav-link" href="/contact">Contact</a>
-          <a class="nav-link is-active" href="/rooms">Rooms</a>
+          <a class="nav-link is-active" href="/rooms" aria-current="page">Rooms</a>
           <a class="nav-link" href="/bookings">Bookings</a>
-          <a class="nav-link" href="/account">Account</a>
-          <a class="nav-link" href="/admin">Admin</a>
+          <a class="nav-link" href="/info">Help</a>
         </nav>
-        <div class="header-side">
-          <div class="header-actions">
-            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Sign in</a>
-            <a id="header-secondary-link" class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
-            <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
-          </div>
-          <div class="status-strip">
-            <div class="status-chip">
-              <span class="status-chip-label">Backend</span>
-              <strong id="health-status">Checking...</strong>
-              <span id="health-detail" class="status-detail">Waiting for health probe.</span>
-            </div>
-            <div class="status-chip">
-              <span class="status-chip-label">Session</span>
-              <strong id="session-status">Signed out</strong>
-              <span id="session-detail" class="status-detail">Create an account or log in to continue.</span>
+        <div class="header-actions">
+          <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
+          <a id="header-secondary-link" class="primary-button site-header-book-button" href="/account?mode=signup">Create account</a>
+          <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
+            <button
+              id="header-user-trigger"
+              class="ghost-button header-user-trigger"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            >
+              <span id="header-user-email" class="header-user-trigger-label">account@example.com</span>
+              <span class="header-user-trigger-caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="header-user-menu" class="header-user-menu hidden" role="menu" aria-label="Account menu">
+              <a id="header-profile-link" class="header-user-menu-item is-primary" href="/account" role="menuitem">My Profile</a>
+              <a id="header-bookings-link" class="header-user-menu-item" href="/bookings" role="menuitem">My Bookings</a>
+              <a id="header-admin-link" class="header-user-menu-item hidden" href="/admin" role="menuitem">Admin</a>
+              <button id="header-logout-button" class="header-user-menu-item header-user-menu-signout" type="button" role="menuitem">Sign Out</button>
             </div>
           </div>
         </div>
       </header>
 
       <main class="page-grid">
-        <section class="hero-card hero-card-wide">
-          <p class="eyebrow">Room detail</p>
-          <h1>Inspect one room without losing the rest of the navigation.</h1>
-          <p class="hero-copy">Use this page to review the room setup, pricing, and room imagery before jumping into the booking flow.</p>
+        <section class="hero-card hero-card-wide rooms-hero-polish">
+          <p class="eyebrow">Studio detail</p>
+          <h1>Review the room and continue to booking.</h1>
+          <p class="hero-copy">Use the gallery, live summary, and booking panel to decide quickly before you reserve.</p>
         </section>
 
         <section class="panel panel-wide">
@@ -54,32 +56,80 @@
             Choose a room from the catalog to load its detail page.
           </div>
 
-          <article id="room-detail-card" class="detail-card hidden">
-            <div class="detail-card-header">
-              <div>
-                <p class="panel-kicker">Room</p>
+          <article id="room-detail-card" class="room-detail-shell hidden">
+            <div class="room-detail-main">
+              <a class="room-detail-back" href="/rooms">← Back to Studios</a>
+              <div id="room-detail-photos" class="room-detail-gallery"></div>
+              <div class="room-detail-copy">
+                <div id="room-detail-meta" class="room-meta"></div>
                 <h2 id="room-detail-title">Room</h2>
+                <p id="room-detail-description" class="panel-copy"></p>
+                <div id="room-detail-amenities" class="room-detail-amenities"></div>
               </div>
-              <a id="room-detail-booking-link" class="primary-button" href="/bookings">Book this room</a>
+              <div class="detail-section">
+                <h3>Available staff profiles</h3>
+                <div id="room-detail-staff-list" class="detail-stack"></div>
+              </div>
+              <div class="detail-section">
+                <h3>Reviews</h3>
+                <p id="room-detail-reviews-summary" class="panel-copy">Reviews will appear here after sessions are completed.</p>
+                <div id="room-detail-reviews-list" class="detail-stack"></div>
+              </div>
             </div>
-            <p id="room-detail-description" class="panel-copy"></p>
-            <div id="room-detail-meta" class="room-meta"></div>
-            <div class="detail-section">
-              <h3>Available staff profiles</h3>
-              <div id="room-detail-staff-list" class="detail-stack"></div>
-            </div>
-            <div class="detail-section">
-              <h3>Room gallery</h3>
-              <div id="room-detail-photos" class="media-grid"></div>
-            </div>
+            <aside class="room-detail-booking-panel">
+              <div class="room-detail-booking-price-row">
+                <strong id="room-detail-price">$0</strong>
+                <span>per hour</span>
+              </div>
+              <div id="room-detail-booking-copy" class="panel-copy">
+                Choose this studio to move into live availability, duration, and Stripe checkout.
+              </div>
+              <div id="room-detail-trust-strip" class="room-meta"></div>
+              <div class="room-detail-booking-actions">
+                <a id="room-detail-booking-link" class="primary-button" href="/reserve">Reserve this studio</a>
+                <a id="room-detail-reserve-link" class="ghost-button ghost-link" href="/rooms">Back to all studios</a>
+              </div>
+            </aside>
           </article>
         </section>
       </main>
 
-      <footer class="signal-ribbon">
-        <div class="signal-panel">
-          <strong>Activity</strong>
-          <div id="app-message" class="signal-copy">Frontend booting.</div>
+      <footer class="studio-footer">
+        <div class="studio-footer-grid">
+          <div class="studio-footer-brand">
+            <div class="studio-footer-logo">StudioBook</div>
+            <p>Premium studio spaces for creators. Book recording, podcast, photo, and production rooms on-demand.</p>
+            <div class="signal-panel studio-footer-status">
+              <strong>Status</strong>
+              <div id="app-message" class="signal-copy">Frontend booting.</div>
+            </div>
+          </div>
+          <div>
+            <h3>Explore</h3>
+            <a href="/rooms">All Studios</a>
+            <a href="/info">How It Works</a>
+            <a href="/contact">Pricing</a>
+          </div>
+          <div>
+            <h3>Account</h3>
+            <a href="/account">Sign In</a>
+            <a href="/bookings">My Bookings</a>
+            <a href="/account">Profile</a>
+          </div>
+          <div>
+            <h3>Company</h3>
+            <a href="/info">About</a>
+            <a href="/contact">Contact</a>
+            <a href="/faq">Support</a>
+          </div>
+        </div>
+        <div class="studio-footer-bottom">
+          <span>© 2026 StudioBook. All rights reserved.</span>
+          <div class="studio-footer-inline-links">
+            <a href="/faq">Privacy</a>
+            <a href="/faq">Terms</a>
+            <a href="/faq">Cookies</a>
+          </div>
         </div>
       </footer>
       <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
@@ -95,6 +145,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260401r"></script>
+    <script type="module" src="/assets/js/main.js?v=20260427a"></script>
   </body>
 </html>

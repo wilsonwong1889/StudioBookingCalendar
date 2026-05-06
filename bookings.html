@@ -4,178 +4,186 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bookings | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260409c" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260505c" />
   </head>
   <body data-page="bookings">
     <div class="site-frame">
-      <header class="site-header">
-        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+      <header class="site-header site-header-simple site-header-public">
+        <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
+          <span class="brand-mark-icon" aria-hidden="true">♪</span>
+          <span class="brand-mark-label">StudioBook</span>
+        </a>
         <nav class="site-nav" aria-label="Primary">
           <a class="nav-link" href="/">Home</a>
-          <a class="nav-link" href="/info">Info</a>
           <a class="nav-link" href="/staff">Staff</a>
-          <a class="nav-link" href="/faq">FAQ</a>
-          <a class="nav-link" href="/contact">Contact</a>
           <a class="nav-link" href="/rooms">Rooms</a>
-          <a class="nav-link is-active" href="/bookings">Bookings</a>
-          <a class="nav-link" href="/account">Account</a>
-          <a class="nav-link" href="/admin">Admin</a>
+          <a class="nav-link is-active" href="/bookings" aria-current="page">Bookings</a>
+          <a class="nav-link" href="/info">Help</a>
         </nav>
-        <div class="header-side">
-          <div class="header-actions">
-            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Sign in</a>
-            <a id="header-secondary-link" class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
-            <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
-          </div>
-          <div class="status-strip">
-            <div class="status-chip">
-              <span class="status-chip-label">Backend</span>
-              <strong id="health-status">Checking...</strong>
-              <span id="health-detail" class="status-detail">Waiting for health probe.</span>
-            </div>
-            <div class="status-chip">
-              <span class="status-chip-label">Session</span>
-              <strong id="session-status">Signed out</strong>
-              <span id="session-detail" class="status-detail">Create an account or log in to continue.</span>
+        <div class="header-actions">
+          <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
+          <a id="header-secondary-link" class="primary-button site-header-book-button" href="/account?mode=signup">Create account</a>
+          <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
+            <button
+              id="header-user-trigger"
+              class="ghost-button header-user-trigger"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            >
+              <span id="header-user-email" class="header-user-trigger-label">account@example.com</span>
+              <span class="header-user-trigger-caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="header-user-menu" class="header-user-menu hidden" role="menu" aria-label="Account menu">
+              <a id="header-profile-link" class="header-user-menu-item is-primary" href="/account" role="menuitem">My Profile</a>
+              <a id="header-bookings-link" class="header-user-menu-item" href="/bookings" role="menuitem">My Bookings</a>
+              <a id="header-admin-link" class="header-user-menu-item hidden" href="/admin" role="menuitem">Admin</a>
+              <button id="header-logout-button" class="header-user-menu-item header-user-menu-signout" type="button" role="menuitem">Sign Out</button>
             </div>
           </div>
         </div>
       </header>
 
-      <main class="page-grid booking-page-grid">
-        <section class="hero-card hero-card-wide">
-          <p class="eyebrow">Bookings</p>
-          <h1>Check room availability, then sign in when you are ready to book.</h1>
-          <p class="hero-copy">
-            Guests can browse available rooms and start times here. Sessions can run from 1 hour up to the maximum allowed for that room between 10am and 6pm.
-          </p>
+      <main class="page-grid page-grid-public booking-page-grid">
+        <section class="booking-history-intro">
+          <p class="eyebrow">Your reservations</p>
+          <h1>My Bookings</h1>
+          <p class="hero-copy">Manage room and staff bookings in one place without switching flows.</p>
         </section>
 
-        <section class="panel booking-planner-panel">
-          <div class="panel-header">
-            <p class="panel-kicker">Availability</p>
-            <h2>Build your session</h2>
-          </div>
-
-          <div id="booking-empty" class="empty-state">
-            Guests can browse availability. Log in on the account page when you are ready to complete a booking.
-          </div>
-
-          <form id="availability-form" class="stack-form booking-toolbar-form">
-            <label class="inline-field">
-              <span>Room</span>
-              <select id="booking-room-select" name="room_id"></select>
-            </label>
-            <label class="inline-field">
-              <span>Date</span>
-              <input id="booking-date-input" type="date" name="date" />
-            </label>
-            <button class="ghost-button" type="submit">Check availability</button>
-          </form>
-
-          <div id="availability-summary" class="empty-state hidden"></div>
-
-          <div id="booking-slot-list" class="slot-grid hidden"></div>
-
-          <form id="booking-form" class="stack-form booking-form">
-            <label class="inline-field hidden">
-              <span>Start time</span>
-              <select id="booking-start-select" name="start_time"></select>
-            </label>
-            <label class="inline-field">
-              <span>Duration</span>
-              <select id="booking-duration-select" name="duration_minutes" required>
-                <option value="60">1 hour</option>
-              </select>
-            </label>
-            <div id="booking-staff-section" class="profile-span-2 booking-staff-shell">
-              <div class="booking-staff-header">
-                <div>
-                  <span class="booking-staff-title">Available staff for this room</span>
-                  <p class="field-help">Select optional staff support for this session. Staff profiles appear here with photos when the room offers them.</p>
-                </div>
-                <span class="pill hidden" data-booking-staff-count></span>
-              </div>
-              <div class="empty-state" data-booking-staff-empty>Choose a room to preview available staff for this session.</div>
-              <div id="booking-staff-options" class="staff-options hidden"></div>
+        <section id="booking-history-panel" class="panel panel-wide booking-history-shell booking-history-shell-primary">
+          <div class="booking-history-tabs-row booking-history-type-row">
+            <div class="booking-history-tabs" role="tablist" aria-label="Booking types">
+              <button
+                id="booking-history-all-tab"
+                class="pill booking-history-tab is-active"
+                type="button"
+                role="tab"
+                aria-selected="true"
+              >
+                All
+                <span id="booking-history-all-count" class="booking-history-tab-count">0</span>
+              </button>
+              <button
+                id="booking-history-rooms-tab"
+                class="pill booking-history-tab"
+                type="button"
+                role="tab"
+                aria-selected="false"
+              >
+                Rooms
+                <span id="booking-history-rooms-count" class="booking-history-tab-count">0</span>
+              </button>
+              <button
+                id="booking-history-staff-tab"
+                class="pill booking-history-tab"
+                type="button"
+                role="tab"
+                aria-selected="false"
+              >
+                Staff
+                <span id="booking-history-staff-count" class="booking-history-tab-count">0</span>
+              </button>
             </div>
-            <label class="profile-span-2">
-              <span>Booking notes</span>
-              <textarea id="booking-note-input" name="note" rows="3" placeholder="Session details, guests, or special requests"></textarea>
-            </label>
-            <div class="profile-span-2 booking-promo-shell">
-              <div class="booking-promo-toolbar">
-                <label class="inline-field booking-promo-field">
-                  <span>Promo code</span>
-                  <input id="booking-promo-code-input" type="text" name="promo_code" placeholder="FOUNDATION10" autocomplete="off" />
-                </label>
-                <button id="booking-promo-preview-button" class="ghost-button" type="button">Apply code</button>
-              </div>
-              <div id="booking-promo-feedback" class="empty-state hidden"></div>
+            <div class="booking-history-actions">
+              <a id="booking-history-room-link" class="ghost-button ghost-link booking-history-book-link" href="/rooms">Book room</a>
+              <a id="booking-history-staff-link" class="ghost-button ghost-link booking-history-book-link" href="/staff">Book staff</a>
             </div>
-            <button class="primary-button" type="submit">Save 5-minute spot hold</button>
-          </form>
-        </section>
-
-        <section id="booking-summary-card" class="panel booking-summary-panel">
-          <div class="panel-header">
-            <p class="panel-kicker">Selection</p>
-            <h2 id="booking-summary-title">Pick a room and date</h2>
           </div>
-          <div id="booking-summary-meta" class="detail-stack">
-            <div class="empty-state">Choose a room and load availability to see your selection details here.</div>
-          </div>
-        </section>
 
-        <section id="booking-history-panel" class="panel panel-wide booking-history-shell">
-          <div class="booking-history-layout">
-            <div class="booking-history-priority">
+          <div class="booking-history-section-top booking-history-tabs-row">
+            <div class="booking-history-tabs" role="tablist" aria-label="Booking sections" style="display:flex;flex-wrap:wrap;gap:8px;">
+              <button
+                id="booking-history-upcoming-tab"
+                class="pill booking-history-tab is-active"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                aria-controls="booking-history-upcoming-panel"
+                style="border:0;appearance:none;"
+              >
+                Upcoming
+                <span id="booking-history-upcoming-count" class="booking-history-tab-count">0</span>
+              </button>
+              <button
+                id="booking-history-history-tab"
+                class="pill booking-history-tab"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="booking-history-history-panel"
+                style="border:0;appearance:none;"
+              >
+                Past &amp; cancelled
+                <span id="booking-history-history-count" class="booking-history-tab-count">0</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="recent-bookings-shell" class="booking-history-shell">
+            <section id="booking-history-upcoming-panel" class="booking-history-panel" role="tabpanel" aria-labelledby="booking-history-upcoming-tab">
               <div class="panel-header booking-history-section-header">
-                <p class="panel-kicker">Pending</p>
+                <p class="panel-kicker">Upcoming</p>
                 <div class="booking-history-section-top">
-                  <h2>Complete your saved bookings</h2>
+                  <h2>Upcoming reservations</h2>
                   <span id="pending-bookings-count" class="pill hidden"></span>
                 </div>
-                <p class="panel-copy">Finish payment before the timer ends or the room opens back up for someone else.</p>
+                <p class="panel-copy">Finish payment if needed, or open a reservation to manage the room, notes, and guest details.</p>
               </div>
               <div id="pending-bookings-list" class="booking-list"></div>
-            </div>
+            </section>
 
-            <details id="recent-bookings-shell" class="booking-history-dropdown">
-              <summary class="booking-history-summary">
-                <div class="booking-history-summary-copy">
-                  <p class="panel-kicker">Recent</p>
-                  <h3>Your recent bookings</h3>
-                  <p>Open this dropdown to review completed, paid, refunded, or cancelled bookings in grouped order.</p>
+            <section id="booking-history-history-panel" class="booking-history-panel hidden" role="tabpanel" aria-labelledby="booking-history-history-tab">
+              <div class="panel-header booking-history-section-header">
+                <p class="panel-kicker">History</p>
+                <div class="booking-history-section-top">
+                  <h2>Past &amp; cancelled</h2>
+                  <span id="recent-bookings-count" class="pill">0 bookings</span>
                 </div>
-                <span id="recent-bookings-count" class="pill">0 bookings</span>
-              </summary>
-              <div class="booking-history-toolbar">
-                <label class="inline-field">
-                  <span>Search</span>
-                  <input id="recent-bookings-search" type="search" placeholder="Booking code, room, note" />
-                </label>
-                <label class="inline-field">
-                  <span>Status</span>
-                  <select id="recent-bookings-status-filter">
-                    <option value="all">All recent statuses</option>
-                    <option value="Completed">Completed / checked in</option>
-                    <option value="Paid">Paid</option>
-                    <option value="Refunded">Refunded</option>
-                    <option value="Cancelled">Cancelled</option>
-                  </select>
-                </label>
+                <p class="panel-copy">Completed, refunded, and cancelled bookings stay grouped here for quick reference.</p>
               </div>
               <div id="recent-bookings-list" class="booking-list booking-list-secondary"></div>
-            </details>
+            </section>
           </div>
         </section>
       </main>
 
-      <footer class="signal-ribbon">
-        <div class="signal-panel">
-          <strong>Activity</strong>
-          <div id="app-message" class="signal-copy">Frontend booting.</div>
+      <footer class="studio-footer studio-footer-compact">
+        <div class="studio-footer-grid">
+          <div class="studio-footer-brand">
+            <div class="studio-footer-logo">StudioBook</div>
+            <p>Premium studio spaces for creators. Book recording, podcast, photo and film studios on-demand.</p>
+            <p class="studio-footer-support-copy">
+              Questions about a booking or studio availability?
+              <a href="mailto:hello@studiobook.app">hello@studiobook.app</a>
+            </p>
+          </div>
+          <div>
+            <h3>Explore</h3>
+            <a href="/rooms">All Studios</a>
+            <a href="/info">How It Works</a>
+            <a href="/contact">Contact</a>
+          </div>
+          <div>
+            <h3>Account</h3>
+            <a href="/account">My Profile</a>
+            <a href="/bookings">My Bookings</a>
+            <a href="/faq">Support</a>
+          </div>
+          <div>
+            <h3>Company</h3>
+            <a href="/info">About</a>
+            <a href="/contact">Contact</a>
+            <a href="/faq">Support</a>
+          </div>
+        </div>
+        <div class="studio-footer-bottom">
+          <span>© 2026 StudioBook. All rights reserved.</span>
+          <div class="studio-footer-inline-links">
+            <a href="/faq">Privacy</a>
+            <a href="/faq">Terms</a>
+            <a href="/faq">Cookies</a>
+          </div>
         </div>
       </footer>
       <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
@@ -191,6 +199,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260409c"></script>
+    <script type="module" src="/assets/js/main.js?v=20260427a"></script>
   </body>
 </html>

@@ -1,4 +1,4 @@
-import { elements, setText } from "../dom.js?v=20260401r";
+import { elements, setText } from "../dom.js?v=20260427a";
 
 export function renderStatus(state) {
   if (!elements.healthStatus || !elements.healthDetail || !elements.sessionStatus || !elements.sessionDetail) {
@@ -39,10 +39,15 @@ export function renderStatus(state) {
       "status-detail",
     );
   } else {
+    const signedOutDetail = new Set(["home", "bookings", "reserve", "booking", "rooms", "info", "faq", "contact"]).has(
+      document.body?.dataset.page,
+    )
+      ? "Continue as guest where available, or sign in to manage bookings."
+      : "Create an account or log in to continue.";
     setText(elements.sessionStatus, "Signed out", "");
     setText(
       elements.sessionDetail,
-      "Create an account or log in to continue.",
+      signedOutDetail,
       "status-detail",
     );
   }

@@ -4,149 +4,226 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Reserve Room | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260409c" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260505c" />
   </head>
   <body data-page="reserve">
     <div class="site-frame">
-      <header class="site-header">
-        <a class="brand-mark" href="/">StudioBookingSoftware</a>
+      <header class="site-header site-header-simple site-header-public">
+        <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
+          <span class="brand-mark-icon" aria-hidden="true">♪</span>
+          <span class="brand-mark-label">StudioBook</span>
+        </a>
         <nav class="site-nav" aria-label="Primary">
           <a class="nav-link" href="/">Home</a>
-          <a class="nav-link" href="/info">Info</a>
           <a class="nav-link" href="/staff">Staff</a>
-          <a class="nav-link" href="/faq">FAQ</a>
-          <a class="nav-link" href="/contact">Contact</a>
-          <a class="nav-link" href="/rooms">Rooms</a>
-          <a class="nav-link is-active" href="/bookings">Bookings</a>
-          <a class="nav-link" href="/account">Account</a>
-          <a class="nav-link" href="/admin">Admin</a>
+          <a class="nav-link is-active" href="/rooms" aria-current="page">Rooms</a>
+          <a class="nav-link" href="/bookings">Bookings</a>
+          <a class="nav-link" href="/info">Help</a>
         </nav>
-        <div class="header-side">
-          <div class="header-actions">
-            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Sign in</a>
-            <a id="header-secondary-link" class="ghost-button ghost-link" href="/rooms">Browse rooms</a>
-            <button id="header-logout-button" class="ghost-button hidden" type="button">Log out</button>
-          </div>
-          <div class="status-strip">
-            <div class="status-chip">
-              <span class="status-chip-label">Backend</span>
-              <strong id="health-status">Checking...</strong>
-              <span id="health-detail" class="status-detail">Waiting for health probe.</span>
-            </div>
-            <div class="status-chip">
-              <span class="status-chip-label">Session</span>
-              <strong id="session-status">Signed out</strong>
-              <span id="session-detail" class="status-detail">Create an account or log in to continue.</span>
+        <div class="header-actions">
+          <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
+          <a id="header-secondary-link" class="primary-button site-header-book-button" href="/account?mode=signup">Create account</a>
+          <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
+            <button
+              id="header-user-trigger"
+              class="ghost-button header-user-trigger"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            >
+              <span id="header-user-email" class="header-user-trigger-label">account@example.com</span>
+              <span class="header-user-trigger-caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="header-user-menu" class="header-user-menu hidden" role="menu" aria-label="Account menu">
+              <a id="header-profile-link" class="header-user-menu-item is-primary" href="/account" role="menuitem">My Profile</a>
+              <a id="header-bookings-link" class="header-user-menu-item" href="/bookings" role="menuitem">My Bookings</a>
+              <a id="header-admin-link" class="header-user-menu-item hidden" href="/admin" role="menuitem">Admin</a>
+              <button id="header-logout-button" class="header-user-menu-item header-user-menu-signout" type="button" role="menuitem">Sign Out</button>
             </div>
           </div>
         </div>
       </header>
 
       <main class="page-grid reserve-page-grid">
-        <section class="hero-card hero-card-wide">
-          <p class="eyebrow">Room booking</p>
-          <h1 id="reserve-room-title">Choose a room to see today’s openings.</h1>
-          <p id="reserve-room-copy" class="hero-copy">
-            Open a room from the catalog to review available sessions up to that room's maximum duration for a specific day and browse the full month below.
-          </p>
-        </section>
-
         <section id="reserve-empty" class="panel panel-wide">
           <div class="empty-state">
             Pick a room from the rooms page to load its dedicated booking screen.
           </div>
         </section>
 
-        <section id="reserve-planner-panel" class="panel reserve-planner hidden">
-          <div class="panel-header">
-            <p class="panel-kicker">Day planner</p>
-            <h2>Available times for the selected day</h2>
-            <p class="panel-copy">Choose a date, review open start times, then create the booking from this room page.</p>
+        <section id="reserve-summary-panel" class="panel panel-wide reserve-studio-shell hidden">
+          <div class="reserve-studio-main">
+            <a class="room-detail-back" href="/rooms">← Back to Studios</a>
+            <div id="reserve-room-photos" class="room-detail-gallery"></div>
+            <div class="reserve-studio-copy">
+              <div id="reserve-room-meta" class="room-meta"></div>
+              <h1 id="reserve-room-title">Choose a room to see today’s openings.</h1>
+              <p id="reserve-room-copy" class="panel-copy">
+                Open a room from the catalog to review available sessions up to that room's maximum duration for a specific day, browse the full month below, and continue as a guest if you do not want to sign in.
+              </p>
+              <div id="reserve-room-amenities" class="room-detail-amenities"></div>
+            </div>
           </div>
 
-          <div class="reserve-toolbar">
-            <label class="inline-field">
-              <span>Date</span>
-              <input id="reserve-date-input" type="date" />
-            </label>
-            <button id="reserve-date-button" class="ghost-button" type="button">Load times</button>
-          </div>
-
-          <div id="reserve-availability-summary" class="empty-state"></div>
-          <div id="reserve-slot-list" class="slot-grid hidden"></div>
-
-          <form id="reserve-booking-form" class="stack-form booking-form">
-            <label class="inline-field hidden">
-              <span>Start time</span>
-              <select id="reserve-start-select" name="start_time"></select>
-            </label>
-            <label class="inline-field">
-              <span>Duration</span>
-              <select id="reserve-duration-select" name="duration_minutes" required>
-                <option value="60">1 hour</option>
-              </select>
-            </label>
-            <label class="profile-span-2">
-              <span>Booking notes</span>
-              <textarea id="reserve-note-input" name="note" rows="3" placeholder="Session details, guests, or special requests"></textarea>
-            </label>
-            <div class="profile-span-2 booking-promo-shell">
-              <div class="booking-promo-toolbar">
-                <label class="inline-field booking-promo-field">
-                  <span>Promo code</span>
-                  <input id="reserve-promo-code-input" type="text" name="promo_code" placeholder="FOUNDATION10" autocomplete="off" />
-                </label>
-                <button id="reserve-promo-preview-button" class="ghost-button" type="button">Apply code</button>
+          <aside id="reserve-planner-panel" class="reserve-booking-sidebar hidden">
+            <div id="reserve-step-list" class="reserve-step-list" aria-label="Booking progress">
+              <div class="reserve-step-item is-active" data-reserve-step="date">
+                <span>1</span>
+                <strong>Date</strong>
               </div>
-              <div id="reserve-promo-feedback" class="empty-state hidden"></div>
+              <div class="reserve-step-item" data-reserve-step="time">
+                <span>2</span>
+                <strong>Time</strong>
+              </div>
+              <div class="reserve-step-item" data-reserve-step="details">
+                <span>3</span>
+                <strong>Details</strong>
+              </div>
+              <div class="reserve-step-item" data-reserve-step="checkout">
+                <span>4</span>
+                <strong>Checkout</strong>
+              </div>
             </div>
-            <div id="reserve-staff-section" class="profile-span-2 hidden">
-              <span>Additional staff</span>
-              <p class="field-help">Select any staff profiles you'd like to add to this booking.</p>
-              <div id="reserve-staff-options" class="staff-options"></div>
-            </div>
-            <button id="reserve-submit-button" class="primary-button" type="submit">Create pending booking</button>
-          </form>
-        </section>
+            <input id="reserve-date-input" type="date" class="hidden" />
+            <button id="reserve-date-button" class="hidden" type="button">Load times</button>
 
-        <section id="reserve-summary-panel" class="panel reserve-summary hidden">
-          <div class="panel-header">
-            <p class="panel-kicker">Selection</p>
-            <h2 id="reserve-summary-title">Pick a time</h2>
-          </div>
-          <div id="reserve-summary-meta" class="detail-stack">
-            <div class="empty-state">Select a date to review the room availability.</div>
-          </div>
-        </section>
+            <section id="reserve-calendar-panel" class="reserve-booking-section hidden">
+              <div class="reserve-calendar-header reserve-calendar-header-tight">
+                <button id="reserve-prev-month" class="reserve-calendar-nav" type="button" aria-label="Previous month">‹</button>
+                <h2 id="reserve-calendar-title">Availability by day</h2>
+                <button id="reserve-next-month" class="reserve-calendar-nav" type="button" aria-label="Next month">›</button>
+              </div>
+              <div class="calendar-weekdays reserve-calendar-weekdays">
+                <span>Su</span>
+                <span>Mo</span>
+                <span>Tu</span>
+                <span>We</span>
+                <span>Th</span>
+                <span>Fr</span>
+                <span>Sa</span>
+              </div>
+              <div id="reserve-month-grid" class="calendar-grid reserve-calendar-grid"></div>
+            </section>
 
-        <section id="reserve-calendar-panel" class="panel panel-wide hidden">
-          <div class="panel-header reserve-calendar-header">
-            <div>
-              <p class="panel-kicker">Month view</p>
-              <h2 id="reserve-calendar-title">Availability by day</h2>
+            <form id="reserve-booking-form" class="stack-form reserve-booking-form">
+              <label class="inline-field hidden">
+                <span>Start time</span>
+                <select id="reserve-start-select" name="start_time"></select>
+              </label>
+              <label class="inline-field hidden">
+                <span>Duration</span>
+                <select id="reserve-duration-select" name="duration_minutes" required>
+                  <option value="60">1 hour</option>
+                </select>
+              </label>
+
+              <section class="reserve-booking-section">
+                <div class="reserve-section-heading">
+                  <strong>Select Time</strong>
+                </div>
+                <div id="reserve-availability-summary" class="reserve-helper-copy"></div>
+                <div id="reserve-slot-list" class="slot-grid reserve-slot-grid hidden"></div>
+              </section>
+
+            <section class="reserve-booking-section">
+              <div class="reserve-section-heading">
+                <strong>Duration</strong>
+              </div>
+              <div class="reserve-duration-stepper">
+                  <button id="reserve-duration-decrease" class="reserve-duration-button" type="button" aria-label="Decrease duration">−</button>
+                  <div class="reserve-duration-value">
+                    <strong id="reserve-duration-display">1</strong>
+                    <span id="reserve-duration-unit">hour</span>
+                </div>
+                <button id="reserve-duration-increase" class="reserve-duration-button" type="button" aria-label="Increase duration">+</button>
+              </div>
+            </section>
+
+            <div id="reserve-guest-fields" class="guest-booking-fields hidden">
+              <p class="form-note">Continue as a guest with your name and phone number.</p>
+              <div class="profile-grid profile-grid-tight">
+                <label>
+                  <span>Name</span>
+                  <input id="reserve-guest-name" type="text" autocomplete="name" />
+                </label>
+                <label>
+                  <span>Phone number</span>
+                  <input id="reserve-guest-phone" type="tel" autocomplete="tel" />
+                </label>
+              </div>
             </div>
-            <div class="reserve-calendar-actions">
-              <button id="reserve-prev-month" class="ghost-button" type="button">Previous</button>
-              <button id="reserve-next-month" class="ghost-button" type="button">Next</button>
+
+            <div id="reserve-summary-meta" class="reserve-price-stack">
+              <div class="empty-state">Select a date to review the room availability.</div>
             </div>
-          </div>
-          <div class="calendar-weekdays">
-            <span>Sun</span>
-            <span>Mon</span>
-            <span>Tue</span>
-            <span>Wed</span>
-            <span>Thu</span>
-            <span>Fri</span>
-            <span>Sat</span>
-          </div>
-          <div id="reserve-month-grid" class="calendar-grid"></div>
+
+            <details class="reserve-advanced-details">
+                <summary>Optional details</summary>
+                <div class="reserve-advanced-body">
+                  <label class="profile-span-2">
+                    <span>Booking notes</span>
+                    <textarea id="reserve-note-input" name="note" rows="3" placeholder="Session details, guests, or special requests"></textarea>
+                  </label>
+                  <div class="profile-span-2 booking-promo-shell">
+                    <div class="booking-promo-toolbar">
+                      <label class="inline-field booking-promo-field">
+                        <span>Promo code</span>
+                        <input id="reserve-promo-code-input" type="text" name="promo_code" placeholder="FOUNDATION10" autocomplete="off" />
+                      </label>
+                      <button id="reserve-promo-preview-button" class="ghost-button" type="button">Apply code</button>
+                    </div>
+                    <div id="reserve-promo-feedback" class="empty-state hidden"></div>
+                  </div>
+                  <div id="reserve-staff-section" class="profile-span-2 hidden">
+                    <span>Additional staff</span>
+                    <p class="field-help">Select any staff profiles you'd like to add to this booking.</p>
+                    <div id="reserve-staff-options" class="staff-options"></div>
+                  </div>
+                </div>
+              </details>
+
+              <button id="reserve-submit-button" class="primary-button reserve-confirm-button" type="submit">Continue to checkout</button>
+            </form>
+          </aside>
         </section>
       </main>
 
-      <footer class="signal-ribbon">
-        <div class="signal-panel">
-          <strong>Activity</strong>
-          <div id="app-message" class="signal-copy">Frontend booting.</div>
+      <footer class="studio-footer">
+        <div class="studio-footer-grid">
+          <div class="studio-footer-brand">
+            <div class="studio-footer-logo">StudioBook</div>
+            <p>Premium studio spaces for creators. Book recording, podcast, photo, and production rooms on-demand.</p>
+            <div class="signal-panel studio-footer-status">
+              <strong>Status</strong>
+              <div id="app-message" class="signal-copy">Frontend booting.</div>
+            </div>
+          </div>
+          <div>
+            <h3>Explore</h3>
+            <a href="/rooms">All Studios</a>
+            <a href="/info">How It Works</a>
+            <a href="/contact">Pricing</a>
+          </div>
+          <div>
+            <h3>Account</h3>
+            <a href="/account">Sign In</a>
+            <a href="/bookings">My Bookings</a>
+            <a href="/account">Profile</a>
+          </div>
+          <div>
+            <h3>Company</h3>
+            <a href="/info">About</a>
+            <a href="/contact">Contact</a>
+            <a href="/faq">Support</a>
+          </div>
+        </div>
+        <div class="studio-footer-bottom">
+          <span>© 2026 StudioBook. All rights reserved.</span>
+          <div class="studio-footer-inline-links">
+            <a href="/faq">Privacy</a>
+            <a href="/faq">Terms</a>
+            <a href="/faq">Cookies</a>
+          </div>
         </div>
       </footer>
       <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
@@ -162,6 +239,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260409c"></script>
+    <script type="module" src="/assets/js/main.js?v=20260505b"></script>
   </body>
 </html>
