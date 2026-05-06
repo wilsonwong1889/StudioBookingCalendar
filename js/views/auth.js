@@ -640,7 +640,7 @@ export function renderAuthView(state) {
   if (elements.headerSecondaryLink) {
     const isHomePage = document.body?.dataset?.page === "home";
     elements.headerSecondaryLink.href = state.currentUser || isHomePage ? "/rooms" : "/account?mode=signup";
-    elements.headerSecondaryLink.textContent = state.currentUser || isHomePage ? "Book Now" : "Create account";
+    elements.headerSecondaryLink.textContent = isHomePage ? "Support / Book" : state.currentUser ? "Book Now" : "Create account";
     elements.headerSecondaryLink.classList.remove("hidden");
   }
 

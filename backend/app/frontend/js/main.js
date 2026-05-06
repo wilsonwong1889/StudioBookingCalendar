@@ -11,7 +11,7 @@ import {
   persistToken,
 } from "./state.js?v=20260427a";
 import { initAdminView, renderAdminView } from "./views/admin.js?v=20260502a";
-import { initAuthView, renderAuthView } from "./views/auth.js?v=20260424c";
+import { initAuthView, renderAuthView } from "./views/auth.js?v=20260506a";
 import { initBookingDetailView, renderBookingDetailView } from "./views/booking-detail.js?v=20260505b";
 import { initBookingsView, renderBookingsView } from "./views/bookings.js?v=20260427a";
 import { initHomeView, renderHomeView } from "./views/home.js?v=20260422e";
