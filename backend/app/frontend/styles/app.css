@@ -7191,6 +7191,15 @@ body[data-page="home"] .home-information-panel {
   padding: 34px;
 }
 
+body[data-page="home"] .home-featured-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
+  align-items: stretch;
+}
+
+body[data-page="home"] .home-studio-card-media {
+  aspect-ratio: 16 / 9;
+}
+
 body[data-page="home"] .home-composition-panel,
 body[data-page="home"] .home-arrival-panel {
   width: min(calc(100% - 56px), 1180px);
