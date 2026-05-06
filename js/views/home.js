@@ -1,11 +1,11 @@
 const AUTOPLAY_INTERVAL_MS = 6000;
 const REAL_STUDIO_VISUALS = {
-  Recording: "/assets/media/studio-room-2.png",
-  Podcast: "/assets/media/studio-lobby-2.png",
-  Photography: "/assets/media/studio-room-2.png",
-  Film: "/assets/media/studio-exterior-2.png",
-  Dance: "/assets/media/studio-exterior-2.png",
-  Production: "/assets/media/studio-room-2.png",
+  Recording: "/assets/media/studio-hero-premium.png",
+  Podcast: "/assets/media/studio-lounge-premium.png",
+  Photography: "/assets/media/studio-production-premium.png",
+  Film: "/assets/media/studio-production-premium.png",
+  Dance: "/assets/media/studio-production-premium.png",
+  Production: "/assets/media/studio-hero-premium.png",
 };
 
 function formatCurrency(cents) {
@@ -38,12 +38,7 @@ function inferCategory(room) {
 
 function getFeaturePhoto(room) {
   const category = inferCategory(room);
-  const photo = Array.isArray(room.photos) && room.photos.length ? room.photos[0] : "";
-  const fallback = REAL_STUDIO_VISUALS[category] || "/assets/media/studio-room-2.png";
-  if (!photo || String(photo).includes("/assets/media/rooms/")) {
-    return fallback;
-  }
-  return photo;
+  return REAL_STUDIO_VISUALS[category] || REAL_STUDIO_VISUALS.Recording;
 }
 
 function renderFeaturedRooms(currentState) {
@@ -68,7 +63,7 @@ function renderFeaturedRooms(currentState) {
             <div class="home-studio-card-media">
               ${
                 photo
-                  ? `<img class="home-studio-card-image" src="${photo}" alt="${room.name}" loading="lazy" onerror="this.onerror=null;this.src='${REAL_STUDIO_VISUALS[category] || "/assets/media/studio-room-2.png"}';" />`
+                  ? `<img class="home-studio-card-image" src="${photo}" alt="${room.name}" loading="lazy" onerror="this.onerror=null;this.src='${REAL_STUDIO_VISUALS[category] || REAL_STUDIO_VISUALS.Recording}';" />`
                   : '<div class="room-card-placeholder">No room image yet.</div>'
               }
               <div class="home-studio-card-badges">
