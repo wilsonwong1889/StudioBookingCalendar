@@ -29,6 +29,7 @@ FRONTEND_PAGES = {
     "/contact": "contact.html",
     "/faq": "faq.html",
     "/info": "info.html",
+    "/pricing": "pricing.html",
     "/rooms": "rooms.html",
     "/room": "room.html",
     "/reserve": "reserve.html",

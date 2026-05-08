@@ -174,7 +174,8 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn("hello@studiobook.app", response.text)
         self.assertIn("home-booking-search", response.text)
         self.assertIn("Book now", response.text)
-        self.assertIn("home-stats-band", response.text)
+        self.assertNotIn("home-stats-band", response.text)
+        self.assertIn("BIPOC Foundation Digital Media & Creative Innovation Hub", response.text)
         self.assertIn("home-carousel-button-prev", response.text)
         self.assertIn("home-carousel-dots", response.text)
         self.assertIn("Studio location on Google Maps", response.text)
@@ -185,9 +186,16 @@ class AppSmokeTest(unittest.TestCase):
         self.assertNotIn('id="rooms-grid"', response.text)
         self.assertIn('/assets/styles/app.css?v=', response.text)
 
-        for path in ("/account", "/rooms", "/room", "/reserve", "/bookings", "/booking", "/payment-success", "/admin"):
+        for path in ("/account", "/pricing", "/rooms", "/room", "/reserve", "/bookings", "/booking", "/payment-success", "/admin"):
             page_response = self.client.get(path)
             self.assertEqual(page_response.status_code, 200, page_response.text)
+
+        pricing_page = self.client.get("/pricing")
+        self.assertIn("Pricing & membership", pricing_page.text)
+        self.assertIn("$50/hr", pricing_page.text)
+        self.assertIn("$15", pricing_page.text)
+        self.assertIn("Open Studio Night: May 9, 2026", pricing_page.text)
+        self.assertNotIn("60% beta", pricing_page.text)
 
         account_page = self.client.get("/account")
         self.assertIn("Delete profile", account_page.text)

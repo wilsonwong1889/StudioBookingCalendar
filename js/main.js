@@ -30,6 +30,7 @@ const PAGE_DATA_REQUIREMENTS = {
   contact: { rooms: false, bookings: false, admin: false, selectedRoom: false, selectedBooking: false, publicStaff: false },
   faq: { rooms: false, bookings: false, admin: false, selectedRoom: false, selectedBooking: false, publicStaff: false },
   info: { rooms: false, bookings: false, admin: false, selectedRoom: false, selectedBooking: false, publicStaff: false },
+  pricing: { rooms: false, bookings: false, admin: false, selectedRoom: false, selectedBooking: false, publicStaff: false },
   rooms: { rooms: true, bookings: false, admin: false, selectedRoom: false, selectedBooking: false },
   room: { rooms: false, bookings: false, admin: false, selectedRoom: true, selectedBooking: false },
   reserve: { rooms: false, bookings: false, admin: false, selectedRoom: true, selectedBooking: false },
