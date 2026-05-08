@@ -1,5 +1,5 @@
-import { API_BASE_URL } from "./config.js?v=20260422d";
-import { state } from "./state.js?v=20260427a";
+import { API_BASE_URL } from "./config.js";
+import { state } from "./state.js";
 
 async function request(path, options = {}) {
   const headers = new Headers(options.headers || {});

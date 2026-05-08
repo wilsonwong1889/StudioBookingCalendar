@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260506d" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260508c" />
   </head>
   <body data-page="home">
     <div class="site-frame site-frame-home">
@@ -25,12 +25,12 @@
             </a>
           </div>
           <div class="home-utility-actions">
-            <a class="home-social-link" href="/contact" aria-label="Instagram">◎</a>
-            <a class="home-social-link" href="/contact" aria-label="Facebook">f</a>
-            <a class="home-social-link" href="/contact" aria-label="YouTube">▶</a>
+            <a class="home-social-link" href="/contact" aria-label="Contact StudioBook">◎</a>
+            <a class="home-social-link" href="/contact" aria-label="Booking support">f</a>
+            <a class="home-social-link" href="/contact" aria-label="Studio help">▶</a>
             <span class="home-utility-divider" aria-hidden="true"></span>
             <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
-            <a id="header-secondary-link" class="primary-button home-header-book-button" href="/rooms">Support / Book</a>
+            <a id="header-secondary-link" class="primary-button home-header-book-button" href="/rooms">Book a room</a>
             <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
               <button
                 id="header-user-trigger"
@@ -52,17 +52,17 @@
           </div>
         </div>
       </div>
-      <header class="site-header site-header-simple site-header-public home-header">
+      <header class="site-header site-header-simple site-header-public">
         <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
           <span class="brand-mark-icon" aria-hidden="true">♪</span>
           <span class="brand-mark-label">StudioBook</span>
         </a>
         <nav class="site-nav" aria-label="Primary">
           <a class="nav-link is-active" href="/" aria-current="page">Home</a>
-          <a class="nav-link" href="/rooms">Rooms</a>
           <a class="nav-link" href="/staff">Staff</a>
+          <a class="nav-link" href="/rooms">Rooms</a>
           <a class="nav-link" href="/bookings">Bookings</a>
-          <a class="nav-link" href="/contact">Contact</a>
+          <a class="nav-link" href="/faq">Help</a>
         </nav>
       </header>
 
@@ -79,7 +79,6 @@
               <div class="home-carousel-slide" data-home-slide>
                 <img class="home-hero-image" src="/assets/media/studio-production-premium.png" alt="Flexible production studio with lights and backdrop" loading="lazy" />
               </div>
-              <div class="home-hero-accent-strip" aria-hidden="true"></div>
               <div class="home-hero-overlay home-hero-overlay-primary"></div>
               <div class="home-hero-stage">
                 <div class="home-carousel-controls">
@@ -93,33 +92,9 @@
                   </div>
                   <button data-home-next class="home-carousel-button home-carousel-button-next" type="button" aria-label="Next slide">›</button>
                 </div>
-                <form class="home-booking-search" action="/rooms" method="get" aria-label="Check room availability">
-                  <label class="home-search-field">
-                    <span>Date</span>
-                    <input type="date" name="date" />
-                  </label>
-                  <label class="home-search-field">
-                    <span>Time</span>
-                    <select name="time">
-                      <option value="">Any time</option>
-                      <option value="09:00">9:00 AM</option>
-                      <option value="12:00">12:00 PM</option>
-                      <option value="15:00">3:00 PM</option>
-                      <option value="18:00">6:00 PM</option>
-                    </select>
-                  </label>
-                  <label class="home-search-field">
-                    <span>Room Type</span>
-                    <select name="type">
-                      <option value="">Any room</option>
-                      <option value="podcast">Podcast studio</option>
-                      <option value="recording">Recording room</option>
-                      <option value="photo">Photo studio</option>
-                      <option value="production">Production space</option>
-                    </select>
-                  </label>
-                  <button class="primary-button home-search-submit" type="submit">Check Availability</button>
-                </form>
+                <div class="home-booking-search" aria-label="Book a studio room">
+                  <a class="primary-button home-book-now-button" href="/rooms">Book now</a>
+                </div>
               </div>
             </div>
           </div>
@@ -253,16 +228,13 @@
           <div class="studio-footer-brand">
             <div class="studio-footer-logo">StudioBook</div>
             <p>Premium studio spaces for creators. Book recording, podcast, photo, and production rooms on-demand.</p>
-            <div class="signal-panel studio-footer-status">
-              <strong>Status</strong>
-              <div id="app-message" class="signal-copy">Frontend booting.</div>
-            </div>
+            <div id="app-message" class="sr-only" aria-live="polite">Ready.</div>
           </div>
           <div>
             <h3>Explore</h3>
             <a href="/rooms">All Studios</a>
             <a href="/info">How It Works</a>
-            <a href="/contact">Pricing & Contact</a>
+            <a href="/contact">Contact</a>
           </div>
           <div>
             <h3>Account</h3>
@@ -286,7 +258,7 @@
           </div>
         </div>
       </footer>
-      <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
+      <section class="site-acknowledgement" aria-label="Land acknowledgement">
         <p>
           BIPOC Foundation is situated on the unceded, traditional and ancestral Siksikaitsitapii
           (Blackfoot) Confederacy territory, Nations of Treaty No. 7, and the historical regional
@@ -294,11 +266,10 @@
           who steward the land while recognizing and respecting their cultural heritage, beliefs and
           relationship to the land.
         </p>
-        <p>Copyright &copy; 2026 - media arts collective. All Rights Reserved.</p>
         <p class="site-acknowledgement-credit">Powered by BIPOC Foundation.</p>
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260506d"></script>
+    <script type="module" src="/assets/js/main.js?v=20260508c"></script>
   </body>
 </html>

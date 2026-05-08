@@ -1,13 +1,13 @@
-import { api } from "../api.js?v=20260427a";
-import { API_BASE_URL, getSearchParam } from "../config.js?v=20260422d";
-import { elements, toggleHidden } from "../dom.js?v=20260427a";
+import { api } from "../api.js";
+import { API_BASE_URL, getSearchParam } from "../config.js";
+import { elements, toggleHidden } from "../dom.js";
 import {
   exchangeSupabaseSession,
   hasSupabaseConfig,
   signOutSupabase,
   startGoogleSignIn,
-} from "../supabase.js?v=20260422d";
-import { persistToken, setState } from "../state.js?v=20260427a";
+} from "../supabase.js";
+import { persistToken, setState } from "../state.js";
 
 let pendingTwoFactorToken = null;
 let pendingTwoFactorMethod = "email";
@@ -110,6 +110,25 @@ function showAuthFeedback(message, tone = "neutral") {
   elements.authFeedback.classList.toggle("is-success", tone === "success");
 }
 
+function setAccountAuthCopy(mode) {
+  const title = document.getElementById("account-auth-title");
+  const copy = document.getElementById("account-auth-copy");
+  if (!title || !copy) {
+    return;
+  }
+
+  const content = {
+    login: ["Welcome Back", "Sign in to manage your bookings"],
+    signup: ["Create account", "Save your details for faster studio bookings"],
+    "forgot-password": ["Reset password", "Enter your email and we will send a reset link"],
+    "reset-password": ["Choose a new password", "Save the new password for your account"],
+    "two-factor": ["Verify sign in", "Enter the code sent to your sign-in method"],
+  };
+  const [nextTitle, nextCopy] = content[mode] || content.login;
+  title.textContent = nextTitle;
+  copy.textContent = nextCopy;
+}
+
 function clearPasswordMatchFeedback(target) {
   if (!target) {
     return;
@@ -144,6 +163,7 @@ function updatePasswordMatchFeedback(target, passwordValue, confirmValue) {
 }
 
 function setAuthMode(mode, { preserveFeedback = false } = {}) {
+  setAccountAuthCopy(mode);
   if (!preserveFeedback) {
     hideAuthFeedback();
   }
@@ -638,9 +658,9 @@ export function renderAuthView(state) {
   }
 
   if (elements.headerSecondaryLink) {
-    const isHomePage = document.body?.dataset?.page === "home";
-    elements.headerSecondaryLink.href = state.currentUser || isHomePage ? "/rooms" : "/account?mode=signup";
-    elements.headerSecondaryLink.textContent = isHomePage ? "Support / Book" : state.currentUser ? "Book Now" : "Create account";
+    const usesUtilityShell = Boolean(document.querySelector(".home-top-utility"));
+    elements.headerSecondaryLink.href = usesUtilityShell || state.currentUser ? "/rooms" : "/account?mode=signup";
+    elements.headerSecondaryLink.textContent = usesUtilityShell ? "Book a room" : state.currentUser ? "Book Now" : "Create account";
     elements.headerSecondaryLink.classList.remove("hidden");
   }
 

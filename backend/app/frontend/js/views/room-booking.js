@@ -1,6 +1,6 @@
-import { api } from "../api.js?v=20260427a";
-import { elements, toggleHidden } from "../dom.js?v=20260427a";
-import { persistCheckoutDraft, persistLastBookingId, persistToken, setState, state } from "../state.js?v=20260427a";
+import { api } from "../api.js";
+import { elements, toggleHidden } from "../dom.js";
+import { persistCheckoutDraft, persistLastBookingId, persistToken, setState, state } from "../state.js";
 const ROOM_CATEGORY_VISUALS = {
   recording: "/assets/media/studio-room-2.png",
   podcast: "/assets/media/studio-lobby-2.png",
@@ -65,6 +65,15 @@ function formatCurrency(cents) {
     style: "currency",
     currency: "CAD",
   }).format((cents || 0) / 100);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function formatDateLabel(value) {
@@ -218,7 +227,7 @@ function renderReservePromoFeedback() {
     feedback.classList.remove("hidden");
     feedback.className = "empty-state booking-promo-feedback booking-promo-feedback-success";
     feedback.innerHTML = `
-      <strong>${reservePromoPreview.code} applied</strong>
+      <strong>${escapeHtml(reservePromoPreview.code)} applied</strong>
       <span>Discount ${formatCurrency(reservePromoPreview.discount_cents)}. New estimated total ${formatCurrency(reservePromoPreview.final_amount_cents)}.</span>
     `;
     return;
@@ -227,7 +236,7 @@ function renderReservePromoFeedback() {
   if (reservePromoMessage) {
     feedback.classList.remove("hidden");
     feedback.className = "empty-state booking-promo-feedback booking-promo-feedback-error";
-    feedback.innerHTML = `<strong>Promo update</strong><span>${reservePromoMessage}</span>`;
+    feedback.innerHTML = `<strong>Promo update</strong><span>${escapeHtml(reservePromoMessage)}</span>`;
     return;
   }
 
@@ -318,7 +327,7 @@ function syncReserveDurationToSelectedStart(room = state.selectedRoom) {
   const allowedDurations = getAllowedDurationsForStart(selectedStart);
   elements.reserveDurationSelect.disabled = !allowedDurations.length;
   elements.reserveDurationSelect.innerHTML = allowedDurations
-    .map((duration) => `<option value="${duration}">${formatDuration(duration)}</option>`)
+    .map((duration) => `<option value="${escapeHtml(duration)}">${formatDuration(duration)}</option>`)
     .join("");
 
   if (!allowedDurations.length) {
@@ -358,10 +367,11 @@ function getCurrentSelectionValidity() {
 }
 
 function renderStaffImage(photoUrl, label) {
+  const safeLabel = escapeHtml(label);
   if (photoUrl) {
-    return `<img class="staff-avatar" src="${photoUrl}" alt="${label}" loading="lazy" />`;
+    return `<img class="staff-avatar" src="${escapeHtml(photoUrl)}" alt="${safeLabel}" loading="lazy" />`;
   }
-  return `<div class="staff-avatar staff-avatar-fallback">${label.slice(0, 1).toUpperCase()}</div>`;
+  return `<div class="staff-avatar staff-avatar-fallback">${escapeHtml(label.slice(0, 1).toUpperCase())}</div>`;
 }
 
 function renderRoomVisuals(room) {
@@ -372,7 +382,7 @@ function renderRoomVisuals(room) {
           .map(
             (photo, index) => `
               <figure class="${index === 0 ? "room-detail-hero-media reserve-detail-hero-media" : "room-detail-thumb-card reserve-detail-thumb-card"}">
-                <img class="detail-image" src="${photo}" alt="${room.name} image ${index + 1}" loading="${index === 0 ? "eager" : "lazy"}" />
+                <img class="detail-image" src="${escapeHtml(photo)}" alt="${escapeHtml(room.name)} image ${index + 1}" loading="${index === 0 ? "eager" : "lazy"}" />
                 ${index === 0 ? "" : `<figcaption>Image ${index + 1}</figcaption>`}
               </figure>
             `,
@@ -383,9 +393,9 @@ function renderRoomVisuals(room) {
 
   if (elements.reserveRoomMeta) {
     elements.reserveRoomMeta.innerHTML = `
-      <span class="pill reserve-room-pill">${room.name.split(" ")[0]}</span>
+      <span class="pill reserve-room-pill">${escapeHtml(room.name.split(" ")[0])}</span>
       <span class="pill reserve-room-pill ${room.active ? "" : "muted"}">${room.active ? "Available" : "Inactive"}</span>
-      <span class="pill reserve-room-pill">Up to ${room.capacity || "n/a"} people</span>
+      <span class="pill reserve-room-pill">Up to ${escapeHtml(room.capacity || "n/a")} people</span>
       <span class="pill reserve-room-pill">★ 4.9 rating</span>
       <span class="pill reserve-room-pill">Min 1 hour</span>
     `;
@@ -393,7 +403,7 @@ function renderRoomVisuals(room) {
 
   if (elements.reserveRoomAmenities) {
     elements.reserveRoomAmenities.innerHTML = buildAmenityList(room)
-      .map((item) => `<span class="room-detail-amenity">${item}</span>`)
+      .map((item) => `<span class="room-detail-amenity">${escapeHtml(item)}</span>`)
       .join("");
   }
 }
@@ -405,9 +415,9 @@ function renderTagGroup(label, values = []) {
 
   return `
     <div class="staff-tag-group">
-      <span>${label}</span>
+      <span>${escapeHtml(label)}</span>
       <div class="preview-pill-row">
-        ${values.map((value) => `<span class="pill">${value}</span>`).join("")}
+        ${values.map((value) => `<span class="pill">${escapeHtml(value)}</span>`).join("")}
       </div>
     </div>
   `;
@@ -444,7 +454,7 @@ function renderSelectedStaffBreakdown(room) {
     .map(
       (role) => `
         <div class="summary-line">
-          <span>${role.name}</span>
+          <span>${escapeHtml(role.name)}</span>
           <strong>${formatCurrency(role.add_on_price_cents)}</strong>
         </div>
       `,
@@ -583,7 +593,7 @@ function renderDaySummary(currentState) {
   if (loadingDay) {
     elements.reserveAvailabilitySummary.innerHTML = `
       <strong>Loading times...</strong>
-      <span>Checking ${formatDateLabel(selectedDate)} for ${currentState.selectedRoom.name}.</span>
+      <span>Checking ${escapeHtml(formatDateLabel(selectedDate))} for ${escapeHtml(currentState.selectedRoom.name)}.</span>
     `;
     return;
   }
@@ -600,11 +610,11 @@ function renderDaySummary(currentState) {
   elements.reserveAvailabilitySummary.innerHTML = count
     ? `
       <strong>${count} start times available</strong>
-      <span>${currentState.selectedRoom.name} on ${dayAvailability.date} in ${dayAvailability.timezone}.</span>
+      <span>${escapeHtml(currentState.selectedRoom.name)} on ${escapeHtml(dayAvailability.date)} in ${escapeHtml(dayAvailability.timezone)}.</span>
     `
     : `
       <strong>No openings found</strong>
-      <span>${currentState.selectedRoom.name} is fully booked on ${dayAvailability.date}.</span>
+      <span>${escapeHtml(currentState.selectedRoom.name)} is fully booked on ${escapeHtml(dayAvailability.date)}.</span>
     `;
 }
 
@@ -620,7 +630,7 @@ function renderSlotList() {
     toggleHidden(elements.reserveSlotList, false);
     elements.reserveSlotList.innerHTML = `
       <div class="empty-state reserve-slot-empty">
-        Loading openings for ${selectedDate ? formatDateLabel(selectedDate) : "the selected day"}...
+        Loading openings for ${escapeHtml(selectedDate ? formatDateLabel(selectedDate) : "the selected day")}...
       </div>
     `;
     return;
@@ -641,7 +651,7 @@ function renderSlotList() {
 
   const starts = getCurrentDayStarts();
   elements.reserveStartSelect.innerHTML = starts
-    .map((startTime) => `<option value="${startTime}">${formatDateTime(startTime)}</option>`)
+    .map((startTime) => `<option value="${escapeHtml(startTime)}">${escapeHtml(formatDateTime(startTime))}</option>`)
     .join("");
 
   if (starts.includes(selectedStart)) {
@@ -673,10 +683,10 @@ function renderSlotList() {
         <button
           class="slot-card ${startTime === selectedStart ? "is-selected" : ""}"
           type="button"
-          data-reserve-slot="${startTime}"
+          data-reserve-slot="${escapeHtml(startTime)}"
           aria-pressed="${startTime === selectedStart ? "true" : "false"}"
         >
-          <strong>${formatTime(startTime)}</strong>
+          <strong>${escapeHtml(formatTime(startTime))}</strong>
           <span>${maxDuration ? `Up to ${formatDuration(maxDuration)}` : "Unavailable"}</span>
         </button>
       `;
@@ -707,12 +717,12 @@ function renderStaffOptions(currentState) {
       (role) => `
         <label class="staff-option-card">
           <div class="staff-option-toggle">
-            <input type="checkbox" value="${role.id}" ${selectedStaffIds.has(role.id) ? "checked" : ""} />
+            <input type="checkbox" value="${escapeHtml(role.id)}" ${selectedStaffIds.has(role.id) ? "checked" : ""} />
           </div>
           ${renderStaffImage(role.photo_url, role.name)}
           <div class="staff-option-copy">
-            <strong>${role.name}</strong>
-            <span>${role.description || "Optional staff support for this session."}</span>
+            <strong>${escapeHtml(role.name)}</strong>
+            <span>${escapeHtml(role.description || "Optional staff support for this session.")}</span>
             ${renderTagGroup("Skills", role.skills || [])}
             ${renderTagGroup("Talents", role.talents || [])}
           </div>
@@ -746,17 +756,17 @@ function renderSummary(currentState) {
   if (!selectedStart) {
     elements.reserveSummaryMeta.innerHTML = `
       <div class="reserve-summary-context">
-        <strong>${room.name}</strong>
-        <span>${selectedDate ? formatDateLabel(selectedDate) : "Choose a date"}</span>
+        <strong>${escapeHtml(room.name)}</strong>
+        <span>${escapeHtml(selectedDate ? formatDateLabel(selectedDate) : "Choose a date")}</span>
       </div>
-      <div class="reserve-price-line"><span>Date</span><strong>${selectedDate ? formatDateLabel(selectedDate) : "Not selected"}</strong></div>
+      <div class="reserve-price-line"><span>Date</span><strong>${escapeHtml(selectedDate ? formatDateLabel(selectedDate) : "Not selected")}</strong></div>
       <div class="reserve-price-line"><span>Start time</span><strong>Not selected</strong></div>
       <div class="reserve-price-line"><span>Duration</span><strong>${formatDuration(getSelectedDurationMinutes())}</strong></div>
       <div class="reserve-price-line"><span>${formatCurrency(room.hourly_rate_cents)} x ${formatDuration(getSelectedDurationMinutes())}</span><strong>${formatCurrency(estimatedTotal)}</strong></div>
       <div class="reserve-price-line"><span>Service fee</span><strong class="reserve-price-free">Free</strong></div>
       ${
         activePromo
-          ? `<div class="reserve-price-line"><span>Promo ${activePromo.code}</span><strong>-${formatCurrency(activePromo.discount_cents)}</strong></div>`
+          ? `<div class="reserve-price-line"><span>Promo ${escapeHtml(activePromo.code)}</span><strong>-${formatCurrency(activePromo.discount_cents)}</strong></div>`
           : ""
       }
       <div class="reserve-price-total"><span>Total</span><strong>${formatCurrency(activePromo ? activePromo.final_amount_cents : estimatedTotal)}</strong></div>
@@ -767,23 +777,23 @@ function renderSummary(currentState) {
 
   elements.reserveSummaryMeta.innerHTML = `
     <div class="reserve-summary-context">
-      <strong>${room.name}</strong>
-      <span>${formatDateTime(selectedStart)}</span>
+      <strong>${escapeHtml(room.name)}</strong>
+      <span>${escapeHtml(formatDateTime(selectedStart))}</span>
     </div>
-    <div class="reserve-price-line"><span>Date</span><strong>${formatDateLabel(selectedDate)}</strong></div>
-    <div class="reserve-price-line"><span>Start time</span><strong>${formatTime(selectedStart)}</strong></div>
+    <div class="reserve-price-line"><span>Date</span><strong>${escapeHtml(formatDateLabel(selectedDate))}</strong></div>
+    <div class="reserve-price-line"><span>Start time</span><strong>${escapeHtml(formatTime(selectedStart))}</strong></div>
     <div class="reserve-price-line"><span>Duration</span><strong>${formatDuration(getSelectedDurationMinutes())}</strong></div>
     <div class="reserve-price-line"><span>${formatCurrency(room.hourly_rate_cents)} x ${formatDuration(getSelectedDurationMinutes())}</span><strong>${formatCurrency(estimatedTotal)}</strong></div>
     <div class="reserve-price-line"><span>Service fee</span><strong class="reserve-price-free">Free</strong></div>
     ${
       activePromo
-        ? `<div class="reserve-price-line"><span>Promo ${activePromo.code}</span><strong>-${formatCurrency(activePromo.discount_cents)}</strong></div>`
+        ? `<div class="reserve-price-line"><span>Promo ${escapeHtml(activePromo.code)}</span><strong>-${formatCurrency(activePromo.discount_cents)}</strong></div>`
         : ""
     }
     ${renderSelectedStaffBreakdown(room)
       .replaceAll('class="summary-line"', 'class="reserve-price-line reserve-price-line-staff"')}
     <div class="reserve-price-total"><span>Total</span><strong>${formatCurrency(activePromo ? activePromo.final_amount_cents : estimatedTotal)}</strong></div>
-    <div class="reserve-helper-copy reserve-helper-copy-strong">${formatDateTime(selectedStart)}</div>
+    <div class="reserve-helper-copy reserve-helper-copy-strong">${escapeHtml(formatDateTime(selectedStart))}</div>
   `;
 }
 
@@ -860,11 +870,11 @@ function renderCalendar() {
       <button
         class="calendar-cell ${isSelected ? "is-selected" : ""} ${count ? "is-open" : "is-closed"}"
         type="button"
-        data-reserve-date="${isoDate}"
-        aria-label="${ariaLabel}"
+        data-reserve-date="${escapeHtml(isoDate)}"
+        aria-label="${escapeHtml(ariaLabel)}"
       >
         <strong>${day}</strong>
-        <span>${label}</span>
+        <span>${escapeHtml(label)}</span>
       </button>
     `);
   }

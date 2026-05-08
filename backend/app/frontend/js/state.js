@@ -1,4 +1,4 @@
-import { STORAGE_KEYS } from "./config.js?v=20260422d";
+import { STORAGE_KEYS } from "./config.js";
 
 const listeners = new Set();
 
@@ -33,7 +33,7 @@ export const state = {
   availability: null,
   health: null,
   showInactiveRooms: false,
-  message: "Frontend booting.",
+  message: "Ready.",
 };
 
 export function subscribe(listener) {

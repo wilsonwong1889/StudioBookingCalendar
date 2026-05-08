@@ -4,10 +4,54 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Staff | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260506d" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260508c" />
   </head>
   <body data-page="staff">
     <div class="site-frame">
+      <div class="home-top-utility" aria-label="Studio contact details">
+        <div class="home-utility-inner">
+          <div class="home-contact-list">
+            <a class="home-contact-item" href="https://www.google.com/maps/search/?api=1&query=2525%2036%20St%20N%2C%20Lethbridge%2C%20AB%20T1H%205L1" target="_blank" rel="noreferrer">
+              <span class="home-contact-label">Location</span>
+              <span>2525 36 St N, Lethbridge</span>
+            </a>
+            <a class="home-contact-item" href="tel:188855578346">
+              <span class="home-contact-label">Phone</span>
+              <span>1-888-555-STUDIO</span>
+            </a>
+            <a class="home-contact-item" href="mailto:hello@studiobook.app">
+              <span class="home-contact-label">Email</span>
+              <span>hello@studiobook.app</span>
+            </a>
+          </div>
+          <div class="home-utility-actions">
+            <a class="home-social-link" href="/contact" aria-label="Contact StudioBook">◎</a>
+            <a class="home-social-link" href="/contact" aria-label="Booking support">f</a>
+            <a class="home-social-link" href="/contact" aria-label="Studio help">▶</a>
+            <span class="home-utility-divider" aria-hidden="true"></span>
+            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
+            <a id="header-secondary-link" class="primary-button home-header-book-button" href="/rooms">Book a room</a>
+            <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
+              <button
+                id="header-user-trigger"
+                class="ghost-button header-user-trigger"
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded="false"
+              >
+                <span id="header-user-email" class="header-user-trigger-label">account@example.com</span>
+                <span class="header-user-trigger-caret" aria-hidden="true">▾</span>
+              </button>
+              <div id="header-user-menu" class="header-user-menu hidden" role="menu" aria-label="Account menu">
+                <a id="header-profile-link" class="header-user-menu-item is-primary" href="/account" role="menuitem">My Profile</a>
+                <a id="header-bookings-link" class="header-user-menu-item" href="/bookings" role="menuitem">My Bookings</a>
+                <a id="header-admin-link" class="header-user-menu-item hidden" href="/admin" role="menuitem">Admin</a>
+                <button id="header-logout-button" class="header-user-menu-item header-user-menu-signout" type="button" role="menuitem">Sign Out</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       <header class="site-header site-header-simple site-header-public">
         <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
           <span class="brand-mark-icon" aria-hidden="true">♪</span>
@@ -15,33 +59,11 @@
         </a>
         <nav class="site-nav" aria-label="Primary">
           <a class="nav-link" href="/">Home</a>
-          <a class="nav-link" href="/rooms">Rooms</a>
           <a class="nav-link is-active" href="/staff" aria-current="page">Staff</a>
+          <a class="nav-link" href="/rooms">Rooms</a>
           <a class="nav-link" href="/bookings">Bookings</a>
-          <a class="nav-link" href="/contact">Contact</a>
+          <a class="nav-link" href="/faq">Help</a>
         </nav>
-        <div class="header-actions">
-          <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
-          <a id="header-secondary-link" class="primary-button site-header-book-button" href="/account?mode=signup">Create account</a>
-          <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
-            <button
-              id="header-user-trigger"
-              class="ghost-button header-user-trigger"
-              type="button"
-              aria-haspopup="menu"
-              aria-expanded="false"
-            >
-              <span id="header-user-email" class="header-user-trigger-label">account@example.com</span>
-              <span class="header-user-trigger-caret" aria-hidden="true">▾</span>
-            </button>
-            <div id="header-user-menu" class="header-user-menu hidden" role="menu" aria-label="Account menu">
-              <a id="header-profile-link" class="header-user-menu-item is-primary" href="/account" role="menuitem">My Profile</a>
-              <a id="header-bookings-link" class="header-user-menu-item" href="/bookings" role="menuitem">My Bookings</a>
-              <a id="header-admin-link" class="header-user-menu-item hidden" href="/admin" role="menuitem">Admin</a>
-              <button id="header-logout-button" class="header-user-menu-item header-user-menu-signout" type="button" role="menuitem">Sign Out</button>
-            </div>
-          </div>
-        </div>
       </header>
 
       <main class="page-grid rooms-page-grid-modern staff-page-grid-modern">
@@ -256,10 +278,7 @@
           <div class="studio-footer-brand">
             <div class="studio-footer-logo">StudioBook</div>
             <p>Meet the public-facing team, then book staff or rooms when you know who you want to work with.</p>
-            <div class="signal-panel studio-footer-status">
-              <strong>Status</strong>
-              <div id="app-message" class="signal-copy">Browse staff, then open the booking shell below.</div>
-            </div>
+            <div id="app-message" class="sr-only" aria-live="polite">Ready.</div>
           </div>
           <div>
             <h3>Explore</h3>
@@ -289,7 +308,7 @@
           </div>
         </div>
       </footer>
-      <section class="site-acknowledgement" aria-label="Land acknowledgement and copyright">
+      <section class="site-acknowledgement" aria-label="Land acknowledgement">
         <p>
           BIPOC Foundation is situated on the unceded, traditional and ancestral Siksikaitsitapii
           (Blackfoot) Confederacy territory, Nations of Treaty No. 7, and the historical regional
@@ -297,11 +316,10 @@
           who steward the land while recognizing and respecting their cultural heritage, beliefs and
           relationship to the land.
         </p>
-        <p>Copyright &copy; 2026 - media arts collective. All Rights Reserved.</p>
         <p class="site-acknowledgement-credit">Powered by BIPOC Foundation.</p>
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260506d"></script>
+    <script type="module" src="/assets/js/main.js?v=20260508c"></script>
   </body>
 </html>

@@ -1,5 +1,5 @@
-import { api } from "./api.js?v=20260502a";
-import { CURRENT_PAGE, getSearchParam } from "./config.js?v=20260422d";
+import { api } from "./api.js";
+import { CURRENT_PAGE, getSearchParam } from "./config.js";
 import {
   getPersistedCheckoutDraft,
   getPersistedLastBookingId,
@@ -9,20 +9,20 @@ import {
   state,
   subscribe,
   persistToken,
-} from "./state.js?v=20260427a";
-import { initAdminView, renderAdminView } from "./views/admin.js?v=20260502a";
-import { initAuthView, renderAuthView } from "./views/auth.js?v=20260506c";
-import { initBookingDetailView, renderBookingDetailView } from "./views/booking-detail.js?v=20260505b";
-import { initBookingsView, renderBookingsView } from "./views/bookings.js?v=20260427a";
-import { initHomeView, renderHomeView } from "./views/home.js?v=20260506d";
-import { initInfoView, renderInfoView } from "./views/info.js?v=20260424b";
-import { initPaymentSuccessView, renderPaymentSuccessView } from "./views/payment-success.js?v=20260424b";
-import { initProfileView, renderProfileView } from "./views/profile.js?v=20260424c";
-import { initRoomBookingView, renderRoomBookingView } from "./views/room-booking.js?v=20260505b";
-import { initRoomDetailView, renderRoomDetailView } from "./views/room-detail.js?v=20260424b";
-import { initRoomsView, renderRoomsView } from "./views/rooms.js?v=20260424c";
-import { initStaffDirectoryView, renderStaffDirectoryView } from "./views/staff-directory.js?v=20260505b";
-import { renderStatus } from "./views/status.js?v=20260424b";
+} from "./state.js";
+import { initAdminView, renderAdminView } from "./views/admin.js";
+import { initAuthView, renderAuthView } from "./views/auth.js";
+import { initBookingDetailView, renderBookingDetailView } from "./views/booking-detail.js";
+import { initBookingsView, renderBookingsView } from "./views/bookings.js";
+import { initHomeView, renderHomeView } from "./views/home.js";
+import { initInfoView, renderInfoView } from "./views/info.js";
+import { initPaymentSuccessView, renderPaymentSuccessView } from "./views/payment-success.js";
+import { initProfileView, renderProfileView } from "./views/profile.js";
+import { initRoomBookingView, renderRoomBookingView } from "./views/room-booking.js";
+import { initRoomDetailView, renderRoomDetailView } from "./views/room-detail.js";
+import { initRoomsView, renderRoomsView } from "./views/rooms.js";
+import { initStaffDirectoryView, renderStaffDirectoryView } from "./views/staff-directory.js";
+import { renderStatus } from "./views/status.js";
 
 const PAGE_DATA_REQUIREMENTS = {
   home: { rooms: true, bookings: false, admin: false, selectedRoom: false, selectedBooking: false },
@@ -132,7 +132,7 @@ function initRevealAnimations() {
   );
 
   stagedNodes.forEach((node, index) => {
-    node.style.transitionDelay = `${Math.min(index * 0.08, 0.28)}s`;
+    node.dataset.revealDelay = String(Math.min(index, 4));
     observer.observe(node);
   });
 }
@@ -543,23 +543,6 @@ async function refreshAvailabilityAndBookings(message) {
   await refreshAdminPromoCodes(message);
   await refreshPublicStaffProfiles(message);
   await loadSelectedBooking(message);
-
-  if (!currentRequirements().bookings) {
-    return;
-  }
-
-  const roomId = document.getElementById("booking-room-select")?.value;
-  const date = document.getElementById("booking-date-input")?.value;
-  if (!roomId || !date) {
-    return;
-  }
-
-  try {
-    const availability = await api.getAvailability(roomId, date);
-    setState({ availability, message: message || "Booking state refreshed." });
-  } catch (error) {
-    setState({ availability: null, message: error.message });
-  }
 }
 
 async function loadPageData(message) {

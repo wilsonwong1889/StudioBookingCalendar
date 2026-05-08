@@ -1,4 +1,4 @@
-import { elements } from "../dom.js?v=20260427a";
+import { elements } from "../dom.js";
 const ROOM_CATEGORY_VISUALS = {
   recording: "/assets/media/studio-room-2.png",
   podcast: "/assets/media/studio-lobby-2.png",
@@ -13,6 +13,15 @@ function formatCurrency(cents) {
     style: "currency",
     currency: "CAD",
   }).format((cents || 0) / 100);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function formatDuration(minutes) {
@@ -40,10 +49,11 @@ function getReviewTrustCopy(summary) {
 }
 
 function renderStaffImage(photoUrl, label) {
+  const safeLabel = escapeHtml(label);
   if (photoUrl) {
-    return `<img class="staff-profile-image" src="${photoUrl}" alt="${label}" loading="lazy" />`;
+    return `<img class="staff-profile-image" src="${escapeHtml(photoUrl)}" alt="${safeLabel}" loading="lazy" />`;
   }
-  return `<div class="staff-profile-image staff-avatar-fallback">${label.slice(0, 1).toUpperCase()}</div>`;
+  return `<div class="staff-profile-image staff-avatar-fallback">${escapeHtml(label.slice(0, 1).toUpperCase())}</div>`;
 }
 
 function renderTagGroup(label, values = []) {
@@ -53,9 +63,9 @@ function renderTagGroup(label, values = []) {
 
   return `
     <div class="staff-tag-group">
-      <span>${label}</span>
+      <span>${escapeHtml(label)}</span>
       <div class="preview-pill-row">
-        ${values.map((value) => `<span class="pill">${value}</span>`).join("")}
+        ${values.map((value) => `<span class="pill">${escapeHtml(value)}</span>`).join("")}
       </div>
     </div>
   `;
@@ -133,8 +143,8 @@ function renderRoomStaffList(room) {
               <div class="staff-profile-card-top">
                 ${renderStaffImage(role.photo_url, role.name)}
                 <div class="staff-option-copy">
-                  <strong>${role.name}</strong>
-                  <span>${role.description || "Available as an optional add-on for this room."}</span>
+                  <strong>${escapeHtml(role.name)}</strong>
+                  <span>${escapeHtml(role.description || "Available as an optional add-on for this room.")}</span>
                 </div>
               </div>
               <strong class="staff-option-price">${formatCurrency(role.add_on_price_cents)} add-on</strong>
@@ -173,10 +183,10 @@ function renderRoomReviews(currentState) {
           (review) => `
             <article class="review-card">
               <div class="review-card-top">
-                <strong>${review.reviewer_name || "Guest"}</strong>
+                <strong>${escapeHtml(review.reviewer_name || "Guest")}</strong>
                 <span class="pill">${"★".repeat(review.rating)}${"☆".repeat(5 - review.rating)}</span>
               </div>
-              <p>${review.comment || "Rated this room without a written comment."}</p>
+              <p>${escapeHtml(review.comment || "Rated this room without a written comment.")}</p>
             </article>
           `,
         )
@@ -203,16 +213,19 @@ export function renderRoomDetailView(state) {
   elements.roomDetailTitle.textContent = room.name;
   elements.roomDetailDescription.textContent = room.description || "No description available yet.";
   const summary = state.selectedRoomReviewSummary;
+  const reviewCountLabel = summary && summary.review_count
+    ? `${summary.review_count} review${summary.review_count === 1 ? "" : "s"}`
+    : "No public reviews yet";
   elements.roomDetailMeta.innerHTML = `
-    <span class="pill">${formatCategoryLabel(room)}</span>
+    <span class="pill">${escapeHtml(formatCategoryLabel(room))}</span>
     <span class="pill ${room.active ? "" : "muted"}">${room.active ? "Available" : "Inactive"}</span>
-    <span class="pill">Up to ${room.capacity || "n/a"} people</span>
+    <span class="pill">Up to ${escapeHtml(room.capacity || "n/a")} people</span>
     <span class="pill">Min 1 hour</span>
-    <span class="pill">${summary && summary.review_count ? `${summary.review_count} review${summary.review_count === 1 ? "" : "s"}` : "No public reviews yet"}</span>
+    <span class="pill">${escapeHtml(reviewCountLabel)}</span>
   `;
   if (elements.roomDetailAmenities) {
     elements.roomDetailAmenities.innerHTML = buildAmenityList(room)
-      .map((item) => `<span class="room-detail-amenity">${item}</span>`)
+      .map((item) => `<span class="room-detail-amenity">${escapeHtml(item)}</span>`)
       .join("");
   }
   renderRoomStaffList(room);
@@ -221,7 +234,7 @@ export function renderRoomDetailView(state) {
   const trustStrip = document.getElementById("room-detail-trust-strip");
   if (trustStrip) {
     trustStrip.innerHTML = getReviewTrustCopy(summary)
-      .map((item) => `<span class="pill">${item}</span>`)
+      .map((item) => `<span class="pill">${escapeHtml(item)}</span>`)
       .join("");
   }
 
@@ -231,7 +244,7 @@ export function renderRoomDetailView(state) {
         .map(
           (photo, index) => `
             <figure class="${index === 0 ? "room-detail-hero-media" : "room-detail-thumb-card"}">
-              <img class="detail-image" src="${photo}" alt="${room.name} image ${index + 1}" loading="lazy" />
+              <img class="detail-image" src="${escapeHtml(photo)}" alt="${escapeHtml(room.name)} image ${index + 1}" loading="lazy" />
               ${index === 0 ? "" : `<figcaption>Image ${index + 1}</figcaption>`}
             </figure>
           `,
@@ -241,6 +254,7 @@ export function renderRoomDetailView(state) {
 
   if (elements.roomDetailBookingLink) {
     elements.roomDetailBookingLink.href = `/reserve?id=${room.id}`;
+    elements.roomDetailBookingLink.textContent = "Reserve this studio";
   }
   if (elements.roomDetailReserveLink) {
     elements.roomDetailReserveLink.href = `/rooms`;

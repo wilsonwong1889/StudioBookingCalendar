@@ -1,6 +1,6 @@
-import { api } from "../api.js?v=20260427a";
-import { elements } from "../dom.js?v=20260427a";
-import { setState, state } from "../state.js?v=20260427a";
+import { api } from "../api.js";
+import { elements } from "../dom.js";
+import { setState, state } from "../state.js";
 
 let editingRoomId = null;
 let selectedCreateStaffIds = new Set();
@@ -76,6 +76,15 @@ function formatCurrency(cents) {
     style: "currency",
     currency: "CAD",
   }).format((cents || 0) / 100);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function formatPreviewTimes(availableStartTimes) {
@@ -176,9 +185,9 @@ function renderCategoryFilterBar(rooms) {
       <button
         class="rooms-category-chip ${selectedRoomCategory === category ? "is-active" : ""}"
         type="button"
-        data-room-category="${category}"
+        data-room-category="${escapeHtml(category)}"
       >
-        ${formatRoomCategoryLabel(category)}
+        ${escapeHtml(formatRoomCategoryLabel(category))}
       </button>
     `,
   ).join("");
@@ -221,11 +230,13 @@ function setRoomPhotoPreview(photoUrl, roomName = "Room") {
   }
 
   preview.classList.remove("empty-state");
+  const safePhotoUrl = escapeHtml(photoUrl);
+  const safeRoomName = escapeHtml(roomName);
   preview.innerHTML = `
     <div class="staff-photo-preview-card">
-      <img class="staff-photo-preview-image" src="${photoUrl}" alt="${roomName}" loading="lazy" />
+      <img class="staff-photo-preview-image" src="${safePhotoUrl}" alt="${safeRoomName}" loading="lazy" />
       <div class="staff-option-copy">
-        <strong>${roomName}</strong>
+        <strong>${safeRoomName}</strong>
         <span>This image will appear as the primary room photo.</span>
       </div>
     </div>
@@ -311,11 +322,11 @@ function renderCreateRoomStaffOptions(currentState) {
       (profile) => `
         <label class="staff-option-card staff-option-card-compact">
           <div class="staff-option-toggle">
-            <input type="checkbox" value="${profile.id}" ${selectedCreateStaffIds.has(String(profile.id)) ? "checked" : ""} />
+            <input type="checkbox" value="${escapeHtml(profile.id)}" ${selectedCreateStaffIds.has(String(profile.id)) ? "checked" : ""} />
           </div>
           <div class="staff-option-copy">
-            <strong>${profile.name}</strong>
-            <span>${profile.description || "Optional staff support for this room."}</span>
+            <strong>${escapeHtml(profile.name)}</strong>
+            <span>${escapeHtml(profile.description || "Optional staff support for this room.")}</span>
           </div>
           <strong class="staff-option-price">${formatCurrency(profile.add_on_price_cents)}</strong>
         </label>
@@ -363,17 +374,17 @@ function renderAvailabilityPreview(roomId) {
     return `
       <div class="availability-preview">
         <span class="availability-label">Availability preview</span>
-        <p>No live openings were returned for ${preview.date}. Try another date or open the booking flow for a different room.</p>
+        <p>No live openings were returned for ${escapeHtml(preview.date)}. Try another date or open the booking flow for a different room.</p>
       </div>
     `;
   }
 
   const previewTimes = formatPreviewTimes(preview.available_start_times)
-    .map((label) => `<span class="pill">${label}</span>`)
+    .map((label) => `<span class="pill">${escapeHtml(label)}</span>`)
     .join("");
   return `
     <div class="availability-preview">
-      <span class="availability-label">${preview.available_start_times.length} starts open on ${preview.date}</span>
+      <span class="availability-label">${preview.available_start_times.length} starts open on ${escapeHtml(preview.date)}</span>
       <p>Times are shown in local studio time and update from the live availability feed.</p>
       <div class="preview-pill-row">${previewTimes}</div>
     </div>
@@ -385,16 +396,22 @@ function renderRoomCard(room, canManageRooms) {
   const categoryLabel = formatRoomCategoryLabel(category);
   const statusLabel = room.active ? "Available" : "Inactive";
   const rating = getRoomRating(room);
+  const safeRoomId = escapeHtml(room.id);
+  const safeRoomName = escapeHtml(room.name);
+  const safePrimaryPhoto = escapeHtml(primaryPhoto);
+  const safeFallback = escapeHtml(fallback);
+  const safeCategoryLabel = escapeHtml(categoryLabel);
+  const safeDescription = escapeHtml(formatRoomDescription(room));
   const canEditRoom = canManageRooms && Boolean(elements.roomForm);
   const managementActions = canManageRooms
     ? [
         canEditRoom
-          ? `<button class="ghost-button room-action" type="button" data-room-action="edit" data-room-id="${room.id}">Edit</button>`
+          ? `<button class="ghost-button room-action" type="button" data-room-action="edit" data-room-id="${safeRoomId}">Edit</button>`
           : "",
         room.active
-          ? `<button class="ghost-button room-action" type="button" data-room-action="archive" data-room-id="${room.id}">Archive</button>`
-          : `<button class="ghost-button room-action" type="button" data-room-action="restore" data-room-id="${room.id}">Restore</button>`,
-        `<button class="ghost-button room-action room-action-danger" type="button" data-room-action="delete" data-room-id="${room.id}" data-room-name="${room.name}">Delete room</button>`,
+          ? `<button class="ghost-button room-action" type="button" data-room-action="archive" data-room-id="${safeRoomId}">Archive</button>`
+          : `<button class="ghost-button room-action" type="button" data-room-action="restore" data-room-id="${safeRoomId}">Restore</button>`,
+        `<button class="ghost-button room-action room-action-danger" type="button" data-room-action="delete" data-room-id="${safeRoomId}" data-room-name="${safeRoomName}">Delete room</button>`,
       ].filter(Boolean).join("")
     : "";
 
@@ -403,22 +420,22 @@ function renderRoomCard(room, canManageRooms) {
       <div class="room-catalog-media">
         ${
           primaryPhoto
-            ? `<img class="room-card-image" src="${primaryPhoto}" alt="${room.name}" loading="lazy" onerror="this.onerror=null;this.src='${fallback}';" />`
+            ? `<img class="room-card-image" src="${safePrimaryPhoto}" alt="${safeRoomName}" loading="lazy" onerror="this.onerror=null;this.src='${safeFallback}';" />`
             : '<div class="room-card-placeholder">No room image yet.</div>'
         }
         <div class="room-catalog-media-badges">
-          <span class="room-catalog-pill room-catalog-pill-category">${categoryLabel}</span>
+          <span class="room-catalog-pill room-catalog-pill-category">${safeCategoryLabel}</span>
           <span class="room-catalog-pill room-catalog-pill-status ${room.active ? "is-available" : "is-booked"}">${statusLabel}</span>
         </div>
       </div>
       <div class="room-catalog-content">
         <div class="room-catalog-title-row">
-          <h3 class="room-catalog-title ${category === "podcast" ? "is-accent" : ""}">${room.name}</h3>
+          <h3 class="room-catalog-title ${category === "podcast" ? "is-accent" : ""}">${safeRoomName}</h3>
           <span class="room-catalog-rating"><span aria-hidden="true">★</span> ${rating.toFixed(1).replace(".0", "")}</span>
         </div>
-        <p class="room-catalog-description">${formatRoomDescription(room)}</p>
+        <p class="room-catalog-description">${safeDescription}</p>
         <div class="room-catalog-feature-row" aria-label="Room highlights">
-          <span>${categoryLabel}</span>
+          <span>${safeCategoryLabel}</span>
           <span>${formatDuration(room.max_booking_duration_minutes || 300)} max</span>
           <span>${room.active ? "Bookable now" : "Inactive"}</span>
         </div>
@@ -431,13 +448,13 @@ function renderRoomCard(room, canManageRooms) {
               <circle cx="14.1" cy="8" r="1.8"></circle>
               <path d="M11.8 15c.5-1.6 1.9-2.7 3.4-2.7 1 0 2 .5 2.8 1.5"></path>
             </svg>
-            Up to ${room.capacity || "n/a"}
+            Up to ${escapeHtml(room.capacity || "n/a")}
           </span>
           <strong class="room-catalog-price">${formatCompactCurrency(room.hourly_rate_cents)}<span>/hr</span></strong>
         </div>
         <div class="room-actions room-catalog-actions">
-          <a class="primary-button room-catalog-book-button" href="/reserve?id=${room.id}">Book now</a>
-          <a class="ghost-button room-catalog-details-button" href="/room?id=${room.id}">View details</a>
+          <a class="primary-button room-catalog-book-button" href="/reserve?id=${safeRoomId}">Book now</a>
+          <a class="ghost-button room-catalog-details-button" href="/room?id=${safeRoomId}">View details</a>
         </div>
       </div>
       ${
@@ -782,13 +799,13 @@ export function renderRoomsView(currentState) {
       elements.roomsSearchSummary.classList.remove("hidden");
       elements.roomsSearchSummary.innerHTML = `
         <strong>No rooms available</strong>
-        <span>No active rooms are open on ${search.date} at ${search.time} for ${formatDuration(search.duration)}.</span>
+        <span>No active rooms are open on ${escapeHtml(search.date)} at ${escapeHtml(search.time)} for ${formatDuration(search.duration)}.</span>
       `;
     } else {
       elements.roomsSearchSummary.classList.remove("hidden");
       elements.roomsSearchSummary.innerHTML = `
         <strong>${search.matchingRoomIds.length} matching room${search.matchingRoomIds.length === 1 ? "" : "s"}</strong>
-        <span>Showing rooms available on ${search.date} at ${search.time} for ${formatDuration(search.duration)}.</span>
+        <span>Showing rooms available on ${escapeHtml(search.date)} at ${escapeHtml(search.time)} for ${formatDuration(search.duration)}.</span>
       `;
     }
   }

@@ -1,7 +1,7 @@
-import { api } from "../api.js?v=20260427a";
-import { STORAGE_KEYS } from "../config.js?v=20260422d";
-import { elements, toggleHidden } from "../dom.js?v=20260427a";
-import { persistToken, setState } from "../state.js?v=20260427a";
+import { api } from "../api.js";
+import { STORAGE_KEYS } from "../config.js";
+import { elements, toggleHidden } from "../dom.js";
+import { persistToken, setState } from "../state.js";
 
 let draftSaveTimer = null;
 let lastHydratedFingerprint = null;

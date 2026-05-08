@@ -1,27 +1,14 @@
-import { API_BASE_URL, getSearchParam } from "../config.js?v=20260422d";
-import { elements } from "../dom.js?v=20260427a";
+import { API_BASE_URL, getSearchParam } from "../config.js";
+import { elements } from "../dom.js";
 import {
   persistCheckoutDraft,
   persistLastBookingId,
   persistToken,
   setState,
   state,
-} from "../state.js?v=20260427a";
+} from "../state.js";
 
 const STAFF_PLACEHOLDER_IMAGE = "/assets/media/staff/staff-placeholder.svg";
-
-const FOUNDERS = [
-  {
-    name: "Studio Founder",
-    role: "Founder / Creative Lead",
-    summary: "Add the founder biography here so visitors understand the studio origin, style, and mission.",
-  },
-  {
-    name: "Co-Founder",
-    role: "Founder / Business Lead",
-    summary: "Use this slot for the business, operations, or production founder behind the space.",
-  },
-];
 
 let staffProfilesCache = [];
 let selectedStaffId = getSearchParam("staff_id") || "";
@@ -91,26 +78,6 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
-}
-
-function renderFounderCard(founder) {
-  return `
-    <article class="staff-profile-card staff-profile-card-founder">
-      <div class="staff-profile-card-top">
-        <img
-          class="staff-profile-image"
-          src="${STAFF_PLACEHOLDER_IMAGE}"
-          alt="${escapeHtml(founder.name)}"
-          loading="lazy"
-        />
-        <div class="staff-option-copy">
-          <strong>${escapeHtml(founder.name)}</strong>
-          <span>${escapeHtml(founder.role)}</span>
-        </div>
-      </div>
-      <p>${escapeHtml(founder.summary)}</p>
-    </article>
-  `;
 }
 
 function renderStaffImage(photoUrl, label) {
@@ -1175,10 +1142,6 @@ function renderBookingSection(currentState) {
 
 export function renderStaffDirectoryView(currentState) {
   staffProfilesCache = currentState.publicStaffProfiles || [];
-
-  if (elements.staffFoundersGrid) {
-    elements.staffFoundersGrid.innerHTML = FOUNDERS.map(renderFounderCard).join("");
-  }
 
   if (elements.staffTeamGrid) {
     const profiles = staffProfilesCache.filter((profile) => profile?.active !== false);

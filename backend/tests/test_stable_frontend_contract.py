@@ -42,14 +42,19 @@ class StableFrontendContractTest(unittest.TestCase):
         required_strings = (
             "site-acknowledgement",
             "BIPOC Foundation is situated on the unceded, traditional and ancestral Siksikaitsitapii",
-            "Copyright &copy; 2026 - media arts collective. All Rights Reserved.",
             "Powered by BIPOC Foundation.",
         )
+        stale_copyright = "Copyright &copy; 2026 - media arts collective. All Rights Reserved."
 
         for html_file in self.html_files:
             content = html_file.read_text(encoding="utf-8")
             for required in required_strings:
                 self.assertIn(required, content, f"{html_file.name} is missing footer text: {required}")
+            self.assertNotIn(
+                stale_copyright,
+                content,
+                f"{html_file.name} should use the StudioBook footer copyright, not stale media arts collective copy.",
+            )
 
     def test_checkout_page_keeps_stripe_checkout_contract(self) -> None:
         booking_page = (self.frontend_dir / "booking.html").read_text(encoding="utf-8")
@@ -62,4 +67,3 @@ class StableFrontendContractTest(unittest.TestCase):
         self.assertIn("booking-detail-card", booking_page)
         self.assertIn("Booking summary", booking_page)
         self.assertIn("Payment details", booking_page)
-

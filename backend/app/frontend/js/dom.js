@@ -9,10 +9,6 @@ export const elements = {
   headerBookingsLink: document.getElementById("header-bookings-link"),
   headerAdminLink: document.getElementById("header-admin-link"),
   headerLogoutButton: document.getElementById("header-logout-button"),
-  healthStatus: document.getElementById("health-status"),
-  healthDetail: document.getElementById("health-detail"),
-  sessionStatus: document.getElementById("session-status"),
-  sessionDetail: document.getElementById("session-detail"),
   appMessage: document.getElementById("app-message"),
   loginForm: document.getElementById("login-form"),
   loginEmailFeedback: document.getElementById("login-email-feedback"),
@@ -67,21 +63,6 @@ export const elements = {
   showInactiveToggle: document.getElementById("show-inactive-toggle"),
   roomsGrid: document.getElementById("rooms-grid"),
   homeFeaturedGrid: document.getElementById("home-featured-grid"),
-  bookingEmpty: document.getElementById("booking-empty"),
-  availabilityForm: document.getElementById("availability-form"),
-  bookingForm: document.getElementById("booking-form"),
-  bookingRoomSelect: document.getElementById("booking-room-select"),
-  bookingDateInput: document.getElementById("booking-date-input"),
-  bookingStartSelect: document.getElementById("booking-start-select"),
-  bookingDurationSelect: document.getElementById("booking-duration-select"),
-  bookingNoteInput: document.getElementById("booking-note-input"),
-  bookingStaffSection: document.getElementById("booking-staff-section"),
-  bookingStaffOptions: document.getElementById("booking-staff-options"),
-  availabilitySummary: document.getElementById("availability-summary"),
-  bookingSlotList: document.getElementById("booking-slot-list"),
-  bookingSummaryCard: document.getElementById("booking-summary-card"),
-  bookingSummaryTitle: document.getElementById("booking-summary-title"),
-  bookingSummaryMeta: document.getElementById("booking-summary-meta"),
   bookingHistoryPanel: document.getElementById("booking-history-panel"),
   bookingHistoryAllTab: document.getElementById("booking-history-all-tab"),
   bookingHistoryRoomsTab: document.getElementById("booking-history-rooms-tab"),
@@ -91,7 +72,6 @@ export const elements = {
   bookingHistoryStaffCount: document.getElementById("booking-history-staff-count"),
   bookingHistoryRoomLink: document.getElementById("booking-history-room-link"),
   bookingHistoryStaffLink: document.getElementById("booking-history-staff-link"),
-  bookingsList: document.getElementById("bookings-list"),
   pendingBookingsList: document.getElementById("pending-bookings-list"),
   pendingBookingsCount: document.getElementById("pending-bookings-count"),
   recentBookingsShell: document.getElementById("recent-bookings-shell"),
@@ -167,7 +147,6 @@ export const elements = {
   bookingDetailCard: document.getElementById("booking-detail-card"),
   bookingDetailTitle: document.getElementById("booking-detail-title"),
   bookingDetailWindow: document.getElementById("booking-detail-window"),
-  bookingDetailMeta: document.getElementById("booking-detail-meta"),
   bookingDetailNote: document.getElementById("booking-detail-note"),
   bookingDetailStaffList: document.getElementById("booking-detail-staff-list"),
   bookingDetailActions: document.getElementById("booking-detail-actions"),
@@ -216,7 +195,6 @@ export const elements = {
   reserveDurationIncrease: document.getElementById("reserve-duration-increase"),
   reserveDurationDisplay: document.getElementById("reserve-duration-display"),
   reserveDurationUnit: document.getElementById("reserve-duration-unit"),
-  reserveSummaryTitle: document.getElementById("reserve-summary-title"),
   reserveSummaryMeta: document.getElementById("reserve-summary-meta"),
   reserveCalendarTitle: document.getElementById("reserve-calendar-title"),
   reservePrevMonth: document.getElementById("reserve-prev-month"),
@@ -224,18 +202,8 @@ export const elements = {
   reserveMonthGrid: document.getElementById("reserve-month-grid"),
   infoFoundersGrid: document.getElementById("info-founders-grid"),
   infoBuildingGallery: document.getElementById("info-building-gallery"),
-  staffFoundersGrid: document.getElementById("staff-founders-grid"),
   staffTeamGrid: document.getElementById("staff-team-grid"),
-  staffBuildingGallery: document.getElementById("staff-building-gallery"),
 };
-
-export function setText(element, value, className = "") {
-  if (!element) {
-    return;
-  }
-  element.textContent = value;
-  element.className = className;
-}
 
 export function toggleHidden(element, shouldHide) {
   if (!element) {

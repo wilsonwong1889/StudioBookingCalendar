@@ -1,6 +1,6 @@
-import { api } from "../api.js?v=20260502a";
-import { elements } from "../dom.js?v=20260427a";
-import { setState } from "../state.js?v=20260427a";
+import { api } from "../api.js";
+import { elements } from "../dom.js";
+import { setState } from "../state.js";
 
 let editingStaffProfileId = null;
 let activeAdminTab = "bookings";
@@ -80,12 +80,27 @@ function getAdminTriageMetrics(currentState) {
 
 function setActiveAdminTab(tab) {
   activeAdminTab = tab;
+  const panels = Array.from(elements.adminPanels || []);
   elements.adminTabs?.forEach((button) => {
-    button.classList.toggle("active", button.dataset.adminTab === tab);
-    button.setAttribute("aria-selected", button.dataset.adminTab === tab ? "true" : "false");
+    const isActive = button.dataset.adminTab === tab;
+    const tabKey = escapeClassToken(button.dataset.adminTab);
+    const panel = panels.find((item) => item.dataset.adminPanel === button.dataset.adminTab);
+    const buttonId = ensureElementId(button, `admin-tab-${tabKey}`);
+    if (panel) {
+      const panelId = ensureElementId(panel, `admin-panel-${tabKey}`);
+      button.setAttribute("aria-controls", panelId);
+      panel.setAttribute("role", "tabpanel");
+      panel.setAttribute("aria-labelledby", buttonId);
+    }
+    button.setAttribute("role", "tab");
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-selected", isActive ? "true" : "false");
+    button.setAttribute("tabindex", isActive ? "0" : "-1");
   });
-  elements.adminPanels?.forEach((panel) => {
-    panel.classList.toggle("hidden", panel.dataset.adminPanel !== tab);
+  panels.forEach((panel) => {
+    const isActive = panel.dataset.adminPanel === tab;
+    panel.classList.toggle("hidden", !isActive);
+    panel.setAttribute("aria-hidden", isActive ? "false" : "true");
   });
   if (elements.adminWorkspaceSelect && elements.adminWorkspaceSelect.value !== tab) {
     elements.adminWorkspaceSelect.value = tab;
@@ -96,19 +111,40 @@ function setActiveAdminSubpage(group, subpage) {
   const nextSubpage = subpage || DEFAULT_ADMIN_SUBPAGES[group] || "overview";
   activeAdminSubpages[group] = nextSubpage;
 
-  document.querySelectorAll(`[data-admin-subpage-button="${group}"]`).forEach((button) => {
-    const isActive = button.dataset.adminSubpage === nextSubpage;
-    button.classList.toggle("active", isActive);
-    button.setAttribute("aria-selected", isActive ? "true" : "false");
-  });
+  const panels = Array.from(document.querySelectorAll("[data-admin-subpage-panel]")).filter(
+    (panel) => panel.dataset.adminSubpagePanel === group,
+  );
+  Array.from(document.querySelectorAll("[data-admin-subpage-button]"))
+    .filter((button) => button.dataset.adminSubpageButton === group)
+    .forEach((button) => {
+      const isActive = button.dataset.adminSubpage === nextSubpage;
+      const subpageKey = escapeClassToken(button.dataset.adminSubpage);
+      const groupKey = escapeClassToken(group);
+      const panel = panels.find((item) => item.dataset.adminSubpage === button.dataset.adminSubpage);
+      const buttonId = ensureElementId(button, `admin-subpage-tab-${groupKey}-${subpageKey}`);
+      if (panel) {
+        const panelId = ensureElementId(panel, `admin-subpage-panel-${groupKey}-${subpageKey}`);
+        button.setAttribute("aria-controls", panelId);
+        panel.setAttribute("role", "tabpanel");
+        panel.setAttribute("aria-labelledby", buttonId);
+      }
+      button.setAttribute("role", "tab");
+      button.classList.toggle("active", isActive);
+      button.setAttribute("aria-selected", isActive ? "true" : "false");
+      button.setAttribute("tabindex", isActive ? "0" : "-1");
+    });
 
-  const select = document.querySelector(`[data-admin-subpage-select="${group}"]`);
+  const select = Array.from(document.querySelectorAll("[data-admin-subpage-select]")).find(
+    (item) => item.dataset.adminSubpageSelect === group,
+  );
   if (select && select.value !== nextSubpage) {
     select.value = nextSubpage;
   }
 
-  document.querySelectorAll(`[data-admin-subpage-panel="${group}"]`).forEach((panel) => {
-    panel.classList.toggle("hidden", panel.dataset.adminSubpage !== nextSubpage);
+  panels.forEach((panel) => {
+    const isActive = panel.dataset.adminSubpage === nextSubpage;
+    panel.classList.toggle("hidden", !isActive);
+    panel.setAttribute("aria-hidden", isActive ? "false" : "true");
   });
 }
 
@@ -235,7 +271,7 @@ function getAdminRoomCalendarLabel(currentState) {
 }
 
 function getStatusClass(status) {
-  return `status-${String(status || "").toLowerCase()}`;
+  return `status-${escapeClassToken(status)}`;
 }
 
 function getStatusLabel(status) {
@@ -246,6 +282,43 @@ function getStatusLabel(status) {
 function normalizePhoneHref(value) {
   const digits = String(value || "").replace(/[^\d+]/g, "");
   return digits ? `tel:${digits}` : null;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => {
+    switch (character) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case '"':
+        return "&quot;";
+      case "'":
+        return "&#39;";
+      default:
+        return character;
+    }
+  });
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value);
+}
+
+function escapeClassToken(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "unknown";
+}
+
+function ensureElementId(element, fallbackId) {
+  if (!element.id) {
+    element.id = fallbackId;
+  }
+  return element.id;
 }
 
 function isAdminBookingNeedsAttention(booking) {
@@ -405,11 +478,11 @@ function renderAdminBookingQuickSummary(bookings, filterOptions) {
         <button
           class="metric-card admin-booking-summary-card${selectedAdminBookingQuickFilter === option.key ? " is-active" : ""}"
           type="button"
-          data-admin-booking-filter="${option.key}"
+          data-admin-booking-filter="${escapeAttribute(option.key)}"
         >
-          <span class="metric-label">${option.label}</span>
-          <strong class="metric-value">${option.count}</strong>
-          <span class="status-detail">${option.description}</span>
+          <span class="metric-label">${escapeHtml(option.label)}</span>
+          <strong class="metric-value">${escapeHtml(option.count)}</strong>
+          <span class="status-detail">${escapeHtml(option.description)}</span>
         </button>
       `,
     );
@@ -430,10 +503,10 @@ function renderAdminBookingQuickFilters(filterOptions) {
         <button
           class="pill admin-booking-filter-chip${selectedAdminBookingQuickFilter === option.key ? " is-active" : ""}"
           type="button"
-          data-admin-booking-filter="${option.key}"
+          data-admin-booking-filter="${escapeAttribute(option.key)}"
         >
-          ${option.label}
-          <span>${option.count}</span>
+          ${escapeHtml(option.label)}
+          <span>${escapeHtml(option.count)}</span>
         </button>
       `,
     )
@@ -475,8 +548,8 @@ function getAdminBookingUrgencyLabel(booking) {
 function renderAdminBookingTimelineRow(label, value) {
   return `
     <div class="admin-booking-timeline-row">
-      <span>${label}</span>
-      <strong>${value}</strong>
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value)}</strong>
     </div>
   `;
 }
@@ -486,8 +559,8 @@ function renderAdminBookingGroup(groupMeta, bookings) {
     <section class="admin-booking-group">
       <header class="admin-booking-group-header">
         <div>
-          <h4>${groupMeta.label}</h4>
-          <p>${groupMeta.description}</p>
+          <h4>${escapeHtml(groupMeta.label)}</h4>
+          <p>${escapeHtml(groupMeta.description)}</p>
         </div>
         <span class="pill">${bookings.length} booking${bookings.length === 1 ? "" : "s"}</span>
       </header>
@@ -646,18 +719,18 @@ function renderAdminPromoCodeCard(promoCode) {
     <article class="admin-promo-card ${promoCode.active ? "is-active" : "is-inactive"}">
       <div class="admin-promo-card-header">
         <div>
-          <h4>${promoCode.code}</h4>
-          <p>${promoCode.description || "No description added yet."}</p>
+          <h4>${escapeHtml(promoCode.code)}</h4>
+          <p>${escapeHtml(promoCode.description || "No description added yet.")}</p>
         </div>
         <div class="room-meta">
-          <span class="pill">${formatPromoDiscountLabel(promoCode)}</span>
+          <span class="pill">${escapeHtml(formatPromoDiscountLabel(promoCode))}</span>
           <span class="pill ${promoCode.active ? "" : "muted"}">${promoCode.active ? "Active" : "Inactive"}</span>
         </div>
       </div>
       <div class="admin-detail-grid">
         <div class="admin-detail-field">
           <span>Redemptions</span>
-          <div class="admin-detail-value">${redemptionsLabel}</div>
+          <div class="admin-detail-value">${escapeHtml(redemptionsLabel)}</div>
         </div>
         <div class="admin-detail-field">
           <span>Starts</span>
@@ -669,8 +742,8 @@ function renderAdminPromoCodeCard(promoCode) {
         </div>
       </div>
       <div class="room-actions">
-        <button class="ghost-button" type="button" data-admin-action="edit-promo" data-promo-code-id="${promoCode.id}">Edit</button>
-        <button class="ghost-button" type="button" data-admin-action="toggle-promo" data-promo-code-id="${promoCode.id}" data-next-active="${promoCode.active ? "false" : "true"}">
+        <button class="ghost-button" type="button" data-admin-action="edit-promo" data-promo-code-id="${escapeAttribute(promoCode.id)}">Edit</button>
+        <button class="ghost-button" type="button" data-admin-action="toggle-promo" data-promo-code-id="${escapeAttribute(promoCode.id)}" data-next-active="${promoCode.active ? "false" : "true"}">
           ${promoCode.active ? "Deactivate" : "Activate"}
         </button>
       </div>
@@ -719,9 +792,9 @@ function parseListInput(value) {
 
 function renderStaffImage(photoUrl, label, className = "staff-avatar") {
   if (photoUrl) {
-    return `<img class="${className}" src="${photoUrl}" alt="${label}" loading="lazy" />`;
+    return `<img class="${escapeAttribute(className)}" src="${escapeAttribute(photoUrl)}" alt="${escapeAttribute(label)}" loading="lazy" />`;
   }
-  return `<div class="${className} staff-avatar-fallback">${label.slice(0, 1).toUpperCase()}</div>`;
+  return `<div class="${escapeAttribute(className)} staff-avatar-fallback">${escapeHtml(String(label || "").slice(0, 1).toUpperCase())}</div>`;
 }
 
 function setStaffPhotoPreview(photoUrl, name = "Staff member") {
@@ -734,7 +807,7 @@ function setStaffPhotoPreview(photoUrl, name = "Staff member") {
         <div class="staff-photo-preview-card">
           ${renderStaffImage(photoUrl, name, "staff-photo-preview-image")}
           <div class="staff-option-copy">
-            <strong>${name}</strong>
+            <strong>${escapeHtml(name)}</strong>
             <span>Current profile image saved for this staff profile.</span>
           </div>
         </div>
@@ -803,9 +876,9 @@ function renderStaffTagRow(label, values = []) {
 
   return `
     <div class="staff-tag-group">
-      <span>${label}</span>
+      <span>${escapeHtml(label)}</span>
       <div class="preview-pill-row">
-        ${values.map((value) => `<span class="pill">${value}</span>`).join("")}
+        ${values.map((value) => `<span class="pill">${escapeHtml(value)}</span>`).join("")}
       </div>
     </div>
   `;
@@ -823,30 +896,32 @@ function formatAddress(address) {
     [address.postal_code, address.country].filter(Boolean).join(" "),
   ]
     .filter(Boolean)
+    .map(escapeHtml)
     .join("<br />");
 }
 
-function renderAccountField(label, value, { mono = false } = {}) {
+function renderAccountField(label, value, { mono = false, valueHtml = null } = {}) {
+  const renderedValue = valueHtml ?? escapeHtml(value || "Not provided");
   return `
     <div class="admin-detail-field${mono ? " is-mono" : ""}">
-      <span>${label}</span>
-      <div class="admin-detail-value">${value || "Not provided"}</div>
+      <span>${escapeHtml(label)}</span>
+      <div class="admin-detail-value">${renderedValue}</div>
     </div>
   `;
 }
 
 function renderAdminAccountListItem(account, isSelected) {
   return `
-    <button class="admin-account-list-item${isSelected ? " is-selected" : ""}" type="button" data-admin-action="select-account" data-user-id="${account.id}">
+    <button class="admin-account-list-item${isSelected ? " is-selected" : ""}" type="button" data-admin-action="select-account" data-user-id="${escapeAttribute(account.id)}">
       <div class="admin-account-list-top">
-        <strong>${account.full_name || account.email}</strong>
-        <span>${account.email}</span>
+        <strong>${escapeHtml(account.full_name || account.email)}</strong>
+        <span>${escapeHtml(account.email)}</span>
       </div>
       <div class="room-meta">
         <span class="pill">${account.is_admin ? "Admin" : "Customer"}</span>
-        <span class="pill">${account.booking_count} booking${account.booking_count === 1 ? "" : "s"}</span>
+        <span class="pill">${escapeHtml(account.booking_count)} booking${account.booking_count === 1 ? "" : "s"}</span>
       </div>
-      <p>${account.phone ? formatPhone(account.phone) : "No phone on file"}</p>
+      <p>${escapeHtml(account.phone ? formatPhone(account.phone) : "No phone on file")}</p>
       <p>${account.billing_address ? "Billing address on file" : "No billing address on file"}</p>
     </button>
   `;
@@ -860,7 +935,7 @@ function renderAdminAccountDetail(account, currentUser) {
         <p class="field-help">Delete your own profile from the account page so this admin session can close cleanly.</p>
       `
     : `
-        <button class="ghost-button room-action-danger" type="button" data-admin-action="delete-user-account" data-user-id="${account.id}" data-user-email="${account.email}">
+        <button class="ghost-button room-action-danger" type="button" data-admin-action="delete-user-account" data-user-id="${escapeAttribute(account.id)}" data-user-email="${escapeAttribute(account.email)}">
           Delete account
         </button>
       `;
@@ -869,8 +944,8 @@ function renderAdminAccountDetail(account, currentUser) {
     <article class="admin-account-detail-card">
       <div class="admin-account-detail-header">
         <div>
-          <h4>${account.full_name || account.email}</h4>
-          <p>${account.email}</p>
+          <h4>${escapeHtml(account.full_name || account.email)}</h4>
+          <p>${escapeHtml(account.email)}</p>
         </div>
         <div class="room-meta">
           <span class="pill">${account.is_admin ? "Admin" : "Customer"}</span>
@@ -882,11 +957,11 @@ function renderAdminAccountDetail(account, currentUser) {
       <div class="admin-account-stats">
         <article class="metric-card">
           <span class="metric-label">Bookings</span>
-          <strong class="metric-value">${account.booking_count}</strong>
+          <strong class="metric-value">${escapeHtml(account.booking_count)}</strong>
         </article>
         <article class="metric-card">
           <span class="metric-label">Last booking</span>
-          <strong class="metric-value metric-value-small">${account.last_booking_at ? formatBookingDate(account.last_booking_at) : "No bookings yet"}</strong>
+          <strong class="metric-value metric-value-small">${escapeHtml(account.last_booking_at ? formatBookingDate(account.last_booking_at) : "No bookings yet")}</strong>
         </article>
       </div>
 
@@ -904,7 +979,7 @@ function renderAdminAccountDetail(account, currentUser) {
         <h4>Billing</h4>
         <p class="field-help">Card details are handled by Stripe and are not stored in this app.</p>
         <div class="admin-detail-grid">
-          ${renderAccountField("Billing address", formatAddress(account.billing_address))}
+          ${renderAccountField("Billing address", null, { valueHtml: formatAddress(account.billing_address) })}
         </div>
       </section>
 
@@ -930,32 +1005,32 @@ function renderAdminTestCaseCard(testCase) {
     <article class="admin-test-case-card ${healthMeta.className}">
       <div class="admin-test-case-header">
         <div>
-          <h4>${testCase.title}</h4>
-          <p>${testCase.summary}</p>
+          <h4>${escapeHtml(testCase.title)}</h4>
+          <p>${escapeHtml(testCase.summary)}</p>
         </div>
         <div class="room-meta">
           <span class="pill test-health-pill ${healthMeta.className}">
             <span class="test-status-light ${healthMeta.className}"></span>
             ${healthMeta.label}
           </span>
-          <span class="pill">${testCase.area}</span>
-          <span class="pill">${testCase.status}</span>
+          <span class="pill">${escapeHtml(testCase.area)}</span>
+          <span class="pill">${escapeHtml(testCase.status)}</span>
         </div>
       </div>
       <div class="admin-detail-grid">
         <div class="admin-detail-field is-mono">
           <span>Source file</span>
-          <div class="admin-detail-value">${testCase.source_file}</div>
+          <div class="admin-detail-value">${escapeHtml(testCase.source_file)}</div>
         </div>
         <div class="admin-detail-field is-mono">
           <span>Test id</span>
-          <div class="admin-detail-value">${testCase.source_test}</div>
+          <div class="admin-detail-value">${escapeHtml(testCase.source_test)}</div>
         </div>
       </div>
       <div class="admin-test-case-section">
         <span>Covered paths</span>
         <div class="preview-pill-row">
-          ${(testCase.covered_paths || []).map((path) => `<span class="pill">${path}</span>`).join("")}
+          ${(testCase.covered_paths || []).map((path) => `<span class="pill">${escapeHtml(path)}</span>`).join("")}
         </div>
       </div>
       <div class="admin-test-case-section">
@@ -965,7 +1040,7 @@ function renderAdminTestCaseCard(testCase) {
           .map(
             (command) => `
               <div class="admin-detail-field is-mono">
-                <div class="admin-detail-value">${command}</div>
+                <div class="admin-detail-value">${escapeHtml(command)}</div>
               </div>
             `,
           )
@@ -1031,10 +1106,10 @@ function renderAdminTestCaseSummary(testCases) {
         <article class="metric-card test-status-card ${card.className}">
           <div class="room-meta">
             <span class="test-status-light ${card.className}"></span>
-            <span class="metric-label">${card.label}</span>
+            <span class="metric-label">${escapeHtml(card.label)}</span>
           </div>
-          <strong class="metric-value">${card.value}</strong>
-          <span class="status-detail">${card.description}</span>
+          <strong class="metric-value">${escapeHtml(card.value)}</strong>
+          <span class="status-detail">${escapeHtml(card.description)}</span>
         </article>
       `,
     )
@@ -1062,12 +1137,12 @@ function renderManualBookingStaffOptions(currentState) {
       (role) => `
         <label class="staff-option-card staff-option-card-compact">
           <div class="staff-option-toggle">
-            <input type="checkbox" value="${role.id}" ${selectedIds.has(role.id) ? "checked" : ""} />
+            <input type="checkbox" value="${escapeAttribute(role.id)}" ${selectedIds.has(role.id) ? "checked" : ""} />
           </div>
           ${renderStaffImage(role.photo_url, role.name)}
           <div class="staff-option-copy">
-            <strong>${role.name}</strong>
-            <span>${role.description || "Optional booking add-on."}</span>
+            <strong>${escapeHtml(role.name)}</strong>
+            <span>${escapeHtml(role.description || "Optional booking add-on.")}</span>
             ${renderStaffTagRow("Skills", role.skills || [])}
           </div>
           <strong class="staff-option-price">${formatMoney(role.add_on_price_cents)}</strong>
@@ -1079,23 +1154,24 @@ function renderManualBookingStaffOptions(currentState) {
 
 function renderAdminBookingCard(booking) {
   const isStaffBooking = booking.booking_kind === "staff";
+  const bookingKind = booking.booking_kind || "room";
   const refundButton =
     !isStaffBooking &&
     booking.price_cents > 0 &&
     (booking.status === "Paid" || booking.status === "Cancelled" || booking.status === "Completed")
-      ? `<button class="ghost-button admin-booking-action" type="button" data-admin-action="refund" data-booking-kind="${booking.booking_kind || "room"}" data-booking-id="${booking.id}" data-amount="${booking.price_cents}">Refund</button>`
+      ? `<button class="ghost-button admin-booking-action" type="button" data-admin-action="refund" data-booking-kind="${escapeAttribute(bookingKind)}" data-booking-id="${escapeAttribute(booking.id)}" data-amount="${escapeAttribute(booking.price_cents)}">Refund</button>`
       : "";
   const manualPaidButton =
     booking.status === "PendingPayment" && booking.price_cents > 0
-      ? `<button class="ghost-button admin-booking-action" type="button" data-admin-action="mark-paid" data-booking-kind="${booking.booking_kind || "room"}" data-booking-id="${booking.id}">Mark paid manually</button>`
+      ? `<button class="ghost-button admin-booking-action" type="button" data-admin-action="mark-paid" data-booking-kind="${escapeAttribute(bookingKind)}" data-booking-id="${escapeAttribute(booking.id)}">Mark paid manually</button>`
       : "";
   const waivePaymentButton =
     booking.status === "PendingPayment"
-      ? `<button class="ghost-button admin-booking-action" type="button" data-admin-action="waive-payment" data-booking-kind="${booking.booking_kind || "room"}" data-booking-id="${booking.id}">Skip Stripe and mark free</button>`
+      ? `<button class="ghost-button admin-booking-action" type="button" data-admin-action="waive-payment" data-booking-kind="${escapeAttribute(bookingKind)}" data-booking-id="${escapeAttribute(booking.id)}">Skip Stripe and mark free</button>`
       : "";
   const checkInButton =
     !isStaffBooking && booking.status === "Paid" && !booking.checked_in_at
-      ? `<button class="primary-button admin-booking-action" type="button" data-admin-action="check-in" data-booking-kind="${booking.booking_kind || "room"}" data-booking-id="${booking.id}">Mark arrived</button>`
+      ? `<button class="primary-button admin-booking-action" type="button" data-admin-action="check-in" data-booking-kind="${escapeAttribute(bookingKind)}" data-booking-id="${escapeAttribute(booking.id)}">Mark arrived</button>`
       : "";
   const staffAssignments = booking.staff_assignments || [];
   const guestName = booking.user_full_name || "Guest name not set";
@@ -1113,27 +1189,27 @@ function renderAdminBookingCard(booking) {
     : booking.room_name || "Room";
   const staffMarkup = isStaffBooking
     ? `
-        <span class="pill">${booking.staff_name || "Assigned staff"}</span>
-        ${booking.service_type ? `<span class="pill">${booking.service_type}</span>` : ""}
+        <span class="pill">${escapeHtml(booking.staff_name || "Assigned staff")}</span>
+        ${booking.service_type ? `<span class="pill">${escapeHtml(booking.service_type)}</span>` : ""}
       `
     : staffAssignments.length
-      ? staffAssignments.map((assignment) => `<span class="pill">${assignment.name}</span>`).join("")
+      ? staffAssignments.map((assignment) => `<span class="pill">${escapeHtml(assignment.name)}</span>`).join("")
       : '<span class="pill muted">No staff attached</span>';
 
   return `
-    <article class="booking-card admin-booking-record ${getStatusClass(booking.status)}">
+    <article class="booking-card admin-booking-record ${escapeAttribute(getStatusClass(booking.status))}">
       <div class="admin-booking-header">
         <div class="admin-booking-heading">
           <div class="admin-booking-topline">
-            <span class="admin-booking-code">${booking.booking_code}</span>
+            <span class="admin-booking-code">${escapeHtml(booking.booking_code)}</span>
             <span class="pill">${isStaffBooking ? "Staff booking" : "Room booking"}</span>
-            ${urgencyLabel ? `<span class="pill admin-booking-urgency">${urgencyLabel}</span>` : ""}
+            ${urgencyLabel ? `<span class="pill admin-booking-urgency">${escapeHtml(urgencyLabel)}</span>` : ""}
           </div>
-          <h4>${headingTitle}</h4>
+          <h4>${escapeHtml(headingTitle)}</h4>
           <p>${formatBookingDate(booking.start_time)} to ${formatBookingDate(booking.end_time)}</p>
         </div>
         <div class="room-meta admin-booking-pill-stack">
-          <span class="pill ${getStatusClass(booking.status)}">${getStatusLabel(booking.status)}</span>
+          <span class="pill ${escapeAttribute(getStatusClass(booking.status))}">${escapeHtml(getStatusLabel(booking.status))}</span>
           <span class="pill">${formatDuration(booking.duration_minutes)}</span>
           <span class="pill">${formatMoney(booking.price_cents, booking.currency)}</span>
         </div>
@@ -1141,10 +1217,10 @@ function renderAdminBookingCard(booking) {
       <div class="admin-booking-primary-grid">
         <div class="availability-preview admin-booking-panel-card">
           <span class="availability-label">Guest</span>
-          <p><strong>${guestName}</strong></p>
+          <p><strong>${escapeHtml(guestName)}</strong></p>
           <div class="admin-booking-contact-links">
-            ${booking.user_email ? `<a class="ghost-link" href="mailto:${booking.user_email}">${booking.user_email}</a>` : "<span>No email</span>"}
-            ${phoneHref ? `<a class="ghost-link" href="${phoneHref}">${guestPhone}</a>` : `<span>${guestPhone}</span>`}
+            ${booking.user_email ? `<a class="ghost-link" href="${escapeAttribute(`mailto:${String(booking.user_email).replace(/[\r\n]/g, "")}`)}">${escapeHtml(booking.user_email)}</a>` : "<span>No email</span>"}
+            ${phoneHref ? `<a class="ghost-link" href="${escapeAttribute(phoneHref)}">${escapeHtml(guestPhone)}</a>` : `<span>${escapeHtml(guestPhone)}</span>`}
           </div>
           <div class="room-meta">
             <span class="pill">${booking.user_id ? "Existing account" : "Snapshot only"}</span>
@@ -1172,9 +1248,9 @@ function renderAdminBookingCard(booking) {
           <span class="availability-label">${isStaffBooking ? "Session details" : "Staff"}</span>
           <div class="preview-pill-row">${staffMarkup}</div>
         </div>
-        ${booking.location_label ? `<div class="admin-booking-info-block"><span class="availability-label">Location</span><p>${booking.location_label}</p></div>` : ""}
-        ${booking.note ? `<div class="admin-booking-info-block"><span class="availability-label">Notes</span><p>${booking.note}</p></div>` : ""}
-        ${booking.cancellation_reason ? `<div class="admin-booking-info-block"><span class="availability-label">Cancellation reason</span><p>${booking.cancellation_reason}</p></div>` : ""}
+        ${booking.location_label ? `<div class="admin-booking-info-block"><span class="availability-label">Location</span><p>${escapeHtml(booking.location_label)}</p></div>` : ""}
+        ${booking.note ? `<div class="admin-booking-info-block"><span class="availability-label">Notes</span><p>${escapeHtml(booking.note)}</p></div>` : ""}
+        ${booking.cancellation_reason ? `<div class="admin-booking-info-block"><span class="availability-label">Cancellation reason</span><p>${escapeHtml(booking.cancellation_reason)}</p></div>` : ""}
       </div>
       <div class="admin-booking-actions">
         ${manualPaidButton}
@@ -1219,8 +1295,8 @@ function renderAdminDaySummary(currentState) {
     .map(
       (card) => `
         <article class="metric-card">
-          <span class="metric-label">${card.label}</span>
-          <strong class="metric-value">${card.value}</strong>
+          <span class="metric-label">${escapeHtml(card.label)}</span>
+          <strong class="metric-value">${escapeHtml(card.value)}</strong>
         </article>
       `,
     )
@@ -1242,10 +1318,10 @@ function renderScheduleBlocks(bookings) {
       const left = ((clampedStart - businessStart) / (businessEnd - businessStart)) * 100;
       const guestLabel = booking.user_full_name || booking.user_email || "Guest";
       return `
-        <article class="admin-schedule-block ${getStatusClass(booking.status)}" style="left:${left}%;width:${width}%;" title="${guestLabel} • ${booking.booking_code}">
+        <article class="admin-schedule-block ${escapeAttribute(getStatusClass(booking.status))}" style="left:${left}%;width:${width}%;" title="${escapeAttribute(`${guestLabel} • ${booking.booking_code}`)}">
           <strong>${formatTimeOnly(booking.start_time)} to ${formatTimeOnly(booking.end_time)}</strong>
-          <span>${guestLabel}</span>
-          <span>${booking.booking_code}</span>
+          <span>${escapeHtml(guestLabel)}</span>
+          <span>${escapeHtml(booking.booking_code)}</span>
         </article>
       `;
     })
@@ -1284,7 +1360,7 @@ function renderAdminDaySchedule(currentState) {
           return `
             <article class="admin-day-row">
               <div class="admin-day-room">
-                <strong>${room.name}</strong>
+                <strong>${escapeHtml(room.name)}</strong>
                 <span>${roomBookings.length} booking${roomBookings.length === 1 ? "" : "s"}</span>
               </div>
               <div class="admin-day-track">
@@ -1337,8 +1413,8 @@ function renderAdminRoomCalendarSummary(currentState) {
     .map(
       (card) => `
         <article class="metric-card">
-          <span class="metric-label">${card.label}</span>
-          <strong class="metric-value">${card.value}</strong>
+          <span class="metric-label">${escapeHtml(card.label)}</span>
+          <strong class="metric-value">${escapeHtml(card.value)}</strong>
         </article>
       `,
     )
@@ -1416,8 +1492,8 @@ function renderAdminRoomCalendar(currentState) {
         title="Open day board for ${dayKey}"
       >
         <strong>${dayNumber}</strong>
-        <span>${metaLine}</span>
-        <small>${supportLine}</small>
+        <span>${escapeHtml(metaLine)}</span>
+        <small>${escapeHtml(supportLine)}</small>
         ${revenue ? `<small>${formatMoney(revenue)}</small>` : '<small>Tap to open day board</small>'}
       </button>
     `);
@@ -1427,10 +1503,10 @@ function renderAdminRoomCalendar(currentState) {
     <div class="admin-room-calendar-header">
       <div>
         <h4>${formatMonthHeading(selectedAdminCalendarMonth)}</h4>
-        <p>${roomLabel}. Click any day to jump into the detailed day board.</p>
+        <p>${escapeHtml(roomLabel)}. Click any day to jump into the detailed day board.</p>
       </div>
       <div class="room-meta">
-        <span class="pill">${roomLabel}</span>
+        <span class="pill">${escapeHtml(roomLabel)}</span>
         <span class="pill">${bookings.length} booking${bookings.length === 1 ? "" : "s"} this month</span>
       </div>
     </div>
@@ -1449,8 +1525,8 @@ function renderStaffCatalogCard(profile) {
       <div class="staff-profile-card-top">
         ${renderStaffImage(profile.photo_url, profile.name, "staff-profile-image")}
         <div class="staff-option-copy">
-          <strong>${profile.name}</strong>
-          <span>${profile.description || "No profile summary added yet."}</span>
+          <strong>${escapeHtml(profile.name)}</strong>
+          <span>${escapeHtml(profile.description || "No profile summary added yet.")}</span>
         </div>
       </div>
       <div class="room-meta">
@@ -1460,9 +1536,9 @@ function renderStaffCatalogCard(profile) {
       ${renderStaffTagRow("Skills", profile.skills || [])}
       ${renderStaffTagRow("Talents", profile.talents || [])}
       <div class="room-actions">
-        <button class="ghost-button" type="button" data-admin-action="edit-staff-profile" data-staff-profile-id="${profile.id}">Edit profile</button>
-        <button class="ghost-button" type="button" data-admin-action="toggle-staff-profile" data-staff-profile-id="${profile.id}" data-next-active="${profile.active ? "false" : "true"}">${profile.active ? "Deactivate" : "Activate"}</button>
-        <button class="ghost-button room-action-danger" type="button" data-admin-action="delete-staff-profile" data-staff-profile-id="${profile.id}" data-staff-profile-name="${profile.name}">Delete</button>
+        <button class="ghost-button" type="button" data-admin-action="edit-staff-profile" data-staff-profile-id="${escapeAttribute(profile.id)}">Edit profile</button>
+        <button class="ghost-button" type="button" data-admin-action="toggle-staff-profile" data-staff-profile-id="${escapeAttribute(profile.id)}" data-next-active="${profile.active ? "false" : "true"}">${profile.active ? "Deactivate" : "Activate"}</button>
+        <button class="ghost-button room-action-danger" type="button" data-admin-action="delete-staff-profile" data-staff-profile-id="${escapeAttribute(profile.id)}" data-staff-profile-name="${escapeAttribute(profile.name)}">Delete</button>
       </div>
     </article>
   `;
@@ -1473,11 +1549,11 @@ function renderRoomStaffAssignmentCard(room, staffProfiles) {
   const availableProfiles = (staffProfiles || []).filter((profile) => profile.active || assignedIds.has(profile.id));
 
   return `
-    <article class="admin-room-staff-card" data-room-card data-room-id="${room.id}">
+    <article class="admin-room-staff-card" data-room-card data-room-id="${escapeAttribute(room.id)}">
       <header class="admin-room-staff-header">
         <div>
-          <h4>${room.name}</h4>
-          <p>${room.description || "No description"}</p>
+          <h4>${escapeHtml(room.name)}</h4>
+          <p>${escapeHtml(room.description || "No description")}</p>
         </div>
         <div class="room-meta">
           <span class="pill">${formatMoney(room.hourly_rate_cents)}/hour</span>
@@ -1491,12 +1567,12 @@ function renderRoomStaffAssignmentCard(room, staffProfiles) {
                 (profile) => `
                   <label class="staff-option-card staff-option-card-compact">
                     <div class="staff-option-toggle">
-                      <input type="checkbox" value="${profile.id}" ${assignedIds.has(profile.id) ? "checked" : ""} />
+                      <input type="checkbox" value="${escapeAttribute(profile.id)}" ${assignedIds.has(profile.id) ? "checked" : ""} />
                     </div>
                     ${renderStaffImage(profile.photo_url, profile.name)}
                     <div class="staff-option-copy">
-                      <strong>${profile.name}</strong>
-                      <span>${profile.description || "No summary added yet."}</span>
+                      <strong>${escapeHtml(profile.name)}</strong>
+                      <span>${escapeHtml(profile.description || "No summary added yet.")}</span>
                     </div>
                     <strong class="staff-option-price">${formatMoney(profile.add_on_price_cents)}</strong>
                   </label>
@@ -1506,7 +1582,7 @@ function renderRoomStaffAssignmentCard(room, staffProfiles) {
           : '<div class="empty-state">Create staff profiles above before assigning anyone to a room.</div>'}
       </div>
       <div class="room-actions">
-        <button class="primary-button" type="button" data-admin-action="save-room-staff" data-room-id="${room.id}">Save room staff</button>
+        <button class="primary-button" type="button" data-admin-action="save-room-staff" data-room-id="${escapeAttribute(room.id)}">Save room staff</button>
       </div>
     </article>
   `;
@@ -2064,7 +2140,7 @@ export function renderAdminView(currentState) {
 
   const activeRooms = getActiveRooms(currentState.rooms);
   const roomOptions = activeRooms.map(
-    (room) => `<option value="${room.id}">${room.name}</option>`,
+    (room) => `<option value="${escapeAttribute(room.id)}">${escapeHtml(room.name)}</option>`,
   );
   const previousRoomId = elements.adminRoomSelect.value;
   const previousScheduleRoomId = elements.adminScheduleRoomFilter?.value || selectedAdminScheduleRoomId;
@@ -2083,7 +2159,7 @@ export function renderAdminView(currentState) {
   renderManualDurationOptions(currentState);
   if (elements.adminScheduleRoomFilter) {
     const scheduleRoomOptions = ['<option value="all">All rooms</option>'].concat(
-      (currentState.rooms || []).map((room) => `<option value="${room.id}">${room.name}</option>`),
+      (currentState.rooms || []).map((room) => `<option value="${escapeAttribute(room.id)}">${escapeHtml(room.name)}</option>`),
     );
     elements.adminScheduleRoomFilter.innerHTML = scheduleRoomOptions.join("");
     selectedAdminScheduleRoomId = (currentState.rooms || []).some((room) => String(room.id) === previousScheduleRoomId)
@@ -2096,7 +2172,7 @@ export function renderAdminView(currentState) {
   }
   if (calendarRoomFilter) {
     const calendarRoomOptions = ['<option value="all">All rooms</option>'].concat(
-      (currentState.rooms || []).map((room) => `<option value="${room.id}">${room.name}</option>`),
+      (currentState.rooms || []).map((room) => `<option value="${escapeAttribute(room.id)}">${escapeHtml(room.name)}</option>`),
     );
     calendarRoomFilter.innerHTML = calendarRoomOptions.join("");
     selectedAdminCalendarRoomId = (currentState.rooms || []).some((room) => String(room.id) === previousCalendarRoomId)
@@ -2173,8 +2249,8 @@ export function renderAdminView(currentState) {
           .map(
             (card) => `
               <article class="metric-card">
-                <span class="metric-label">${card.label}</span>
-                <strong class="metric-value">${card.value}</strong>
+                <span class="metric-label">${escapeHtml(card.label)}</span>
+                <strong class="metric-value">${escapeHtml(card.value)}</strong>
               </article>
             `,
           )
@@ -2190,13 +2266,13 @@ export function renderAdminView(currentState) {
             (room) => `
               <article class="admin-room-card">
                 <header>
-                  <h4>${room.room_name}</h4>
+                  <h4>${escapeHtml(room.room_name)}</h4>
                   <strong>${formatMoney(room.revenue_cents, currentState.adminAnalytics.currency)}</strong>
                 </header>
-                <p>${room.total_bookings} booking${room.total_bookings === 1 ? "" : "s"} recorded</p>
+                <p>${escapeHtml(room.total_bookings)} booking${room.total_bookings === 1 ? "" : "s"} recorded</p>
                 <div class="room-meta">
-                  <span class="pill">${room.paid_bookings} paid or refunded</span>
-                  <span class="pill">${room.total_bookings - room.paid_bookings} unpaid or cancelled</span>
+                  <span class="pill">${escapeHtml(room.paid_bookings)} paid or refunded</span>
+                  <span class="pill">${escapeHtml(room.total_bookings - room.paid_bookings)} unpaid or cancelled</span>
                 </div>
               </article>
             `,
@@ -2213,12 +2289,12 @@ export function renderAdminView(currentState) {
             (staff) => `
               <article class="admin-room-card">
                 <header>
-                  <h4>${staff.staff_name}</h4>
+                  <h4>${escapeHtml(staff.staff_name)}</h4>
                   <strong>${formatMoney(staff.revenue_cents, currentState.adminAnalytics.currency)}</strong>
                 </header>
-                <p>${staff.total_bookings} booking${staff.total_bookings === 1 ? "" : "s"} with this staff profile</p>
+                <p>${escapeHtml(staff.total_bookings)} booking${staff.total_bookings === 1 ? "" : "s"} with this staff profile</p>
                 <div class="room-meta">
-                  <span class="pill">${staff.assigned_rooms} assigned room${staff.assigned_rooms === 1 ? "" : "s"}</span>
+                  <span class="pill">${escapeHtml(staff.assigned_rooms)} assigned room${staff.assigned_rooms === 1 ? "" : "s"}</span>
                   <span class="pill ${staff.active ? "" : "muted"}">${staff.active ? "Active" : "Inactive"}</span>
                 </div>
               </article>
@@ -2236,11 +2312,11 @@ export function renderAdminView(currentState) {
             (item) => `
               <article class="admin-activity-card">
                 <header>
-                  <strong>${formatActivityAction(item.action)}</strong>
+                  <strong>${escapeHtml(formatActivityAction(item.action))}</strong>
                   <span>${formatBookingDate(item.created_at)}</span>
                 </header>
-                <p>${item.actor_email || "System"}${item.booking_id ? ` • Booking ${item.booking_id}` : ""}</p>
-                <p>${item.details ? JSON.stringify(item.details) : "No extra details recorded."}</p>
+                <p>${escapeHtml(item.actor_email || "System")}${item.booking_id ? ` • Booking ${escapeHtml(item.booking_id)}` : ""}</p>
+                <p>${escapeHtml(item.details ? JSON.stringify(item.details) : "No extra details recorded.")}</p>
               </article>
             `,
           )

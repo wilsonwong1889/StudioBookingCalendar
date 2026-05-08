@@ -1,15 +1,15 @@
-import { api } from "../api.js?v=20260427a";
-import { downloadBookingCalendarFile } from "../calendar.js?v=20260408k";
-import { downloadBookingReceiptPdf } from "../receipt.js?v=20260422d";
-import { getSearchParam } from "../config.js?v=20260422d";
-import { elements, toggleHidden } from "../dom.js?v=20260427a";
+import { api } from "../api.js";
+import { downloadBookingCalendarFile } from "../calendar.js";
+import { downloadBookingReceiptPdf } from "../receipt.js";
+import { getSearchParam } from "../config.js";
+import { elements, toggleHidden } from "../dom.js";
 import {
   getPersistedLastBookingId,
   persistCheckoutDraft,
   persistLastBookingId,
   setState,
   state,
-} from "../state.js?v=20260427a";
+} from "../state.js";
 
 let stripeClient = null;
 let stripeElements = null;
@@ -128,6 +128,15 @@ function formatCountdown(seconds) {
 function formatDuration(minutes) {
   const hours = minutes / 60;
   return `${hours} hour${hours === 1 ? "" : "s"}`;
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function parseRescheduleAvailabilityStarts(payload) {
@@ -310,7 +319,7 @@ function renderBookingEmptyState(currentState) {
     : requestedKind === "staff"
       ? "Start from Staff or My Bookings to open the active staff checkout with the correct booking details."
       : "Start from Rooms or My Bookings to open the active checkout with the correct booking details.";
-  const message = currentState.message && currentState.message !== "Frontend booting." ? currentState.message : fallbackCopy;
+  const message = currentState.message && currentState.message !== "Ready." ? currentState.message : fallbackCopy;
 
   if (elements.bookingEmptyTitle) {
     elements.bookingEmptyTitle.textContent = resumeBookingId
@@ -335,10 +344,11 @@ function renderBookingEmptyState(currentState) {
 }
 
 function renderStaffImage(photoUrl, label) {
+  const safeLabel = escapeHtml(label || "Staff");
   if (photoUrl) {
-    return `<img class="staff-profile-image" src="${photoUrl}" alt="${label}" loading="lazy" />`;
+    return `<img class="staff-profile-image" src="${escapeHtml(photoUrl)}" alt="${safeLabel}" loading="lazy" />`;
   }
-  return `<div class="staff-profile-image staff-avatar-fallback">${label.slice(0, 1).toUpperCase()}</div>`;
+  return `<div class="staff-profile-image staff-avatar-fallback">${safeLabel.slice(0, 1).toUpperCase()}</div>`;
 }
 
 function renderTagGroup(label, values = []) {
@@ -351,9 +361,9 @@ function renderTagGroup(label, values = []) {
 
   return `
     <div class="staff-tag-group">
-      <span>${label}</span>
+      <span>${escapeHtml(label)}</span>
       <div class="preview-pill-row">
-        ${visibleValues.map((value) => `<span class="pill">${value}</span>`).join("")}
+        ${visibleValues.map((value) => `<span class="pill">${escapeHtml(value)}</span>`).join("")}
         ${hiddenCount > 0 ? `<span class="pill">+${hiddenCount} more</span>` : ""}
       </div>
     </div>
@@ -477,10 +487,10 @@ async function mountStripePaymentForm(session) {
     appearance: {
       theme: "stripe",
       variables: {
-        colorPrimary: "#c83a3f",
-        colorText: "#243453",
+        colorPrimary: "#d71920",
+        colorText: "#00263e",
         colorDanger: "#b3261e",
-        borderRadius: "10px",
+        borderRadius: "8px",
         fontFamily: "Inter, Avenir Next, Segoe UI, sans-serif",
       },
     },
@@ -757,14 +767,18 @@ function renderStaffAssignments(booking) {
       : booking.staff_assignments || [];
   elements.bookingDetailStaffList.innerHTML = assignments.length
     ? assignments
-        .map(
-          (assignment) => `
-            <article class="booking-staff-card staff-profile-card" style="gap: 12px; padding: 14px;">
-              <div class="booking-staff-card-top staff-profile-card-top" style="grid-template-columns: auto minmax(0, 1fr) auto; align-items: start;">
-                ${renderStaffImage(assignment.photo_url, assignment.name)}
+        .map((assignment) => {
+          const assignmentName = assignment.name || "Studio staff";
+          const assignmentDescription =
+            assignment.description ||
+            (getBookingKind(booking) === "staff" ? "Booked staff session" : "Attached to this booking as an add-on.");
+          return `
+            <article class="booking-staff-card booking-staff-card-compact staff-profile-card">
+              <div class="booking-staff-card-top booking-staff-card-top-compact staff-profile-card-top">
+                ${renderStaffImage(assignment.photo_url, assignmentName)}
                 <div class="booking-staff-card-copy">
-                  <strong>${assignment.name}</strong>
-                  <span>${assignment.description || (getBookingKind(booking) === "staff" ? "Booked staff session" : "Attached to this booking as an add-on.")}</span>
+                  <strong>${escapeHtml(assignmentName)}</strong>
+                  <span>${escapeHtml(assignmentDescription)}</span>
                 </div>
                 <strong class="booking-staff-card-price staff-option-price">${formatCurrency(assignment.add_on_price_cents, booking.currency)}</strong>
               </div>
@@ -773,8 +787,8 @@ function renderStaffAssignments(booking) {
                 ${renderTagGroup("Talents", assignment.talents || [])}
               </div>
             </article>
-          `,
-        )
+          `;
+        })
         .join("")
     : '<div class="empty-state">No extra staff add-ons were attached to this booking.</div>';
 }
@@ -810,33 +824,6 @@ function renderBookingSummaryLayout(booking) {
     layout.overviewStatus.textContent = statusLabel;
     layout.overviewStatus.className = `pill status-${String(booking.status || "").toLowerCase()}`;
   }
-
-  const fallbackSummaryMarkup = `
-    <div class="booking-detail-summary-shell" style="display:grid; gap: 16px; grid-template-columns: minmax(0, 1.2fr) minmax(240px, 0.8fr); align-items: start;">
-      <div class="booking-detail-summary-main" style="display:grid; gap: 12px;">
-        <div class="summary-stack">
-          ${renderSummaryLine(kind === "staff" ? "Staff" : "Room", bookingTitle)}
-          ${renderSummaryLine("Date", formatShortDate(booking.start_time))}
-          ${renderSummaryLine("Time", formatTimeRange(booking.start_time, booking.end_time))}
-          ${renderSummaryLine("Duration", formatDuration(booking.duration_minutes))}
-        </div>
-        <div class="summary-stack">
-          ${renderSummaryLine("Status", statusLabel)}
-          ${renderSummaryLine("Booking code", booking.booking_code)}
-          ${renderSummaryLine("Access", state.currentUser ? "Signed in" : "Guest booking")}
-        </div>
-      </div>
-      <aside class="booking-detail-summary-side" style="display:grid; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.82);">
-        <div class="summary-stack">
-          ${renderSummaryLine("Total", formatCurrency(booking.price_cents, booking.currency))}
-          ${renderSummaryLine("Staff add-ons", staffTotal ? formatCurrency(staffTotal, booking.currency) : "None")}
-          ${booking.payment_intent_id ? renderSummaryLine("Payment ref", booking.payment_intent_id) : renderSummaryLine("Payment state", statusLabel)}
-          ${renderSummaryLine("Add-ons", `${staffCount} profile${staffCount === 1 ? "" : "s"}`)}
-        </div>
-        <p class="panel-copy" style="margin: 0;">${supportCopy}</p>
-      </aside>
-    </div>
-  `;
 
   if (
     layout.contact &&
@@ -926,9 +913,6 @@ function renderBookingSummaryLayout(booking) {
     return;
   }
 
-  if (elements.bookingDetailMeta) {
-    elements.bookingDetailMeta.innerHTML = fallbackSummaryMarkup;
-  }
 }
 
 export function initBookingDetailView(actions) {
