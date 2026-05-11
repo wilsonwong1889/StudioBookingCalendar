@@ -12,9 +12,12 @@ class StaffOption(BaseModel):
     name: str
     description: Optional[str] = None
     add_on_price_cents: int = Field(default=0, ge=0)
+    booking_rate_cents: int = Field(default=0, ge=0)
     photo_url: Optional[str] = None
     skills: List[str] = Field(default_factory=list)
     talents: List[str] = Field(default_factory=list)
+    service_types: List[str] = Field(default_factory=list)
+    booking_enabled: bool = True
 
 
 class StaffProfileCreate(BaseModel):
@@ -24,9 +27,12 @@ class StaffProfileCreate(BaseModel):
     talents: List[str] = Field(default_factory=list)
     photo_url: Optional[str] = None
     add_on_price_cents: int = Field(default=0, ge=0)
+    booking_rate_cents: int = Field(default=0, ge=0)
+    service_types: List[str] = Field(default_factory=list)
+    booking_enabled: bool = True
     active: bool = True
 
-    @field_validator("skills", "talents", mode="before")
+    @field_validator("skills", "talents", "service_types", mode="before")
     @classmethod
     def normalize_lists(cls, value):
         return normalize_string_list(value)
@@ -39,9 +45,12 @@ class StaffProfileUpdate(BaseModel):
     talents: Optional[List[str]] = None
     photo_url: Optional[str] = None
     add_on_price_cents: Optional[int] = Field(default=None, ge=0)
+    booking_rate_cents: Optional[int] = Field(default=None, ge=0)
+    service_types: Optional[List[str]] = None
+    booking_enabled: Optional[bool] = None
     active: Optional[bool] = None
 
-    @field_validator("skills", "talents", mode="before")
+    @field_validator("skills", "talents", "service_types", mode="before")
     @classmethod
     def normalize_optional_lists(cls, value):
         if value is None:
@@ -57,11 +66,14 @@ class StaffProfileOut(BaseModel):
     talents: List[str] = Field(default_factory=list)
     photo_url: Optional[str] = None
     add_on_price_cents: int
+    booking_rate_cents: int
+    service_types: List[str] = Field(default_factory=list)
+    booking_enabled: bool
     active: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    @field_validator("skills", "talents", mode="before")
+    @field_validator("skills", "talents", "service_types", mode="before")
     @classmethod
     def normalize_output_lists(cls, value):
         return normalize_string_list(value)

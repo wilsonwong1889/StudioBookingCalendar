@@ -28,6 +28,7 @@ from app.schemas.admin import AdminTestCaseOut
 from app.schemas.admin import AdminSuiteDashMetaOut, AdminSuiteDashStatusOut
 from app.schemas.promo_code import PromoCodeCreate, PromoCodeOut, PromoCodeUpdate
 from app.schemas.staff import StaffPhotoUploadOut, StaffProfileCreate, StaffProfileOut, StaffProfileUpdate
+from app.schemas.staff_booking import StaffBookingOut
 from app.schemas.user import AdminUserAccountOut
 from app.schemas.user import AdminUserDeleteConfirm
 from app.core.security import verify_password
@@ -55,6 +56,12 @@ from app.services.staff_service import (
     delete_staff_profile,
     list_staff_profiles,
     update_staff_profile,
+)
+from app.services.staff_booking_service import (
+    get_staff_booking_for_user,
+    list_staff_bookings_for_admin,
+    mark_staff_booking_paid_manually,
+    waive_staff_booking_payment,
 )
 from app.services.test_case_service import list_admin_test_cases
 from app.services.suitedash_service import (
@@ -297,11 +304,22 @@ def admin_bookings(
     admin: User = Depends(get_admin_user),
     _: None = Depends(admin_rate_limit),
 ):
-    return lookup_bookings_for_admin(
+    room_bookings = lookup_bookings_for_admin(
         db,
         status=status,
         email=email,
         booking_code=booking_code,
+    )
+    staff_bookings = list_staff_bookings_for_admin(
+        db,
+        status=status,
+        email=email,
+        booking_code=booking_code,
+    )
+    return sorted(
+        [*room_bookings, *staff_bookings],
+        key=lambda item: item["start_time"],
+        reverse=True,
     )
 
 
@@ -450,6 +468,38 @@ def admin_mark_booking_paid(
 ):
     try:
         return mark_booking_paid_manually(db, booking_id, admin)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/staff-bookings/{staff_booking_id}/waive-payment", response_model=StaffBookingOut)
+def admin_waive_staff_booking_payment(
+    staff_booking_id: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+    _: None = Depends(admin_rate_limit),
+):
+    booking = get_staff_booking_for_user(db, staff_booking_id, admin)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Staff booking not found")
+    try:
+        return waive_staff_booking_payment(db, booking, admin)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/staff-bookings/{staff_booking_id}/mark-paid", response_model=StaffBookingOut)
+def admin_mark_staff_booking_paid(
+    staff_booking_id: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+    _: None = Depends(admin_rate_limit),
+):
+    booking = get_staff_booking_for_user(db, staff_booking_id, admin)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Staff booking not found")
+    try:
+        return mark_staff_booking_paid_manually(db, booking, admin)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

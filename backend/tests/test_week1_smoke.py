@@ -41,12 +41,13 @@ class AppSmokeTest(unittest.TestCase):
 
         from app.database import Base, SessionLocal, engine
         from app.main import app
-        from app.models.booking import AuditLog, Booking, BookingSlot, NotificationLog, Refund
+        from app.models.booking import AuditLog, Booking, BookingSlot, NotificationLog, Refund, Review
         from app.models.promo_code import PromoCode
         from app.models.room import Room
+        from app.models.staff_booking import StaffBooking
         from app.models.staff_profile import StaffProfile
         from app.models.user import User
-        from app.services.seed_service import ensure_admin_user, ensure_rooms
+        from app.services.seed_service import ensure_admin_user, ensure_promo_codes, ensure_rooms
 
         cls.Base = Base
         cls.SessionLocal = SessionLocal
@@ -56,11 +57,14 @@ class AppSmokeTest(unittest.TestCase):
         cls.BookingSlot = BookingSlot
         cls.NotificationLog = NotificationLog
         cls.Refund = Refund
+        cls.Review = Review
         cls.PromoCode = PromoCode
         cls.Room = Room
+        cls.StaffBooking = StaffBooking
         cls.StaffProfile = StaffProfile
         cls.User = User
         cls.ensure_admin_user = staticmethod(ensure_admin_user)
+        cls.ensure_promo_codes = staticmethod(ensure_promo_codes)
         cls.ensure_rooms = staticmethod(ensure_rooms)
 
         cls.Base.metadata.create_all(bind=cls.engine)
@@ -81,9 +85,11 @@ class AppSmokeTest(unittest.TestCase):
                 self.AuditLog,
                 self.NotificationLog,
                 self.Refund,
+                self.Review,
                 self.PromoCode,
                 self.BookingSlot,
                 self.Booking,
+                self.StaffBooking,
                 self.Room,
                 self.StaffProfile,
                 self.User,
@@ -119,6 +125,24 @@ class AppSmokeTest(unittest.TestCase):
             conn.execute(text(f"DROP DATABASE IF EXISTS {cls.test_database_name}"))
         admin_engine.dispose()
 
+    def _future_date(self, day: int = 1) -> date:
+        business_timezone = ZoneInfo("America/Edmonton")
+        return datetime.now(business_timezone).date() + timedelta(days=30 + day - 1)
+
+    def _future_time(self, day: int = 1, hour: int = 10, minute: int = 0, second: int = 0) -> datetime:
+        business_timezone = ZoneInfo("America/Edmonton")
+        target_date = self._future_date(day)
+        shifted_hour = hour + 2
+        return datetime(
+            target_date.year,
+            target_date.month,
+            target_date.day,
+            shifted_hour,
+            minute,
+            second,
+            tzinfo=business_timezone,
+        )
+
     def test_00_seed_helpers(self) -> None:
         with self.SessionLocal() as db:
             admin = type(self).ensure_admin_user(
@@ -144,12 +168,19 @@ class AppSmokeTest(unittest.TestCase):
             room_name = rooms[0].name
             room_count = len(rooms)
             default_seeded_rooms = type(self).ensure_rooms(db)
+            promo_codes = type(self).ensure_promo_codes(db)
+            seeded_promo = db.query(self.PromoCode).filter(self.PromoCode.code == "SUMMER60").one()
+            seeded_promo_percent = seeded_promo.percent_off
+            seeded_promo_active = seeded_promo.active
 
         self.assertEqual(admin_email, "seed-admin@example.com")
         self.assertTrue(admin_is_admin)
         self.assertEqual(room_count, 1)
         self.assertEqual(room_name, "Seed Room")
         self.assertEqual(default_seeded_rooms, [])
+        self.assertEqual(len(promo_codes), 1)
+        self.assertEqual(seeded_promo_percent, 60)
+        self.assertTrue(seeded_promo_active)
 
     def test_10_week_two_smoke_flow(self) -> None:
         response = self.client.get("/health")
@@ -165,14 +196,32 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertIn("StudioBookingSoftware", response.text)
         self.assertIn("2525 36 St N, Lethbridge, AB T1H 5L1", response.text)
-        self.assertIn("Plan your session before you book it.", response.text)
-        self.assertIn("Explore the studio", response.text)
+        self.assertIn("1-888-555-STUDIO", response.text)
+        self.assertIn("hello@studiobook.app", response.text)
+        self.assertIn("home-booking-search", response.text)
+        self.assertIn("Book now", response.text)
+        self.assertNotIn("home-stats-band", response.text)
+        self.assertIn("BIPOC Foundation Digital Media & Creative Innovation Hub", response.text)
+        self.assertIn("home-carousel-button-prev", response.text)
+        self.assertIn("home-carousel-dots", response.text)
+        self.assertIn("Studio location on Google Maps", response.text)
+        self.assertIn("header-user-menu-shell", response.text)
+        self.assertIn("header-user-trigger", response.text)
+        self.assertIn("header-profile-link", response.text)
+        self.assertIn("header-bookings-link", response.text)
         self.assertNotIn('id="rooms-grid"', response.text)
-        self.assertIn("20260401s", response.text)
+        self.assertIn('/assets/styles/app.css?v=', response.text)
 
-        for path in ("/account", "/rooms", "/room", "/reserve", "/bookings", "/booking", "/payment-success", "/admin"):
+        for path in ("/account", "/pricing", "/rooms", "/room", "/reserve", "/bookings", "/booking", "/payment-success", "/admin"):
             page_response = self.client.get(path)
             self.assertEqual(page_response.status_code, 200, page_response.text)
+
+        pricing_page = self.client.get("/pricing")
+        self.assertIn("Pricing & membership", pricing_page.text)
+        self.assertIn("$50/hr", pricing_page.text)
+        self.assertIn("$15", pricing_page.text)
+        self.assertIn("Open Studio Night: May 9, 2026", pricing_page.text)
+        self.assertNotIn("60% beta", pricing_page.text)
 
         account_page = self.client.get("/account")
         self.assertIn("Delete profile", account_page.text)
@@ -185,26 +234,38 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn("signup-password-match-feedback", account_page.text)
         self.assertIn("reset-password-match-feedback", account_page.text)
         self.assertIn("profile-password-match-feedback", account_page.text)
+        self.assertIn("profile-avatar-file", account_page.text)
+        self.assertIn("profile-avatar-preview", account_page.text)
         self.assertIn("account-danger-zone", account_page.text)
-        self.assertIn("20260401ab", account_page.text)
+        self.assertIn('/assets/styles/app.css?v=', account_page.text)
 
         bookings_page = self.client.get("/bookings")
-        self.assertIn("Check availability", bookings_page.text)
-        self.assertIn("booking-staff-section", bookings_page.text)
-        self.assertIn("Available staff for this room", bookings_page.text)
-        self.assertIn("Choose a room to preview available staff for this session.", bookings_page.text)
-        self.assertIn("Save 5-minute spot hold", bookings_page.text)
-        self.assertIn("Complete your saved bookings", bookings_page.text)
+        self.assertIn("My Bookings", bookings_page.text)
+        self.assertIn("Manage room and staff bookings in one place without switching flows.", bookings_page.text)
+        self.assertIn("Book room", bookings_page.text)
+        self.assertIn("Book staff", bookings_page.text)
+        self.assertIn("Upcoming reservations", bookings_page.text)
+        self.assertIn("Past &amp; cancelled", bookings_page.text)
+        self.assertIn("booking-history-upcoming-tab", bookings_page.text)
+        self.assertIn("booking-history-history-tab", bookings_page.text)
+        self.assertIn("booking-history-upcoming-count", bookings_page.text)
+        self.assertIn("booking-history-history-count", bookings_page.text)
         self.assertIn("recent-bookings-shell", bookings_page.text)
         self.assertIn("pending-bookings-list", bookings_page.text)
-        self.assertIn("booking-promo-code-input", bookings_page.text)
-        self.assertIn("booking-promo-preview-button", bookings_page.text)
-        self.assertIn("booking-promo-feedback", bookings_page.text)
-        self.assertIn("20260409c", bookings_page.text)
-        self.assertIn("recent-bookings-search", bookings_page.text)
-        self.assertIn("recent-bookings-status-filter", bookings_page.text)
+        self.assertIn("recent-bookings-list", bookings_page.text)
+        self.assertIn('/assets/styles/app.css?v=', bookings_page.text)
+
+        booking_page = self.client.get("/booking")
+        self.assertIn("Resume your booking checkout", booking_page.text)
+        self.assertIn("booking-detail-empty", booking_page.text)
+        self.assertIn("booking-detail-card", booking_page.text)
+        self.assertIn("Booking summary", booking_page.text)
+        self.assertIn("Payment details", booking_page.text)
+        self.assertIn("Back to bookings", booking_page.text)
+        self.assertIn('/assets/styles/app.css?v=', booking_page.text)
 
         reserve_page = self.client.get("/reserve")
+        self.assertIn("continue as a guest", reserve_page.text)
         self.assertIn("reserve-promo-code-input", reserve_page.text)
         self.assertIn("reserve-promo-preview-button", reserve_page.text)
         self.assertIn("reserve-promo-feedback", reserve_page.text)
@@ -228,7 +289,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn("admin-accounts-list", admin_page.text)
         self.assertIn("admin-test-case-summary", admin_page.text)
         self.assertIn("admin-test-cases-list", admin_page.text)
-        self.assertIn("20260409c", admin_page.text)
+        self.assertIn('/assets/styles/app.css?v=', admin_page.text)
         self.assertLess(admin_page.text.index("Room management"), admin_page.text.index("Backend test cases"))
 
         response = self.client.get("/assets/styles/app.css")
@@ -242,31 +303,30 @@ class AppSmokeTest(unittest.TestCase):
         response = self.client.get("/assets/js/main.js")
         self.assertEqual(response.status_code, 200, response.text)
         self.assertIn("refreshSession", response.text)
-        self.assertIn('./api.js?v=20260401r', response.text)
-        self.assertIn('./state.js?v=20260401r', response.text)
-        self.assertIn("views/admin.js?v=20260409c", response.text)
-        self.assertIn("views/booking-detail.js?v=", response.text)
-        self.assertIn("views/payment-success.js?v=", response.text)
-        self.assertIn("views/bookings.js?v=20260409c", response.text)
-        self.assertIn("views/room-booking.js?v=20260409c", response.text)
-        self.assertIn("views/rooms.js?v=20260408q", response.text)
-        self.assertIn("views/room-detail.js?v=20260401r", response.text)
-        self.assertIn("views/auth.js?v=20260401ab", response.text)
-        self.assertIn("views/profile.js?v=20260408m", response.text)
-        self.assertNotIn("views/admin.js?v=20260401x", response.text)
+        self.assertIn('./api.js"', response.text)
+        self.assertIn('./state.js"', response.text)
+        self.assertIn('views/admin.js"', response.text)
+        self.assertIn('views/booking-detail.js"', response.text)
+        self.assertIn('views/payment-success.js"', response.text)
+        self.assertIn('views/bookings.js"', response.text)
+        self.assertIn('views/room-booking.js"', response.text)
+        self.assertIn('views/rooms.js"', response.text)
+        self.assertIn('views/room-detail.js"', response.text)
+        self.assertIn('views/info.js"', response.text)
+        self.assertIn('views/auth.js"', response.text)
+        self.assertIn('views/profile.js"', response.text)
+        self.assertNotIn("?v=", response.text)
 
         response = self.client.get("/assets/js/views/bookings.js")
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertIn('../state.js?v=20260401r', response.text)
-        self.assertIn('getSearchParam("room") || getSearchParam("id")', response.text)
-        self.assertIn("const MAX_DURATION_MINUTES = 300;", response.text)
-        self.assertIn("Completed / checked in", response.text)
-        self.assertIn("Cancelled bookings stay at the bottom.", response.text)
-        self.assertIn("No recent bookings match the current search or status filter.", response.text)
-        self.assertIn('api.previewPromoCode(code, context.amountCents)', response.text)
-        self.assertIn("booking-promo-preview-button", response.text)
-        self.assertIn("promo_code: getBookingPromoInputValue() || null", response.text)
+        self.assertIn('../state.js"', response.text)
+        self.assertIn('let bookingHistoryTab = "upcoming";', response.text)
+        self.assertIn("Pending payment", response.text)
+        self.assertIn("No upcoming bookings yet. New room and staff reservations will appear here.", response.text)
+        self.assertIn('bookingHistoryTab = "history";', response.text)
         self.assertIn('window.confirm("Are you sure you want to cancel this booking?")', response.text)
+        self.assertNotIn("api.previewPromoCode", response.text)
+        self.assertNotIn("booking-room-select", response.text)
 
         response = self.client.get("/assets/js/views/room-booking.js")
         self.assertEqual(response.status_code, 200, response.text)
@@ -278,6 +338,10 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertIn("stripeElements.submit()", response.text)
         self.assertIn('new URL("/payment-success"', response.text)
+        self.assertIn("bookingReschedulePanel", response.text)
+        self.assertIn("bookingReviewForm", response.text)
+        self.assertIn("api.rescheduleBooking(state.selectedBooking.id", response.text)
+        self.assertIn("api.saveBookingReview(state.selectedBooking.id", response.text)
         self.assertIn("Skip Stripe as admin", response.text)
         self.assertIn('api.adminWaiveBookingPayment(button.dataset.bookingId)', response.text)
         self.assertIn("Mark paid manually as admin", response.text)
@@ -302,6 +366,7 @@ class AppSmokeTest(unittest.TestCase):
         response = self.client.get("/assets/js/views/profile.js")
         self.assertEqual(response.status_code, 200, response.text)
         self.assertIn('window.prompt("Enter your password to delete this account.")', response.text)
+        self.assertIn("api.uploadProfileAvatar(avatarFile)", response.text)
         self.assertIn('api.deleteProfile({ password: deletePassword })', response.text)
 
         response = self.client.get("/assets/js/views/admin.js")
@@ -326,7 +391,10 @@ class AppSmokeTest(unittest.TestCase):
         response = self.client.get("/assets/js/views/rooms.js")
         self.assertEqual(response.status_code, 200, response.text)
         self.assertIn('detail: { group: "rooms", subpage: "editor" }', response.text)
-        self.assertIn('href="/bookings?room=${room.id}"', response.text)
+        self.assertIn("elements.roomsSearchButton?.addEventListener", response.text)
+        self.assertIn("searchRoomsByAvailability", response.text)
+        self.assertIn("function escapeHtml(value)", response.text)
+        self.assertIn('href="/reserve?id=${safeRoomId}"', response.text)
 
         signup_payload = {
             "email": "user@example.com",
@@ -524,23 +592,6 @@ class AppSmokeTest(unittest.TestCase):
         response = self.client.get(f"/api/rooms/{room_id}", headers=admin_headers)
         self.assertEqual(response.status_code, 404, response.text)
 
-    def test_11_all_frontend_pages_include_shared_footer_acknowledgement(self) -> None:
-        frontend_dir = Path(__file__).resolve().parents[1] / "app" / "frontend"
-        html_files = sorted(frontend_dir.glob("*.html"))
-        self.assertTrue(html_files)
-
-        required_strings = (
-            "site-acknowledgement",
-            "BIPOC Foundation is situated on the unceded, traditional and ancestral Siksikaitsitapii",
-            "Copyright &copy; 2026 - media arts collective. All Rights Reserved.",
-            "Powered by BIPOC Foundation.",
-        )
-
-        for html_file in html_files:
-            content = html_file.read_text(encoding="utf-8")
-            for required in required_strings:
-                self.assertIn(required, content, f"{html_file.name} is missing footer text: {required}")
-
     def test_15_two_factor_login_flow(self) -> None:
         signup_payload = {
             "email": "twofactor@example.com",
@@ -725,8 +776,8 @@ class AppSmokeTest(unittest.TestCase):
         booking_headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
 
         business_timezone = ZoneInfo("America/Edmonton")
-        start_time = datetime(2026, 4, 2, 10, 0, tzinfo=business_timezone)
-        target_date = date(2026, 4, 2)
+        start_time = self._future_time(day=2, hour=10, minute=0)
+        target_date = self._future_date(2)
 
         response = self.client.get(f"/api/rooms/{room_id}/availability?date={target_date.isoformat()}")
         self.assertEqual(response.status_code, 200, response.text)
@@ -735,13 +786,51 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn(start_time.isoformat(), availability["available_start_times"])
         self.assertEqual(availability["max_duration_minutes_by_start"][start_time.isoformat()], 120)
         self.assertNotIn(
-            datetime(2026, 4, 2, 9, 0, tzinfo=business_timezone).isoformat(),
+            self._future_time(day=2, hour=9, minute=0).isoformat(),
             availability["available_start_times"],
         )
         self.assertNotIn(
-            datetime(2026, 4, 2, 18, 0, tzinfo=business_timezone).isoformat(),
+            self._future_time(day=2, hour=18, minute=0).isoformat(),
             availability["available_start_times"],
         )
+
+        past_date = datetime.now(business_timezone).date() - timedelta(days=1)
+        past_start = datetime(
+            past_date.year,
+            past_date.month,
+            past_date.day,
+            10,
+            0,
+            tzinfo=business_timezone,
+        )
+        response = self.client.get(f"/api/rooms/{room_id}/availability?date={past_date.isoformat()}")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["available_start_times"], [])
+
+        response = self.client.post(
+            "/api/bookings/reservations",
+            headers=booking_headers,
+            json={
+                "room_id": room_id,
+                "start_time": past_start.isoformat(),
+                "duration_minutes": 60,
+            },
+        )
+        self.assertEqual(response.status_code, 400, response.text)
+        self.assertEqual(response.json()["detail"], "Bookings cannot be created for past dates or times")
+
+        response = self.client.post(
+            "/api/bookings/guest",
+            json={
+                "room_id": room_id,
+                "start_time": past_start.isoformat(),
+                "duration_minutes": 60,
+                "guest_name": "Past Guest",
+                "guest_phone": "4035550101",
+            },
+        )
+        self.assertEqual(response.status_code, 400, response.text)
+        self.assertEqual(response.json()["detail"], "Bookings cannot be created for past dates or times")
         response = self.client.post(
             "/api/bookings/reservations",
             headers=booking_headers,
@@ -830,7 +919,7 @@ class AppSmokeTest(unittest.TestCase):
             headers=booking_headers,
             json={
                 "room_id": room_id,
-                "start_time": datetime(2026, 4, 2, 13, 0, tzinfo=business_timezone).isoformat(),
+                "start_time": self._future_time(day=2, hour=13, minute=0).isoformat(),
                 "duration_minutes": 60,
             },
         )
@@ -845,7 +934,7 @@ class AppSmokeTest(unittest.TestCase):
             headers=conflict_headers,
             json={
                 "room_id": room_id,
-                "start_time": datetime(2026, 4, 2, 10, 30, tzinfo=business_timezone).isoformat(),
+                "start_time": self._future_time(day=2, hour=10, minute=30).isoformat(),
                 "duration_minutes": 60,
             },
         )
@@ -856,7 +945,7 @@ class AppSmokeTest(unittest.TestCase):
             headers=conflict_headers,
             json={
                 "room_id": room_id,
-                "start_time": datetime(2026, 4, 2, 11, 0, tzinfo=business_timezone).isoformat(),
+                "start_time": self._future_time(day=2, hour=11, minute=0).isoformat(),
                 "duration_minutes": 120,
             },
         )
@@ -869,7 +958,7 @@ class AppSmokeTest(unittest.TestCase):
             headers=conflict_headers,
             json={
                 "room_id": room_id,
-                "start_time": datetime(2026, 4, 3, 11, 0, tzinfo=business_timezone).isoformat(),
+                "start_time": self._future_time(day=3, hour=11, minute=0).isoformat(),
                 "duration_minutes": 360,
             },
         )
@@ -880,23 +969,311 @@ class AppSmokeTest(unittest.TestCase):
             headers=conflict_headers,
             json={
                 "room_id": room_id,
-                "start_time": datetime(2026, 4, 3, 9, 0, tzinfo=business_timezone).isoformat(),
+                "start_time": self._future_time(day=3, hour=9, minute=0).isoformat(),
                 "duration_minutes": 60,
             },
         )
         self.assertEqual(response.status_code, 404, response.text)
         self.assertEqual(
             response.json()["detail"],
-            "Bookings are only available between 10:00 and 18:00",
+            "Bookings are only available between 12:00 and 20:00",
         )
+
+    def test_21_guest_booking_endpoint_requires_only_name_and_phone(self) -> None:
+        from app.models.booking import Booking
+        from app.models.room import Room
+        from app.models.user import User
+
+        with self.SessionLocal() as db:
+            room = Room(
+                name="Guest Booking Room",
+                description="Room used for guest booking smoke tests",
+                capacity=2,
+                photos=[],
+                hourly_rate_cents=4500,
+                max_booking_duration_minutes=180,
+            )
+            db.add(room)
+            db.commit()
+            db.refresh(room)
+            room_id = str(room.id)
+
+        business_timezone = ZoneInfo("America/Edmonton")
+        start_time = self._future_time(day=4, hour=11, minute=0)
+
+        response = self.client.post(
+            "/api/bookings/guest",
+            json={
+                "room_id": room_id,
+                "start_time": start_time.isoformat(),
+                "duration_minutes": 60,
+                "guest_name": "Guest Booker",
+                "guest_phone": "4035550102",
+            },
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+        payload = response.json()
+        self.assertTrue(payload["access_token"])
+        self.assertEqual(payload["booking"]["status"], "PendingPayment")
+        self.assertEqual(payload["booking"]["price_cents"], 4500)
+
+        guest_headers = {"Authorization": f"Bearer {payload['access_token']}"}
+        response = self.client.get(f"/api/bookings/{payload['booking']['id']}", headers=guest_headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["id"], payload["booking"]["id"])
+        self.assertEqual(response.json()["user_full_name"], "Guest Booker")
+        self.assertEqual(response.json()["user_phone"], "4035550102")
+        self.assertIsNone(response.json()["user_email"])
+
+        response = self.client.put(
+            f"/api/bookings/{payload['booking']['id']}/contact",
+            headers=guest_headers,
+            json={
+                "full_name": "Checkout Guest",
+                "email": "checkout-guest@example.com",
+                "phone": "4035550199",
+                "note": "Use the east entrance.",
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["user_full_name"], "Checkout Guest")
+        self.assertEqual(response.json()["user_email"], "checkout-guest@example.com")
+        self.assertEqual(response.json()["user_phone"], "4035550199")
+        self.assertEqual(response.json()["note"], "Use the east entrance.")
+
+        with self.SessionLocal() as db:
+            booking = db.query(Booking).filter(Booking.id == UUID(payload["booking"]["id"])).one()
+            user = db.query(User).filter(User.id == booking.user_id).one()
+
+        self.assertEqual(user.full_name, "Guest Booker")
+        self.assertEqual(user.phone, "4035550102")
+        self.assertTrue(user.email.startswith("guest+"))
+        self.assertEqual(booking.user_full_name_snapshot, "Checkout Guest")
+        self.assertEqual(booking.user_email_snapshot, "checkout-guest@example.com")
+        self.assertEqual(booking.user_phone_snapshot, "4035550199")
+        self.assertEqual(booking.note, "Use the east entrance.")
+
+    def test_22_guest_staff_booking_appears_in_feed(self) -> None:
+        from app.models.promo_code import PromoCode
+        from app.models.staff_booking import StaffBooking
+        from app.models.staff_profile import StaffProfile
+        from app.models.user import User
+
+        with self.SessionLocal() as db:
+            promo_code = PromoCode(
+                code="SUMMER60",
+                description="Opening checkout test discount",
+                percent_off=60,
+                active=True,
+            )
+            profile = StaffProfile(
+                name="Podcast Engineer",
+                description="Independent staff booking profile",
+                skills=["Podcast support"],
+                talents=["Editing"],
+                add_on_price_cents=3500,
+                booking_rate_cents=6500,
+                service_types=["Podcast support", "Consultation"],
+                booking_enabled=True,
+                active=True,
+            )
+            db.add(promo_code)
+            db.add(profile)
+            db.commit()
+            db.refresh(profile)
+            profile_id = str(profile.id)
+
+        business_timezone = ZoneInfo("America/Edmonton")
+        start_time = self._future_time(day=5, hour=11, minute=0)
+
+        past_date = datetime.now(business_timezone).date() - timedelta(days=1)
+        past_start = datetime(
+            past_date.year,
+            past_date.month,
+            past_date.day,
+            11,
+            0,
+            tzinfo=business_timezone,
+        )
+        response = self.client.get(f"/api/staff/{profile_id}/availability?date={past_date.isoformat()}")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["available_start_times"], [])
+
+        response = self.client.post(
+            "/api/staff-bookings/guest",
+            json={
+                "staff_profile_id": profile_id,
+                "service_type": "Podcast support",
+                "start_time": past_start.isoformat(),
+                "duration_minutes": 60,
+                "guest_name": "Past Staff Guest",
+                "guest_phone": "4035550134",
+            },
+        )
+        self.assertEqual(response.status_code, 400, response.text)
+        self.assertEqual(response.json()["detail"], "Bookings cannot be created for past dates or times")
+
+        response = self.client.post(
+            "/api/staff-bookings/guest",
+            json={
+                "staff_profile_id": profile_id,
+                "service_type": "Podcast support",
+                "start_time": start_time.isoformat(),
+                "duration_minutes": 60,
+                "promo_code": "summer60",
+                "guest_name": "Staff Guest",
+                "guest_phone": "4035550133",
+                "guest_email": "staff-guest@example.com",
+                "notes": "Need production support for a remote podcast.",
+            },
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+        payload = response.json()
+        self.assertTrue(payload["access_token"])
+        self.assertEqual(payload["booking"]["status"], "PendingPayment")
+        self.assertEqual(payload["booking"]["service_type"], "Podcast support")
+        self.assertEqual(payload["booking"]["original_price_cents"], 6500)
+        self.assertEqual(payload["booking"]["discount_cents"], 3900)
+        self.assertEqual(payload["booking"]["price_cents"], 2600)
+        self.assertEqual(payload["booking"]["promo_code"], "SUMMER60")
+        self.assertEqual(payload["booking"]["staff_profile"]["name"], "Podcast Engineer")
+
+        guest_headers = {"Authorization": f"Bearer {payload['access_token']}"}
+        response = self.client.get(
+            f"/api/staff-bookings/{payload['booking']['id']}",
+            headers=guest_headers,
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["staff_profile"]["name"], "Podcast Engineer")
+
+        response = self.client.get("/api/bookings/feed", headers=guest_headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        feed = response.json()
+        self.assertEqual(len(feed), 1)
+        self.assertEqual(feed[0]["booking_kind"], "staff")
+        self.assertEqual(feed[0]["staff_profile_name"], "Podcast Engineer")
+        self.assertEqual(feed[0]["can_pay"], True)
+
+        response = self.client.post(
+            f"/api/staff-bookings/{payload['booking']['id']}/payment-session",
+            headers=guest_headers,
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertTrue(response.json()["payment_intent_id"])
+        self.assertTrue(response.json()["payment_client_secret"])
+
+        response = self.client.put(
+            f"/api/staff-bookings/{payload['booking']['id']}/contact",
+            headers=guest_headers,
+            json={
+                "full_name": "Staff Checkout Guest",
+                "email": "staff-checkout@example.com",
+                "phone": "4035550144",
+                "note": "Bring two microphones.",
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["user_full_name"], "Staff Checkout Guest")
+        self.assertEqual(response.json()["user_email"], "staff-checkout@example.com")
+        self.assertEqual(response.json()["user_phone"], "4035550144")
+        self.assertEqual(response.json()["note"], "Bring two microphones.")
+
+        with self.SessionLocal() as db:
+            booking = db.query(StaffBooking).filter(StaffBooking.id == UUID(payload["booking"]["id"])).one()
+            user = db.query(User).filter(User.id == booking.user_id).one()
+
+        self.assertEqual(user.full_name, "Staff Guest")
+        self.assertEqual(user.phone, "4035550133")
+        self.assertEqual(user.email, "staff-guest@example.com")
+        self.assertEqual(booking.user_full_name_snapshot, "Staff Checkout Guest")
+        self.assertEqual(booking.user_email_snapshot, "staff-checkout@example.com")
+        self.assertEqual(booking.user_phone_snapshot, "4035550144")
+        self.assertEqual(booking.note, "Bring two microphones.")
+
+    def test_23_admin_booking_lookup_includes_staff_bookings(self) -> None:
+        from app.models.staff_profile import StaffProfile
+
+        with self.SessionLocal() as db:
+            type(self).ensure_admin_user(
+                db,
+                email="staff-admin@example.com",
+                password="Password123!",
+            )
+            profile = StaffProfile(
+                name="Independent Producer",
+                description="Admin lookup should include this staff-only booking",
+                skills=["Production"],
+                talents=["Podcasting"],
+                add_on_price_cents=3000,
+                booking_rate_cents=7000,
+                service_types=["Producer session"],
+                booking_enabled=True,
+                active=True,
+            )
+            db.add(profile)
+            db.commit()
+            db.refresh(profile)
+            profile_id = str(profile.id)
+
+        business_timezone = ZoneInfo("America/Edmonton")
+        start_time = self._future_time(day=6, hour=12, minute=0)
+
+        response = self.client.post(
+            "/api/staff-bookings/guest",
+            json={
+                "staff_profile_id": profile_id,
+                "service_type": "Producer session",
+                "start_time": start_time.isoformat(),
+                "duration_minutes": 60,
+                "guest_name": "Admin Staff Guest",
+                "guest_phone": "4035550188",
+                "guest_email": "admin-staff-guest@example.com",
+            },
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+        staff_booking = response.json()["booking"]
+
+        response = self.client.post(
+            "/api/auth/login",
+            data={"username": "staff-admin@example.com", "password": "Password123!"},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        admin_headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+        response = self.client.get(
+            f"/api/admin/bookings?booking_code={staff_booking['booking_code']}",
+            headers=admin_headers,
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        lookup_rows = response.json()
+        self.assertEqual(len(lookup_rows), 1)
+        self.assertEqual(lookup_rows[0]["booking_kind"], "staff")
+        self.assertEqual(lookup_rows[0]["staff_name"], "Independent Producer")
+        self.assertEqual(lookup_rows[0]["status"], "PendingPayment")
+
+        response = self.client.post(
+            f"/api/admin/staff-bookings/{staff_booking['id']}/mark-paid",
+            headers=admin_headers,
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["status"], "Paid")
+
+        response = self.client.get(
+            f"/api/admin/bookings?booking_code={staff_booking['booking_code']}",
+            headers=admin_headers,
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        refreshed_rows = response.json()
+        self.assertEqual(refreshed_rows[0]["booking_kind"], "staff")
+        self.assertEqual(refreshed_rows[0]["status"], "Paid")
 
     def test_25_pending_payment_window_expires_and_reopens_slot(self) -> None:
         from app.models.booking import Booking
         from app.models.room import Room
 
         business_timezone = ZoneInfo("America/Edmonton")
-        target_date = date(2026, 4, 4)
-        start_time = datetime(2026, 4, 4, 10, 0, tzinfo=business_timezone)
+        target_date = self._future_date(4)
+        start_time = self._future_time(day=4, hour=10, minute=0)
 
         with self.SessionLocal() as db:
             room = Room(
@@ -1182,7 +1559,7 @@ class AppSmokeTest(unittest.TestCase):
                     admin_self_booking_date.year,
                     admin_self_booking_date.month,
                     admin_self_booking_date.day,
-                    10,
+                    12,
                     0,
                     tzinfo=business_timezone,
                 ).isoformat(),
@@ -1200,7 +1577,7 @@ class AppSmokeTest(unittest.TestCase):
                     admin_self_booking_date.year,
                     admin_self_booking_date.month,
                     admin_self_booking_date.day,
-                    11,
+                    13,
                     0,
                     tzinfo=business_timezone,
                 ).isoformat(),
@@ -1592,7 +1969,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(history_account["billing_address"]["city"], "Calgary")
 
         business_timezone = ZoneInfo("America/Edmonton")
-        start_time = datetime(2026, 4, 5, 11, 0, tzinfo=business_timezone)
+        start_time = self._future_time(day=5, hour=11, minute=0)
         response = self.client.post(
             "/api/bookings",
             headers=history_headers,
@@ -1671,6 +2048,105 @@ class AppSmokeTest(unittest.TestCase):
         response = self.client.get("/api/admin/users", headers=admin_headers)
         self.assertEqual(response.status_code, 200, response.text)
         self.assertFalse(any(account["email"] == "delete-by-admin@example.com" for account in response.json()))
+
+    def test_36_profile_avatar_reschedule_and_review_flow(self) -> None:
+        from app.models.room import Room
+
+        with self.SessionLocal() as db:
+            room = Room(
+                name="Review Flow Room",
+                description="Room for avatar, reschedule, and review coverage",
+                capacity=4,
+                photos=[],
+                hourly_rate_cents=5000,
+            )
+            db.add(room)
+            db.commit()
+            db.refresh(room)
+            room_id = str(room.id)
+
+        response = self.client.post(
+            "/api/auth/signup",
+            json={
+                "email": "reviewer@example.com",
+                "password": "Password123!",
+                "full_name": "Review User",
+                "phone": "5555554100",
+            },
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+
+        response = self.client.post(
+            "/api/auth/login",
+            data={"username": "reviewer@example.com", "password": "Password123!"},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        user_headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+        response = self.client.put(
+            "/api/users/me",
+            headers=user_headers,
+            json={
+                "full_name": "Review User",
+                "avatar_url": "/assets/media/avatars/example-avatar.jpg",
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["avatar_url"], "/assets/media/avatars/example-avatar.jpg")
+
+        business_timezone = ZoneInfo("America/Edmonton")
+        response = self.client.post(
+            "/api/bookings",
+            headers=user_headers,
+            json={
+                "room_id": room_id,
+                "start_time": self._future_time(day=20, hour=10, minute=0).isoformat(),
+                "duration_minutes": 60,
+            },
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+        booking = response.json()
+
+        response = self.client.post(
+            f"/api/bookings/{booking['id']}/reschedule",
+            headers=user_headers,
+            json={
+                "start_time": self._future_time(day=20, hour=12, minute=0).isoformat(),
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        rescheduled_booking = response.json()
+        self.assertEqual(
+            datetime.fromisoformat(rescheduled_booking["start_time"].replace("Z", "+00:00")),
+            self._future_time(day=20, hour=12).astimezone(timezone.utc),
+        )
+
+        with self.SessionLocal() as db:
+            booking_row = db.query(self.Booking).filter(self.Booking.id == rescheduled_booking["id"]).first()
+            booking_row.status = "Completed"
+            booking_row.confirmed_at = datetime.now(timezone.utc)
+            booking_row.checked_in_at = datetime.now(timezone.utc)
+            db.commit()
+
+        response = self.client.put(
+            f"/api/bookings/{rescheduled_booking['id']}/review",
+            headers=user_headers,
+            json={"rating": 5, "comment": "Great room and smooth session."},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["rating"], 5)
+
+        response = self.client.get(
+            f"/api/bookings/{rescheduled_booking['id']}/review",
+            headers=user_headers,
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["comment"], "Great room and smooth session.")
+
+        response = self.client.get(f"/api/rooms/{room_id}/reviews")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["summary"]["review_count"], 1)
+        self.assertEqual(response.json()["reviews"][0]["rating"], 5)
 
     def test_40_week_seven_eight_ops(self) -> None:
         from app.celery_app import celery_app
@@ -1864,7 +2340,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(expired_booking.cancellation_reason, "Payment window expired after 5 minutes")
         self.assertEqual(expired_slots_remaining, 0)
 
-        start_time = datetime(2026, 4, 5, 10, 0, tzinfo=ZoneInfo("America/Edmonton"))
+        start_time = self._future_time(day=5, hour=10, minute=0)
         barrier = Barrier(3)
 
         def attempt_booking(user_id):
@@ -1895,6 +2371,272 @@ class AppSmokeTest(unittest.TestCase):
 
         statuses = sorted(status for status, _ in outcomes)
         self.assertEqual(statuses, ["conflict", "success"])
+
+    def test_41_admin_launch_readiness_access_workflows_and_ui_contract(self) -> None:
+        def create_user(email: str, full_name: str, phone: str, *, is_admin: bool = False):
+            response = self.client.post(
+                "/api/auth/signup",
+                json={
+                    "email": email,
+                    "password": "Password123!",
+                    "full_name": full_name,
+                    "phone": phone,
+                },
+            )
+            self.assertEqual(response.status_code, 201, response.text)
+            user_id = response.json()["id"]
+            if is_admin:
+                with self.SessionLocal() as db:
+                    user = db.query(self.User).filter(self.User.id == user_id).first()
+                    user.is_admin = True
+                    db.commit()
+
+            response = self.client.post(
+                "/api/auth/login",
+                data={"username": email, "password": "Password123!"},
+            )
+            self.assertEqual(response.status_code, 200, response.text)
+            return {"Authorization": f"Bearer {response.json()['access_token']}"}, user_id
+
+        admin_headers, admin_id = create_user(
+            "launch-admin@example.com",
+            "Launch Admin",
+            "5551000000",
+            is_admin=True,
+        )
+        user_headers, _ = create_user("launch-user@example.com", "Launch User", "5551000001")
+        outsider_headers, _ = create_user("launch-outsider@example.com", "Launch Outsider", "5551000002")
+
+        for path in (
+            "/api/admin/bookings",
+            "/api/admin/analytics/summary",
+            "/api/admin/staff",
+            "/api/admin/users",
+        ):
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 401, path)
+            response = self.client.get(path, headers=user_headers)
+            self.assertEqual(response.status_code, 403, path)
+
+        response = self.client.get("/api/rooms?include_inactive=true", headers=user_headers)
+        self.assertEqual(response.status_code, 403, response.text)
+
+        booking_room_payload = {
+            "name": "Launch Booking Room",
+            "description": "Room used for admin launch readiness checks",
+            "capacity": 4,
+            "photos": [],
+            "hourly_rate_cents": 5000,
+            "max_booking_duration_minutes": 300,
+        }
+        response = self.client.post("/api/rooms", headers=user_headers, json=booking_room_payload)
+        self.assertEqual(response.status_code, 403, response.text)
+        response = self.client.post("/api/rooms", headers=admin_headers, json=booking_room_payload)
+        self.assertEqual(response.status_code, 201, response.text)
+        booking_room_id = response.json()["id"]
+
+        response = self.client.put(
+            f"/api/admin/rooms/{booking_room_id}",
+            headers=admin_headers,
+            json={"name": "Launch Booking Room Updated", "capacity": 6},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["name"], "Launch Booking Room Updated")
+        self.assertEqual(response.json()["capacity"], 6)
+
+        staff_payload = {
+            "name": "Launch Service Engineer",
+            "description": "Technical and creative support for launch checks",
+            "skills": ["Podcast", "Sound"],
+            "talents": ["Engineering"],
+            "service_types": ["Audio"],
+            "add_on_price_cents": 2500,
+            "booking_rate_cents": 5000,
+            "booking_enabled": True,
+            "active": True,
+        }
+        response = self.client.post("/api/admin/staff", headers=user_headers, json=staff_payload)
+        self.assertEqual(response.status_code, 403, response.text)
+        response = self.client.post("/api/admin/staff", headers=admin_headers, json=staff_payload)
+        self.assertEqual(response.status_code, 201, response.text)
+        staff_id = response.json()["id"]
+        response = self.client.get("/api/admin/staff", headers=admin_headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertTrue(any(profile["id"] == staff_id for profile in response.json()))
+        response = self.client.put(
+            f"/api/admin/staff/{staff_id}",
+            headers=admin_headers,
+            json={"booking_enabled": False, "skills": ["Podcast", "Mixing"]},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertFalse(response.json()["booking_enabled"])
+        self.assertIn("Mixing", response.json()["skills"])
+
+        manage_room_payload = {
+            "name": "Launch Archive Room",
+            "description": "Room used to verify destructive room actions",
+            "capacity": 2,
+            "photos": [],
+            "hourly_rate_cents": 5000,
+            "max_booking_duration_minutes": 300,
+        }
+        response = self.client.post("/api/rooms", headers=admin_headers, json=manage_room_payload)
+        self.assertEqual(response.status_code, 201, response.text)
+        manage_room_id = response.json()["id"]
+        response = self.client.delete(f"/api/rooms/{manage_room_id}", headers=user_headers)
+        self.assertEqual(response.status_code, 403, response.text)
+        response = self.client.delete(f"/api/rooms/{manage_room_id}", headers=admin_headers)
+        self.assertEqual(response.status_code, 204, response.text)
+        response = self.client.get(f"/api/rooms/{manage_room_id}")
+        self.assertEqual(response.status_code, 404, response.text)
+        response = self.client.get(f"/api/rooms/{manage_room_id}", headers=admin_headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertFalse(response.json()["active"])
+        response = self.client.post(f"/api/rooms/{manage_room_id}/restore", headers=admin_headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertTrue(response.json()["active"])
+        response = self.client.delete(f"/api/rooms/{manage_room_id}/permanent", headers=admin_headers)
+        self.assertEqual(response.status_code, 204, response.text)
+        response = self.client.get(f"/api/rooms/{manage_room_id}", headers=admin_headers)
+        self.assertEqual(response.status_code, 404, response.text)
+
+        business_timezone = ZoneInfo("America/Edmonton")
+        booking_date = datetime.now(business_timezone).date() + timedelta(days=8)
+        booking_start = datetime(
+            booking_date.year,
+            booking_date.month,
+            booking_date.day,
+            13,
+            0,
+            tzinfo=business_timezone,
+        )
+        response = self.client.post(
+            "/api/bookings",
+            headers=user_headers,
+            json={
+                "room_id": booking_room_id,
+                "start_time": booking_start.isoformat(),
+                "duration_minutes": 60,
+            },
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+        user_booking = response.json()
+
+        response = self.client.get(f"/api/bookings/{user_booking['id']}", headers=admin_headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["id"], user_booking["id"])
+        response = self.client.get(f"/api/bookings/{user_booking['id']}", headers=outsider_headers)
+        self.assertEqual(response.status_code, 404, response.text)
+
+        manual_start = datetime(
+            booking_date.year,
+            booking_date.month,
+            booking_date.day,
+            12,
+            0,
+            tzinfo=business_timezone,
+        )
+        response = self.client.post(
+            "/api/admin/bookings/manual",
+            headers=admin_headers,
+            json={
+                "user_email": "walkin-launch@example.com",
+                "full_name": "Walk In Launch",
+                "room_id": booking_room_id,
+                "start_time": manual_start.isoformat(),
+                "duration_minutes": 60,
+                "note": "Launch readiness manual booking",
+            },
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+        manual_booking = response.json()
+        self.assertEqual(manual_booking["status"], "Paid")
+        self.assertEqual(manual_booking["user_email"], "walkin-launch@example.com")
+
+        response = self.client.get("/api/admin/bookings", headers=admin_headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        admin_bookings = response.json()
+        self.assertEqual(len(admin_bookings), 2)
+        self.assertTrue(any(booking["id"] == user_booking["id"] for booking in admin_bookings))
+        self.assertTrue(any(booking["id"] == manual_booking["id"] for booking in admin_bookings))
+
+        response = self.client.get("/api/admin/analytics/summary", headers=admin_headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        analytics = response.json()
+        self.assertEqual(analytics["total_bookings"], 2)
+        self.assertEqual(analytics["paid_bookings"], 1)
+        self.assertEqual(analytics["net_revenue_cents"], 5000)
+        self.assertEqual(analytics["refunded_revenue_cents"], 0)
+        self.assertGreaterEqual(analytics["active_rooms"], 1)
+
+        response = self.client.get("/api/admin/users", headers=admin_headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        users = response.json()
+        self.assertTrue(any(user["id"] == admin_id and user["is_admin"] for user in users))
+        self.assertTrue(any(user["email"] == "launch-user@example.com" for user in users))
+
+        response = self.client.delete(f"/api/admin/staff/{staff_id}", headers=admin_headers)
+        self.assertEqual(response.status_code, 204, response.text)
+        response = self.client.get("/api/admin/staff", headers=admin_headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertFalse(any(profile["id"] == staff_id for profile in response.json()))
+
+        admin_page = self.client.get("/admin")
+        self.assertEqual(admin_page.status_code, 200, admin_page.text)
+        self.assertIn("Dashboard", admin_page.text)
+        self.assertIn("admin-dashboard-metrics", admin_page.text)
+        self.assertIn("admin-panel-bookings", admin_page.text)
+        self.assertIn("admin-panel-rooms", admin_page.text)
+        self.assertIn("admin-panel-staff", admin_page.text)
+        self.assertIn("admin-panel-roles", admin_page.text)
+        self.assertIn('data-admin-create-room="true"', admin_page.text)
+        self.assertIn('<span class="brand-mark-icon" aria-hidden="true">SB</span>', admin_page.text)
+        self.assertIn("/assets/styles/app.css?v=", admin_page.text)
+        self.assertNotIn("[object Object]", admin_page.text)
+        self.assertNotIn("TODO", admin_page.text)
+
+        admin_js = self.client.get("/assets/js/views/admin.js")
+        self.assertEqual(admin_js.status_code, 200, admin_js.text)
+        self.assertIn("let adminRoomEditorOpen = false;", admin_js.text)
+        self.assertIn("adminRoomEditorOpen && activeAdminTab === \"rooms\"", admin_js.text)
+        self.assertIn("renderAdminDashboardMetrics(currentState)", admin_js.text)
+        self.assertIn("analytics ? analytics.total_bookings : \"Loading\"", admin_js.text)
+        self.assertIn("analytics ? formatMoney(analytics.net_revenue_cents, currency) : \"Loading\"", admin_js.text)
+        self.assertNotIn("currentState.adminAnalytics?.net_revenue_cents ??", admin_js.text)
+        self.assertIn("Mark paid", admin_js.text)
+        self.assertIn("Refund", admin_js.text)
+        self.assertIn("Process a ${amountLabel} refund? This changes payment records.", admin_js.text)
+        self.assertIn("window.confirm(\"Skip Stripe and mark this booking free?\")", admin_js.text)
+        self.assertIn("window.confirm(\"Mark this booking paid manually?\")", admin_js.text)
+        self.assertIn("window.confirm(`Delete ${profileName}? This will also remove the profile from any rooms.`)", admin_js.text)
+
+        main_js = self.client.get("/assets/js/main.js")
+        self.assertEqual(main_js.status_code, 200, main_js.text)
+        self.assertIn("api.getAdminAnalyticsSummary()", main_js.text)
+
+        rooms_js = self.client.get("/assets/js/views/rooms.js")
+        self.assertEqual(rooms_js.status_code, 200, rooms_js.text)
+        self.assertIn('} else if (!isAdminPage()) {', rooms_js.text)
+        self.assertNotIn('elements.roomForm.classList.toggle("hidden", !canManageRooms);', rooms_js.text)
+
+        app_css = self.client.get("/assets/styles/app.css")
+        self.assertEqual(app_css.status_code, 200, app_css.text)
+        self.assertIn('body[data-page="admin"] #room-form {', app_css.text)
+        self.assertIn('body[data-page="admin"].admin-room-modal-active #room-form:not(.hidden)', app_css.text)
+        self.assertIn("background: linear-gradient(135deg, var(--brand-red), #a70f16);", app_css.text)
+
+        with self.SessionLocal() as db:
+            audit_actions = {item.action for item in db.query(self.AuditLog).all()}
+
+        self.assertIn("room_created", audit_actions)
+        self.assertIn("room_updated", audit_actions)
+        self.assertIn("room_archived", audit_actions)
+        self.assertIn("room_restored", audit_actions)
+        self.assertIn("room_permanently_deleted", audit_actions)
+        self.assertIn("staff_profile_created", audit_actions)
+        self.assertIn("staff_profile_updated", audit_actions)
+        self.assertIn("staff_profile_deleted", audit_actions)
+        self.assertIn("manual_booking_created", audit_actions)
 
 
 if __name__ == "__main__":

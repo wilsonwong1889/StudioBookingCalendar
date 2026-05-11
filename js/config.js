@@ -1,5 +1,7 @@
 export const STORAGE_KEYS = {
   token: "studio-booking-token",
+  lastBookingId: "studio-booking-last-booking-id",
+  checkoutDraft: "studio-booking-checkout-draft",
   profileDraftPrefix: "studio-booking-profile-draft",
 };
 

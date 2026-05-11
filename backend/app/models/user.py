@@ -10,6 +10,7 @@ class User(Base):
     email = Column(String, unique=True, nullable=False, index=True)
     password_hash = Column(String, nullable=False)
     full_name = Column(String)
+    avatar_url = Column(String)
     phone = Column(String)
     birthday = Column(Date)
     billing_address = Column(JSONB)

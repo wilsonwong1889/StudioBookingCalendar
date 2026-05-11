@@ -1,4 +1,5 @@
-from app.models.booking import AuditLog, Booking, BookingSlot, NotificationLog, Refund
+from app.models.booking import AuditLog, Booking, BookingSlot, NotificationLog, Refund, Review
+from app.models.staff_booking import StaffBooking
 from app.models.room import Room
 from app.models.staff_profile import StaffProfile
 from app.models.user import User
@@ -9,7 +10,9 @@ __all__ = [
     "BookingSlot",
     "NotificationLog",
     "Refund",
+    "Review",
     "Room",
+    "StaffBooking",
     "StaffProfile",
     "User",
 ]

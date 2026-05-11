@@ -5,7 +5,7 @@ import os
 import sys
 import time
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import UUID
 from uuid import uuid4
 from zoneinfo import ZoneInfo
@@ -101,6 +101,18 @@ class BookingPaymentE2ETest(unittest.TestCase):
         self.assertEqual(login.status_code, 200, login.text)
         return {"Authorization": f"Bearer {login.json()['access_token']}"}
 
+    def _future_time(self, *, days: int, hour: int) -> datetime:
+        business_timezone = ZoneInfo("America/Edmonton")
+        target_date = datetime.now(business_timezone).date() + timedelta(days=days)
+        return datetime(
+            target_date.year,
+            target_date.month,
+            target_date.day,
+            hour,
+            0,
+            tzinfo=business_timezone,
+        )
+
     def _sign_webhook(self, event: dict) -> tuple[str, dict]:
         from app.config import settings
 
@@ -139,7 +151,7 @@ class BookingPaymentE2ETest(unittest.TestCase):
             room_id = str(room.id)
 
         headers = self._signup_and_login("e2e-user@example.com", "Password123!")
-        start_time = datetime(2026, 5, 1, 11, 0, tzinfo=ZoneInfo("America/Edmonton"))
+        start_time = self._future_time(days=20, hour=12)
         rooms_response = self.client.get("/api/rooms")
         self.assertEqual(rooms_response.status_code, 200, rooms_response.text)
         booking_room = next(room for room in rooms_response.json() if room["id"] == room_id)
@@ -147,7 +159,7 @@ class BookingPaymentE2ETest(unittest.TestCase):
         self.assertEqual(booking_room["staff_roles"][0]["name"], "Sound Engineer")
 
         availability_response = self.client.get(
-            f"/api/rooms/{room_id}/availability?date=2026-05-01"
+            f"/api/rooms/{room_id}/availability?date={start_time.date().isoformat()}"
         )
         self.assertEqual(availability_response.status_code, 200, availability_response.text)
         availability = availability_response.json()
@@ -258,7 +270,7 @@ class BookingPaymentE2ETest(unittest.TestCase):
             room_id = str(room.id)
 
         headers = self._signup_and_login("e2e-failure@example.com", "Password123!")
-        start_time = datetime(2026, 5, 2, 13, 0, tzinfo=ZoneInfo("America/Edmonton"))
+        start_time = self._future_time(days=21, hour=13)
 
         booking_response = self.client.post(
             "/api/bookings",

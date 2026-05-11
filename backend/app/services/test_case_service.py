@@ -32,6 +32,7 @@ TEST_CASE_CATALOG = [
         "covered_paths": [
             "/",
             "/account",
+            "/pricing",
             "/rooms",
             "/bookings",
             "/booking",

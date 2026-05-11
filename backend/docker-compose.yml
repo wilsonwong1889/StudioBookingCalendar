@@ -46,7 +46,7 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ./app/frontend/media/staff:/app/app/frontend/media/staff
+      - ./app/frontend/media:/app/app/frontend/media
     ports:
       - "8000:8000"
     command: sh scripts/start_api.sh

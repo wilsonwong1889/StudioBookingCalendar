@@ -1,8 +1,15 @@
-import { api } from "../api.js?v=20260401r";
-import { downloadBookingCalendarFile } from "../calendar.js?v=20260408k";
-import { downloadBookingReceiptPdf } from "../receipt.js?v=20260409a";
-import { elements, toggleHidden } from "../dom.js?v=20260401r";
-import { setState } from "../state.js?v=20260401r";
+import { api } from "../api.js";
+import { downloadBookingCalendarFile } from "../calendar.js";
+import { downloadBookingReceiptPdf } from "../receipt.js";
+import { getSearchParam } from "../config.js";
+import { elements, toggleHidden } from "../dom.js";
+import {
+  getPersistedLastBookingId,
+  persistCheckoutDraft,
+  persistLastBookingId,
+  setState,
+  state,
+} from "../state.js";
 
 let stripeClient = null;
 let stripeElements = null;
@@ -10,6 +17,95 @@ let paymentElement = null;
 let activePaymentSession = null;
 let paymentDeadlineTimer = null;
 let reloadBookingDetailAction = null;
+let rescheduleAvailability = null;
+let rescheduleBookingId = null;
+let rescheduleDateValue = "";
+let rescheduleLoading = false;
+let rescheduleStatusMessage = "";
+let rescheduleRequestToken = 0;
+let reviewFormFingerprint = null;
+let autoLoadingPaymentBookingId = null;
+let publicConfigPromise = null;
+let paymentSessionStatus = "idle";
+let paymentSessionMessage = "";
+let bookingContactDraftId = null;
+let bookingContactDraft = null;
+let contactSaveInFlight = false;
+
+const BOOKING_VISUALS = {
+  recording: "/assets/media/studio-room-2.png",
+  podcast: "/assets/media/studio-lobby-2.png",
+  photography: "/assets/media/studio-room-2.png",
+  film: "/assets/media/studio-exterior-2.png",
+  dance: "/assets/media/studio-exterior-2.png",
+  production: "/assets/media/studio-room-2.png",
+};
+
+function getBookingKind(booking) {
+  const explicitKind = String(booking?.booking_kind || booking?.kind || "").toLowerCase();
+  if (explicitKind === "staff") {
+    return "staff";
+  }
+  if (explicitKind === "room") {
+    return "room";
+  }
+  if (booking?.staff_profile_id || booking?.staff_profile_name || booking?.staff_name || booking?.service_type) {
+    return "staff";
+  }
+  return "room";
+}
+
+function getBookingDisplayName(booking) {
+  if (getBookingKind(booking) === "staff") {
+    return (
+      booking?.staff_name ||
+      booking?.staff_profile_name ||
+      booking?.staff_profile?.name ||
+      booking?.service_type ||
+      "Staff booking"
+    );
+  }
+  return booking?.room_name || "Studio booking";
+}
+
+function getBookingTypeLabel(booking) {
+  return getBookingKind(booking) === "staff" ? "Staff" : "Room";
+}
+
+function getBookingLocationLabel(booking) {
+  if (getBookingKind(booking) === "staff") {
+    return booking?.location_label || "Studio support session";
+  }
+  return booking?.location_label || "Downtown studio district";
+}
+
+function getBookingStaffEntity(booking) {
+  if (getBookingKind(booking) !== "staff") {
+    return null;
+  }
+  return (
+    booking?.staff_profile ||
+    booking?.staff ||
+    (booking?.staff_name
+      ? {
+          name: booking.staff_name,
+          description: booking.staff_description || booking.description || "Booked staff session",
+          photo_url: booking.staff_photo_url || booking.photo_url || null,
+          skills: booking.staff_skills || booking.skills || [],
+          talents: booking.staff_talents || booking.talents || [],
+          add_on_price_cents: booking.price_cents || booking.total_cents || 0,
+        }
+      : null)
+  );
+}
+
+function getBookingVisual(booking) {
+  if (getBookingKind(booking) === "staff" && (booking?.staff_photo_url || booking?.photo_url)) {
+    return booking.staff_photo_url || booking.photo_url;
+  }
+  const category = inferBookingCategory(booking);
+  return BOOKING_VISUALS[category] || BOOKING_VISUALS.recording;
+}
 
 function formatBookingDate(value) {
   return new Intl.DateTimeFormat("en-US", {
@@ -37,6 +133,164 @@ function formatDuration(minutes) {
   return `${hours} hour${hours === 1 ? "" : "s"}`;
 }
 
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function parseRescheduleAvailabilityStarts(payload) {
+  const durationMap = payload?.max_duration_minutes_by_start || {};
+  const rawStarts =
+    payload?.available_start_times ||
+    payload?.available_slots ||
+    payload?.slots ||
+    payload?.times ||
+    [];
+
+  return rawStarts
+    .map((slot) => {
+      if (typeof slot === "string") {
+        return {
+          value: slot,
+          maxDurationMinutes: Number(durationMap[slot] || 0),
+        };
+      }
+
+      const value = slot?.value || slot?.start_time || slot?.start || slot?.time || "";
+      if (!value || slot?.available === false) {
+        return null;
+      }
+
+      return {
+        value,
+        maxDurationMinutes: Number(slot.max_duration_minutes || slot.maxDurationMinutes || durationMap[value] || 0),
+      };
+    })
+    .filter(Boolean);
+}
+
+function getValidRescheduleStarts(booking) {
+  return parseRescheduleAvailabilityStarts(rescheduleAvailability).filter(
+    (slot) => slot.maxDurationMinutes >= Number(booking?.duration_minutes || 0) && slot.value !== booking?.start_time,
+  );
+}
+
+function formatShortDate(value) {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+function formatTimeOnly(value) {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function formatTimeRange(startValue, endValue) {
+  return `${formatTimeOnly(startValue)} to ${formatTimeOnly(endValue)}`;
+}
+
+function formatDateLine(value) {
+  return new Intl.DateTimeFormat("en-CA", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+function formatTimeLine(startValue, endValue) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `${formatter.format(new Date(startValue))} to ${formatter.format(new Date(endValue))}`;
+}
+
+function inferBookingCategory(booking) {
+  const text = `${booking.room_name || ""} ${booking.note || ""}`.toLowerCase();
+  if (text.includes("podcast")) {
+    return "podcast";
+  }
+  if (text.includes("photo")) {
+    return "photography";
+  }
+  if (text.includes("film")) {
+    return "film";
+  }
+  if (text.includes("dance")) {
+    return "dance";
+  }
+  if (text.includes("production")) {
+    return "production";
+  }
+  return "recording";
+}
+
+function getBookingPrimaryKicker(booking) {
+  if (booking.status === "PendingPayment") {
+    return "Secure checkout";
+  }
+  if (booking.status === "Paid") {
+    return "Confirmed booking";
+  }
+  if (booking.status === "Completed") {
+    return "Completed session";
+  }
+  return "Booking";
+}
+
+function getBookingPrimaryTitle(booking) {
+  const kind = getBookingKind(booking);
+  if (booking.status === "PendingPayment") {
+    return kind === "staff" ? "Complete your staff booking" : "Complete your booking";
+  }
+  if (booking.status === "Paid") {
+    return kind === "staff" ? "Your staff booking is confirmed" : "Your booking is confirmed";
+  }
+  if (booking.status === "Completed") {
+    return kind === "staff" ? "Review your completed staff booking" : "Review your completed booking";
+  }
+  if (booking.status === "Cancelled") {
+    return "This booking was cancelled";
+  }
+  if (booking.status === "Refunded") {
+    return "This booking was refunded";
+  }
+  return "Manage your booking";
+}
+
+function getBookingStatusLabel(booking) {
+  return String(booking.status || "Booking").replace(/([a-z])([A-Z])/g, "$1 $2");
+}
+
+function getBookingLayoutElements() {
+  return {
+    kicker: document.getElementById("booking-detail-kicker"),
+    contact: document.getElementById("booking-detail-contact"),
+    overviewStatus: document.getElementById("booking-overview-status"),
+    sessionOverview: document.getElementById("booking-session-overview"),
+    summaryRoom: document.getElementById("booking-summary-room"),
+    summaryMedia: document.getElementById("booking-summary-media"),
+    summaryMeta: document.getElementById("booking-summary-meta"),
+    summaryPricing: document.getElementById("booking-summary-pricing"),
+    summarySupport: document.getElementById("booking-summary-support"),
+  };
+}
+
+function getDateInputValue(value) {
+  return String(value || "").split("T")[0] || new Date().toISOString().slice(0, 10);
+}
+
 function isAdminWaivedPayment(booking) {
   return booking.price_cents === 0 && String(booking.payment_intent_id || "").startsWith("admin_waived_");
 }
@@ -45,17 +299,62 @@ function isAdminManualPayment(booking) {
   return String(booking.payment_intent_id || "").startsWith("admin_manual_paid_");
 }
 
-function buildPaymentSuccessUrl(bookingId) {
+function isCheckoutMode(booking) {
+  return booking?.status === "PendingPayment";
+}
+
+function buildPaymentSuccessUrl(bookingId, kind = null) {
   const successUrl = new URL("/payment-success", window.location.origin);
   successUrl.searchParams.set("id", bookingId);
+  if (String(kind || "").toLowerCase() === "staff") {
+    successUrl.searchParams.set("kind", "staff");
+  }
   return successUrl;
 }
 
-function renderStaffImage(photoUrl, label) {
-  if (photoUrl) {
-    return `<img class="staff-profile-image" src="${photoUrl}" alt="${label}" loading="lazy" />`;
+function renderBookingEmptyState(currentState) {
+  const resumeBookingId = getPersistedLastBookingId();
+  const requestedKind = String(getSearchParam("kind") || "").toLowerCase();
+  const defaultBrowseHref = requestedKind === "staff" ? "/staff" : "/rooms";
+  const primaryHref = resumeBookingId ? `/booking?id=${resumeBookingId}` : defaultBrowseHref;
+  const primaryLabel = resumeBookingId ? "Resume checkout" : requestedKind === "staff" ? "Browse staff" : "Browse studios";
+  const secondaryHref = currentState.currentUser ? "/bookings" : "/account";
+  const secondaryLabel = currentState.currentUser ? "My bookings" : "Sign in";
+  const fallbackCopy = resumeBookingId
+    ? "Your last booking is ready to review and confirm."
+    : requestedKind === "staff"
+      ? "Start from Staff or My Bookings to open checkout."
+      : "Start from Rooms or My Bookings to open checkout.";
+  const message = currentState.message && currentState.message !== "Ready." ? currentState.message : fallbackCopy;
+
+  if (elements.bookingEmptyTitle) {
+    elements.bookingEmptyTitle.textContent = resumeBookingId
+      ? "Resume your booking checkout"
+      : currentState.currentUser
+        ? requestedKind === "staff"
+          ? "Start a staff booking to open checkout"
+          : "Start a booking to open checkout"
+        : "Sign in or continue as guest to resume checkout";
   }
-  return `<div class="staff-profile-image staff-avatar-fallback">${label.slice(0, 1).toUpperCase()}</div>`;
+  if (elements.bookingEmptyCopy) {
+    elements.bookingEmptyCopy.textContent = message;
+  }
+  if (elements.bookingEmptyPrimaryLink) {
+    elements.bookingEmptyPrimaryLink.href = primaryHref;
+    elements.bookingEmptyPrimaryLink.textContent = primaryLabel;
+  }
+  if (elements.bookingEmptySecondaryLink) {
+    elements.bookingEmptySecondaryLink.href = secondaryHref;
+    elements.bookingEmptySecondaryLink.textContent = secondaryLabel;
+  }
+}
+
+function renderStaffImage(photoUrl, label) {
+  const safeLabel = escapeHtml(label || "Staff");
+  if (photoUrl) {
+    return `<img class="staff-profile-image" src="${escapeHtml(photoUrl)}" alt="${safeLabel}" loading="lazy" />`;
+  }
+  return `<div class="staff-profile-image staff-avatar-fallback">${safeLabel.slice(0, 1).toUpperCase()}</div>`;
 }
 
 function renderTagGroup(label, values = []) {
@@ -63,14 +362,144 @@ function renderTagGroup(label, values = []) {
     return "";
   }
 
+  const visibleValues = values.slice(0, 3);
+  const hiddenCount = values.length - visibleValues.length;
+
   return `
     <div class="staff-tag-group">
-      <span>${label}</span>
+      <span>${escapeHtml(label)}</span>
       <div class="preview-pill-row">
-        ${values.map((value) => `<span class="pill">${value}</span>`).join("")}
+        ${visibleValues.map((value) => `<span class="pill">${escapeHtml(value)}</span>`).join("")}
+        ${hiddenCount > 0 ? `<span class="pill">+${hiddenCount} more</span>` : ""}
       </div>
     </div>
   `;
+}
+
+function renderSummaryLine(label, value) {
+  return `<div class="summary-line"><span>${label}</span><strong>${value}</strong></div>`;
+}
+
+function idsMatch(left, right) {
+  return left !== null && left !== undefined && right !== null && right !== undefined && String(left) === String(right);
+}
+
+function renderReadonlyField(label, value, className = "") {
+  return `
+    <label class="booking-contact-field ${className}">
+      <span>${label}</span>
+      <div class="booking-contact-value">${value || "Not provided"}</div>
+    </label>
+  `;
+}
+
+function normalizeContactValue(value) {
+  const cleaned = String(value || "").trim();
+  return cleaned || "";
+}
+
+function getPublicContactEmail(booking) {
+  const email = normalizeContactValue(booking?.user_email);
+  return email.endsWith("@guest.studiobooking.local") ? "" : email;
+}
+
+function getInitialContactDraft(booking) {
+  return {
+    full_name: normalizeContactValue(booking?.user_full_name),
+    email: getPublicContactEmail(booking),
+    phone: normalizeContactValue(booking?.user_phone),
+    note: normalizeContactValue(booking?.note),
+  };
+}
+
+function getBookingContactDraft(booking) {
+  if (!booking) {
+    return { full_name: "", email: "", phone: "", note: "" };
+  }
+  const bookingId = String(booking.id || "");
+  if (bookingContactDraftId !== bookingId || !bookingContactDraft) {
+    bookingContactDraftId = bookingId;
+    bookingContactDraft = getInitialContactDraft(booking);
+  }
+  return bookingContactDraft;
+}
+
+function renderContactInputField(label, name, value, className = "", type = "text") {
+  return `
+    <label class="booking-contact-field ${className}">
+      <span>${escapeHtml(label)}</span>
+      <input
+        class="booking-contact-value"
+        type="${escapeHtml(type)}"
+        name="${escapeHtml(name)}"
+        value="${escapeHtml(value)}"
+        autocomplete="${name === "full_name" ? "name" : name === "email" ? "email" : name === "phone" ? "tel" : "off"}"
+      />
+    </label>
+  `;
+}
+
+function renderContactTextareaField(label, name, value, className = "") {
+  return `
+    <label class="booking-contact-field ${className}">
+      <span>${escapeHtml(label)}</span>
+      <textarea class="booking-contact-value booking-contact-textarea" name="${escapeHtml(name)}" rows="2">${escapeHtml(value)}</textarea>
+    </label>
+  `;
+}
+
+function readBookingContactForm() {
+  const contactRoot = document.getElementById("booking-detail-contact");
+  if (!contactRoot) {
+    return null;
+  }
+  return {
+    full_name: normalizeContactValue(contactRoot.querySelector("[name='full_name']")?.value),
+    email: normalizeContactValue(contactRoot.querySelector("[name='email']")?.value),
+    phone: normalizeContactValue(contactRoot.querySelector("[name='phone']")?.value),
+    note: normalizeContactValue(contactRoot.querySelector("[name='note']")?.value),
+  };
+}
+
+function updateContactDraftFromForm() {
+  const values = readBookingContactForm();
+  if (!values || !state.selectedBooking) {
+    return null;
+  }
+  bookingContactDraftId = String(state.selectedBooking.id || "");
+  bookingContactDraft = values;
+  return values;
+}
+
+async function saveBookingContactDetails({ silent = false } = {}) {
+  const booking = state.selectedBooking;
+  if (!booking || contactSaveInFlight) {
+    return booking;
+  }
+  const values = updateContactDraftFromForm() || getBookingContactDraft(booking);
+  contactSaveInFlight = true;
+  try {
+    if (!silent) {
+      setState({ message: "Saving contact information..." });
+    }
+    const updatedBooking =
+      getBookingKind(booking) === "staff"
+        ? await api.updateStaffBookingContact(booking.id, values)
+        : await api.updateBookingContact(booking.id, values);
+    bookingContactDraftId = String(updatedBooking.id || booking.id || "");
+    bookingContactDraft = getInitialContactDraft(updatedBooking);
+    contactSaveInFlight = false;
+    setState({
+      selectedBooking: {
+        ...booking,
+        ...updatedBooking,
+      },
+      message: silent ? state.message : "Contact information saved.",
+    });
+    return updatedBooking;
+  } finally {
+    contactSaveInFlight = false;
+  }
 }
 
 function clearPaymentElement() {
@@ -81,6 +510,9 @@ function clearPaymentElement() {
   stripeElements = null;
   stripeClient = null;
   activePaymentSession = null;
+  autoLoadingPaymentBookingId = null;
+  paymentSessionStatus = "idle";
+  paymentSessionMessage = "";
 }
 
 function clearPaymentDeadlineTimer() {
@@ -130,24 +562,118 @@ function renderPaymentDeadline(booking) {
 }
 
 async function loadPaymentSession(booking) {
-  const session = await api.getBookingPaymentSession(booking.id);
+  const session =
+    getBookingKind(booking) === "staff"
+      ? await api.getStaffBookingPaymentSession(booking.id)
+      : await api.getBookingPaymentSession(booking.id);
   activePaymentSession = session;
   return session;
 }
 
+async function getPublicConfig() {
+  if (!publicConfigPromise) {
+    publicConfigPromise = fetch("/api/public/config").then(async (response) => {
+      if (!response.ok) {
+        throw new Error("Unable to load payment configuration");
+      }
+      return response.json();
+    });
+  }
+  return publicConfigPromise;
+}
+
 async function mountStripePaymentForm(session) {
+  const paymentContainer = elements.bookingPaymentElement || document.getElementById("booking-payment-element");
+  if (!paymentContainer) {
+    throw new Error("Payment form container is missing");
+  }
+  if (!session?.payment_client_secret) {
+    throw new Error("Stripe payment client secret is missing");
+  }
   if (!window.Stripe || !session.stripe_publishable_key) {
     throw new Error("Stripe publishable key is not configured");
   }
 
   clearPaymentElement();
+  toggleHidden(paymentContainer, false);
+  const nextStripeClient = window.Stripe(session.stripe_publishable_key);
+  const nextStripeElements = nextStripeClient.elements({
+    clientSecret: session.payment_client_secret,
+    appearance: {
+      theme: "stripe",
+      variables: {
+        colorPrimary: "#d71920",
+        colorText: "#00263e",
+        colorDanger: "#b3261e",
+        borderRadius: "8px",
+        fontFamily: "Inter, Avenir Next, Segoe UI, sans-serif",
+      },
+    },
+  });
+  const nextPaymentElement = nextStripeElements.create("payment", { layout: "tabs" });
+  nextPaymentElement.mount(paymentContainer);
+  stripeClient = nextStripeClient;
+  stripeElements = nextStripeElements;
+  paymentElement = nextPaymentElement;
   activePaymentSession = session;
-  toggleHidden(elements.bookingPaymentElement, false);
-  stripeClient = window.Stripe(session.stripe_publishable_key);
-  stripeElements = stripeClient.elements({ clientSecret: session.payment_client_secret });
-  paymentElement = stripeElements.create("payment");
-  paymentElement.mount("#booking-payment-element");
-  elements.bookingPaymentElement?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  paymentSessionStatus = "ready";
+  paymentSessionMessage = "Secure Stripe payment is ready.";
+}
+
+async function ensureStripePaymentSession(booking) {
+  if (
+    !booking ||
+    !isCheckoutMode(booking) ||
+    idsMatch(activePaymentSession?.booking_id, booking.id) ||
+    idsMatch(autoLoadingPaymentBookingId, booking.id)
+  ) {
+    return;
+  }
+
+  autoLoadingPaymentBookingId = booking.id;
+  paymentSessionStatus = "loading";
+  paymentSessionMessage = "Preparing the secure Stripe checkout...";
+  let nextMessage = "";
+  try {
+    if (booking.payment_client_secret) {
+      const publicConfig = await getPublicConfig().catch(() => null);
+      if (publicConfig?.stripe_publishable_key) {
+        const draftSession = {
+          booking_id: booking.id,
+          payment_intent_id: booking.payment_intent_id || String(booking.id),
+          payment_client_secret: booking.payment_client_secret,
+          payment_backend: "stripe",
+          stripe_publishable_key: publicConfig.stripe_publishable_key,
+          payment_expires_at: booking.payment_expires_at || null,
+          payment_seconds_remaining: booking.payment_seconds_remaining || null,
+        };
+        await mountStripePaymentForm(draftSession);
+        nextMessage = "Secure payment is ready.";
+        return;
+      }
+    }
+
+    const session = await loadPaymentSession(booking);
+    if (session.payment_backend === "stripe") {
+      await mountStripePaymentForm(session);
+      nextMessage = "Secure payment is ready.";
+    } else {
+      toggleHidden(elements.bookingPaymentElement, true);
+      paymentSessionStatus = "stub";
+      paymentSessionMessage =
+        "Stripe is not active for this running server. Start the API with PAYMENT_BACKEND=stripe and configured Stripe keys to show the secure payment form.";
+      nextMessage = paymentSessionMessage;
+    }
+  } catch (error) {
+    paymentSessionStatus = "error";
+    paymentSessionMessage = error.message || "Unable to load the payment form right now.";
+    nextMessage = paymentSessionMessage;
+  } finally {
+    autoLoadingPaymentBookingId = null;
+    if (nextMessage) {
+      setState({ message: nextMessage });
+    }
+  }
 }
 
 function renderPaymentPanel(state, booking) {
@@ -156,49 +682,193 @@ function renderPaymentPanel(state, booking) {
   }
 
   const isPending = booking.status === "PendingPayment";
+  const bookingKind = getBookingKind(booking);
   const canAdminWaivePayment = isPending && Boolean(state.currentUser?.is_admin);
   const canAdminMarkPaid = canAdminWaivePayment && booking.price_cents > 0;
   toggleHidden(elements.bookingPaymentPanel, !isPending);
   if (!isPending) {
+    elements.bookingPaymentControls.innerHTML = "";
     clearPaymentElement();
     return;
   }
 
-  elements.bookingPaymentCopy.textContent = state.message || "Load the payment session to continue checkout.";
+  const hasStripeSession =
+    idsMatch(activePaymentSession?.booking_id, booking.id) && activePaymentSession.payment_backend === "stripe";
+  const isPaymentLoading = idsMatch(autoLoadingPaymentBookingId, booking.id) || paymentSessionStatus === "loading";
+  elements.bookingPaymentCopy.textContent = hasStripeSession
+    ? "Enter payment details, then pay to confirm the booking."
+    : isPaymentLoading
+      ? "Preparing payment..."
+      : paymentSessionMessage || "Prepare payment to confirm this booking.";
+  const primaryAction =
+    hasStripeSession ? "confirm-payment" : "load-payment";
+  const primaryLabel =
+    hasStripeSession && booking.price_cents > 0 ? "Pay now" : "Confirm booking";
+  const primaryDisabled = isPaymentLoading ? "disabled" : "";
   elements.bookingPaymentControls.innerHTML = `
-    <button class="ghost-button" type="button" data-booking-detail-action="load-payment" data-booking-id="${booking.id}">
-      Load payment
+    <button class="primary-button" type="button" data-booking-detail-action="${primaryAction}" data-booking-id="${booking.id}" ${primaryDisabled}>
+      ${primaryLabel}
     </button>
     ${
       canAdminMarkPaid
-        ? `<button class="ghost-button" type="button" data-booking-detail-action="mark-paid" data-booking-id="${booking.id}">
+        ? `<button class="ghost-button" type="button" data-booking-detail-action="mark-paid" data-booking-id="${booking.id}" data-booking-kind="${bookingKind}">
       Mark paid manually as admin
     </button>`
         : ""
     }
     ${
       canAdminWaivePayment
-        ? `<button class="ghost-button" type="button" data-booking-detail-action="waive-payment" data-booking-id="${booking.id}">
+        ? `<button class="ghost-button" type="button" data-booking-detail-action="waive-payment" data-booking-id="${booking.id}" data-booking-kind="${bookingKind}">
       Skip Stripe as admin
     </button>`
         : ""
     }
-    <button class="primary-button hidden" type="button" data-booking-detail-action="confirm-payment" data-booking-id="${booking.id}">
-      Confirm payment
-    </button>
   `;
 
-  if (activePaymentSession?.booking_id === booking.id) {
-    const confirmButton = elements.bookingPaymentControls.querySelector("[data-booking-detail-action='confirm-payment']");
-    if (confirmButton && activePaymentSession.payment_backend === "stripe") {
-      confirmButton.classList.remove("hidden");
-    }
+  if (idsMatch(activePaymentSession?.booking_id, booking.id)) {
     if (activePaymentSession.payment_backend !== "stripe") {
       elements.bookingPaymentCopy.textContent =
-        "Stub payment mode is active. Switch PAYMENT_BACKEND to stripe and configure Stripe keys to use live test checkout.";
+        paymentSessionMessage ||
+        "Stripe is not active for this running server. Start the API with PAYMENT_BACKEND=stripe and configured Stripe keys to show the secure payment form.";
     }
   } else {
     toggleHidden(elements.bookingPaymentElement, true);
+  }
+}
+
+async function loadRescheduleAvailability(booking, targetDate) {
+  if (!booking || !targetDate) {
+    return;
+  }
+
+  const requestToken = rescheduleRequestToken + 1;
+  rescheduleRequestToken = requestToken;
+  const bookingId = booking.id;
+  rescheduleBookingId = booking.id;
+  rescheduleDateValue = targetDate;
+  rescheduleLoading = true;
+  rescheduleAvailability = null;
+  rescheduleStatusMessage = "Loading available start times...";
+  setState({ message: state.message });
+
+  try {
+    let nextAvailability = null;
+    if (getBookingKind(booking) === "staff") {
+      const staffId = booking.staff_profile_id || booking.staff_id || booking.staff_profile?.id;
+      if (!staffId) {
+        throw new Error("This staff booking does not include a staff profile id.");
+      }
+      nextAvailability = await api.getStaffAvailability(staffId, targetDate).catch(() => null);
+    } else {
+      nextAvailability = await api.getAvailability(booking.room_id, targetDate);
+    }
+
+    if (
+      requestToken !== rescheduleRequestToken ||
+      rescheduleBookingId !== bookingId ||
+      rescheduleDateValue !== targetDate
+    ) {
+      return;
+    }
+
+    rescheduleAvailability = nextAvailability;
+    const validStarts = getValidRescheduleStarts(booking);
+    rescheduleStatusMessage = validStarts.length
+      ? `Choose from ${validStarts.length} open start time${validStarts.length === 1 ? "" : "s"} on ${targetDate}.`
+      : "No alternate starts are open for this booking duration on that date.";
+  } catch (error) {
+    if (requestToken !== rescheduleRequestToken) {
+      return;
+    }
+
+    rescheduleAvailability = null;
+    rescheduleStatusMessage = error.message;
+  } finally {
+    if (requestToken === rescheduleRequestToken) {
+      rescheduleLoading = false;
+      setState({ message: state.message });
+    }
+  }
+}
+
+function renderReschedulePanel(booking) {
+  if (
+    !elements.bookingReschedulePanel ||
+    !elements.bookingRescheduleDate ||
+    !elements.bookingRescheduleStart ||
+    !elements.bookingRescheduleStatus ||
+    !elements.bookingRescheduleSubmit
+  ) {
+    return;
+  }
+
+  const canReschedule = booking.status === "Paid" && !booking.checked_in_at;
+  toggleHidden(elements.bookingReschedulePanel, !canReschedule);
+  if (!canReschedule) {
+    return;
+  }
+
+  const nextDate = rescheduleDateValue || getDateInputValue(booking.start_time);
+  if (elements.bookingRescheduleDate.value !== nextDate) {
+    elements.bookingRescheduleDate.value = nextDate;
+  }
+
+  if (rescheduleBookingId !== booking.id || rescheduleDateValue !== nextDate) {
+    void loadRescheduleAvailability(booking, nextDate);
+  }
+
+  const validStarts = getValidRescheduleStarts(booking);
+  elements.bookingRescheduleStart.innerHTML = validStarts.length
+    ? validStarts
+        .map(
+          (slot) => `
+            <option value="${slot.value}">
+              ${formatBookingDate(slot.value)}
+            </option>
+          `,
+        )
+        .join("")
+    : '<option value="">No alternate times available</option>';
+  elements.bookingRescheduleSubmit.disabled = rescheduleLoading || !validStarts.length;
+  elements.bookingRescheduleStatus.textContent = rescheduleLoading
+    ? "Loading available start times..."
+    : rescheduleStatusMessage ||
+      `Move this booking to a different start time while keeping the same ${formatDuration(booking.duration_minutes)} duration.`;
+}
+
+function renderReviewPanel(currentState, booking) {
+  if (!elements.bookingReviewPanel || !elements.bookingReviewForm || !elements.bookingReviewStatus) {
+    return;
+  }
+
+  const canReview =
+    getBookingKind(booking) !== "staff" &&
+    (booking.status === "Completed" || (booking.status === "Paid" && new Date(booking.end_time).getTime() <= Date.now()));
+  toggleHidden(elements.bookingReviewPanel, !canReview);
+  if (!canReview) {
+    reviewFormFingerprint = null;
+    return;
+  }
+
+  const review = currentState.selectedBookingReview;
+  const nextFingerprint = JSON.stringify({
+    bookingId: booking.id,
+    reviewId: review?.id || null,
+    rating: review?.rating || null,
+    comment: review?.comment || null,
+  });
+  if (reviewFormFingerprint !== nextFingerprint) {
+    elements.bookingReviewForm.elements.rating.value = String(review?.rating || 5);
+    elements.bookingReviewForm.elements.comment.value = review?.comment || "";
+    reviewFormFingerprint = nextFingerprint;
+  }
+
+  elements.bookingReviewStatus.textContent = review
+    ? `Last updated ${formatBookingDate(review.updated_at || review.created_at)} by ${review.reviewer_name || "you"}.`
+    : "Leave a review once the session wraps so future guests can judge the room with more confidence.";
+  const submitButton = elements.bookingReviewForm.querySelector("button[type='submit']");
+  if (submitButton) {
+    submitButton.textContent = review ? "Update review" : "Save review";
   }
 }
 
@@ -207,29 +877,171 @@ function renderStaffAssignments(booking) {
     return;
   }
 
-  const assignments = booking.staff_assignments || [];
+  const assignments =
+    getBookingKind(booking) === "staff"
+      ? [getBookingStaffEntity(booking)].filter(Boolean)
+      : booking.staff_assignments || [];
   elements.bookingDetailStaffList.innerHTML = assignments.length
     ? assignments
-        .map(
-          (assignment) => `
-            <article class="staff-profile-card">
-              <div class="staff-profile-card-top">
-                ${renderStaffImage(assignment.photo_url, assignment.name)}
-                <div class="staff-option-copy">
-                  <strong>${assignment.name}</strong>
-                  <span>${assignment.description || "Added to this booking."}</span>
+        .map((assignment) => {
+          const assignmentName = assignment.name || "Studio staff";
+          const assignmentDescription =
+            assignment.description ||
+            (getBookingKind(booking) === "staff" ? "Booked staff session" : "Attached to this booking as an add-on.");
+          return `
+            <article class="booking-staff-card booking-staff-card-compact staff-profile-card">
+              <div class="booking-staff-card-top booking-staff-card-top-compact staff-profile-card-top">
+                ${renderStaffImage(assignment.photo_url, assignmentName)}
+                <div class="booking-staff-card-copy">
+                  <strong>${escapeHtml(assignmentName)}</strong>
+                  <span>${escapeHtml(assignmentDescription)}</span>
                 </div>
+                <strong class="booking-staff-card-price staff-option-price">${formatCurrency(assignment.add_on_price_cents, booking.currency)}</strong>
               </div>
-              <strong class="staff-option-price">${formatCurrency(assignment.add_on_price_cents, booking.currency)}</strong>
-              <div class="staff-option-copy">
+              <div class="booking-staff-card-tags">
                 ${renderTagGroup("Skills", assignment.skills || [])}
                 ${renderTagGroup("Talents", assignment.talents || [])}
               </div>
             </article>
-          `,
-        )
+          `;
+        })
         .join("")
     : '<div class="empty-state">No extra staff add-ons were attached to this booking.</div>';
+}
+
+function renderCheckoutPricingRows(booking, kind, staffTotal) {
+  const originalTotal = Number(booking.original_price_cents ?? booking.price_cents ?? 0);
+  const discountCents = Number(booking.discount_cents || 0);
+  const finalTotal = Number(booking.price_cents || 0);
+
+  if (discountCents > 0) {
+    return `
+      <div class="booking-summary-price-line"><span>${kind === "staff" ? "Staff session" : "Session subtotal"}</span><strong>${formatCurrency(originalTotal, booking.currency)}</strong></div>
+      <div class="booking-summary-price-line"><span>Promo ${escapeHtml(booking.promo_code || "")}</span><strong class="booking-summary-price-free">-${formatCurrency(discountCents, booking.currency)}</strong></div>
+      <div class="booking-summary-price-line"><span>Service fee</span><strong class="booking-summary-price-free">Free</strong></div>
+      <div class="booking-summary-total"><span>Total</span><strong>${formatCurrency(finalTotal, booking.currency)}</strong></div>
+    `;
+  }
+
+  if (kind === "staff") {
+    return `
+      <div class="booking-summary-price-line"><span>Staff session</span><strong>${formatCurrency(finalTotal, booking.currency)}</strong></div>
+      <div class="booking-summary-price-line"><span>Service fee</span><strong class="booking-summary-price-free">Free</strong></div>
+      <div class="booking-summary-total"><span>Total</span><strong>${formatCurrency(finalTotal, booking.currency)}</strong></div>
+    `;
+  }
+
+  const roomSubtotal = Math.max(0, finalTotal - staffTotal);
+  return `
+    <div class="booking-summary-price-line"><span>${formatCurrency(roomSubtotal, booking.currency)} room session</span><strong>${formatCurrency(roomSubtotal, booking.currency)}</strong></div>
+    ${
+      staffTotal
+        ? `<div class="booking-summary-price-line"><span>Staff add-ons</span><strong>${formatCurrency(staffTotal, booking.currency)}</strong></div>`
+        : ""
+    }
+    <div class="booking-summary-price-line"><span>Service fee</span><strong class="booking-summary-price-free">Free</strong></div>
+    <div class="booking-summary-total"><span>Total</span><strong>${formatCurrency(finalTotal, booking.currency)}</strong></div>
+  `;
+}
+
+function renderBookingSummaryLayout(booking) {
+  const layout = getBookingLayoutElements();
+  const kind = getBookingKind(booking);
+  const bookingTitle = getBookingDisplayName(booking);
+  const roomName = booking.room_name || "Studio booking";
+  const staffTotal = (booking.staff_assignments || []).reduce(
+    (sum, assignment) => sum + Number(assignment.add_on_price_cents || 0),
+    0,
+  );
+  const statusLabel = getBookingStatusLabel(booking);
+  const staffCount = (booking.staff_assignments || []).length;
+  const contactDraft = getBookingContactDraft(booking);
+  const supportCopy =
+    booking.status === "PendingPayment"
+      ? "Payment confirms this booking."
+      : booking.status === "Paid"
+        ? "Calendar and receipt tools stay attached here."
+        : "Use this page for booking history and receipts.";
+
+  if (layout.kicker) {
+    layout.kicker.textContent = getBookingPrimaryKicker(booking);
+  }
+  if (layout.overviewStatus) {
+    layout.overviewStatus.textContent = statusLabel;
+    layout.overviewStatus.className = `pill status-${String(booking.status || "").toLowerCase()}`;
+  }
+
+  if (
+    layout.contact &&
+    layout.sessionOverview &&
+    layout.summaryRoom &&
+    layout.summaryMeta &&
+    layout.summaryPricing &&
+    layout.summarySupport &&
+    layout.summaryMedia
+  ) {
+    const category = inferBookingCategory(booking);
+    const categoryLabel = category.charAt(0).toUpperCase() + category.slice(1);
+    const visual = getBookingVisual(booking);
+    const typeLabel = getBookingTypeLabel(booking);
+
+    layout.contact.innerHTML = `
+      ${renderContactInputField("Full name", "full_name", contactDraft.full_name, "booking-contact-field-full")}
+      ${renderContactInputField("Email", "email", contactDraft.email, "", "email")}
+      ${renderContactInputField("Phone", "phone", contactDraft.phone, "", "tel")}
+      ${renderContactTextareaField("Notes for the studio (optional)", "note", contactDraft.note, "booking-contact-field-full")}
+      <div class="booking-contact-actions booking-contact-field-full">
+        <button class="ghost-button" type="button" data-booking-contact-save ${contactSaveInFlight ? "disabled" : ""}>
+          ${contactSaveInFlight ? "Saving..." : "Save contact information"}
+        </button>
+      </div>
+    `;
+
+    layout.sessionOverview.innerHTML = `
+      ${renderSummaryLine(kind === "staff" ? "Staff" : "Room", bookingTitle)}
+      ${renderSummaryLine("Date", formatDateLine(booking.start_time))}
+      ${renderSummaryLine("Time", formatTimeLine(booking.start_time, booking.end_time))}
+      ${renderSummaryLine("Duration", formatDuration(booking.duration_minutes))}
+      ${booking.promo_code ? renderSummaryLine("Promo", `${booking.promo_code} saved ${formatCurrency(booking.discount_cents, booking.currency)}`) : ""}
+      ${renderSummaryLine("Booking code", booking.booking_code)}
+      ${
+        booking.payment_intent_id
+          ? renderSummaryLine("Payment reference", booking.payment_intent_id)
+          : renderSummaryLine("Payment status", statusLabel)
+      }
+    `;
+
+    layout.summaryRoom.textContent = bookingTitle;
+    layout.summaryMedia.innerHTML = `
+      <div class="booking-summary-room-card">
+        <img class="booking-summary-room-image" src="${visual}" alt="${roomName}" loading="lazy" />
+        <div class="booking-summary-room-copy">
+          <div class="booking-summary-room-pills">
+            <span class="pill">${typeLabel}</span>
+            <span class="pill">${categoryLabel}</span>
+            <span class="pill status-${String(booking.status || "").toLowerCase()}">${statusLabel}</span>
+          </div>
+          <strong>${bookingTitle}</strong>
+          <span>${getBookingLocationLabel(booking)}</span>
+        </div>
+      </div>
+    `;
+    layout.summaryMeta.innerHTML = `
+      ${renderSummaryLine("Date", formatDateLine(booking.start_time))}
+      ${renderSummaryLine("Time", `${formatTimeOnly(booking.start_time)} • ${formatDuration(booking.duration_minutes)}`)}
+      ${
+        kind === "staff"
+          ? renderSummaryLine("Service", booking.service_type || "Staff session")
+          : renderSummaryLine("Staff", `${staffCount} add-on${staffCount === 1 ? "" : "s"}`)
+      }
+    `;
+    layout.summaryPricing.innerHTML = renderCheckoutPricingRows(booking, kind, staffTotal);
+    layout.summarySupport.innerHTML = `
+      <div class="booking-summary-support-item">${supportCopy}</div>
+    `;
+    return;
+  }
+
 }
 
 export function initBookingDetailView(actions) {
@@ -265,15 +1077,11 @@ export function initBookingDetailView(actions) {
 
       if (action === "load-payment") {
         setState({ message: "Loading payment session..." });
-        const booking = await api.getBooking(button.dataset.bookingId);
-        const session = await loadPaymentSession(booking);
-        if (session.payment_backend === "stripe") {
-          await mountStripePaymentForm(session);
-          setState({ message: "Payment form loaded." });
-        } else {
-          toggleHidden(elements.bookingPaymentElement, true);
-          setState({ message: "Stub payment session loaded. Configure Stripe to continue with live test checkout." });
-        }
+        const booking =
+          state.selectedBooking && String(state.selectedBooking.id) === String(button.dataset.bookingId)
+            ? state.selectedBooking
+            : await api.getBooking(button.dataset.bookingId);
+        await ensureStripePaymentSession(booking);
         if (actions?.reloadBookingDetail) {
           await actions.reloadBookingDetail("Payment session ready.");
         }
@@ -284,8 +1092,9 @@ export function initBookingDetailView(actions) {
         if (!stripeClient || !stripeElements || !activePaymentSession) {
           throw new Error("Load the payment session first");
         }
+        await saveBookingContactDetails({ silent: true });
         setState({ message: "Confirming payment..." });
-        const successUrl = buildPaymentSuccessUrl(activePaymentSession.booking_id);
+        const successUrl = buildPaymentSuccessUrl(activePaymentSession.booking_id, getBookingKind(state.selectedBooking));
         const submitResult = await stripeElements.submit();
         if (submitResult?.error) {
           throw new Error(submitResult.error.message || "Payment details are incomplete");
@@ -311,10 +1120,13 @@ export function initBookingDetailView(actions) {
           return;
         }
         setState({ message: "Skipping Stripe and marking booking free..." });
-        const booking = await api.adminWaiveBookingPayment(button.dataset.bookingId);
+        const booking =
+          button.dataset.bookingKind === "staff"
+            ? await api.adminWaiveStaffBookingPayment(button.dataset.bookingId)
+            : await api.adminWaiveBookingPayment(button.dataset.bookingId);
         clearPaymentElement();
         setState({ selectedBooking: booking, message: "Booking marked free." });
-        window.location.assign(buildPaymentSuccessUrl(booking.id).toString());
+        window.location.assign(buildPaymentSuccessUrl(booking.id, button.dataset.bookingKind).toString());
         return;
       }
 
@@ -324,10 +1136,13 @@ export function initBookingDetailView(actions) {
           return;
         }
         setState({ message: "Marking booking paid manually..." });
-        const booking = await api.adminMarkBookingPaid(button.dataset.bookingId);
+        const booking =
+          button.dataset.bookingKind === "staff"
+            ? await api.adminMarkStaffBookingPaid(button.dataset.bookingId)
+            : await api.adminMarkBookingPaid(button.dataset.bookingId);
         clearPaymentElement();
         setState({ selectedBooking: booking, message: "Booking marked paid manually." });
-        window.location.assign(buildPaymentSuccessUrl(booking.id).toString());
+        window.location.assign(buildPaymentSuccessUrl(booking.id, button.dataset.bookingKind).toString());
         return;
       }
 
@@ -351,6 +1166,70 @@ export function initBookingDetailView(actions) {
 
   elements.bookingDetailActions.addEventListener("click", handleAction);
   elements.bookingPaymentControls?.addEventListener("click", handleAction);
+  document.getElementById("booking-detail-contact")?.addEventListener("input", () => {
+    updateContactDraftFromForm();
+  });
+  document.getElementById("booking-detail-contact")?.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-booking-contact-save]");
+    if (!button) {
+      return;
+    }
+    try {
+      await saveBookingContactDetails();
+    } catch (error) {
+      setState({ message: error.message });
+    }
+  });
+  elements.bookingRescheduleDate?.addEventListener("change", () => {
+    if (!state.selectedBooking) {
+      return;
+    }
+    void loadRescheduleAvailability(state.selectedBooking, elements.bookingRescheduleDate.value);
+  });
+  elements.bookingRescheduleSubmit?.addEventListener("click", async () => {
+    const selectedStart = elements.bookingRescheduleStart?.value || "";
+    const validStarts = state.selectedBooking ? getValidRescheduleStarts(state.selectedBooking) : [];
+    const canUseStart = validStarts.some((slot) => slot.value === selectedStart);
+    if (!state.selectedBooking || rescheduleLoading || !selectedStart || !canUseStart) {
+      setState({ message: "Choose a new start time before rescheduling." });
+      return;
+    }
+
+    try {
+      setState({ message: "Rescheduling booking..." });
+      const booking =
+        getBookingKind(state.selectedBooking) === "staff"
+          ? await api.rescheduleStaffBooking(state.selectedBooking.id, { start_time: selectedStart })
+          : await api.rescheduleBooking(state.selectedBooking.id, { start_time: selectedStart });
+      rescheduleRequestToken += 1;
+      rescheduleAvailability = null;
+      rescheduleBookingId = null;
+      rescheduleDateValue = "";
+      rescheduleStatusMessage = "";
+      setState({ selectedBooking: booking, message: "Booking rescheduled." });
+      if (actions?.reloadBookingDetail) {
+        await actions.reloadBookingDetail("Booking detail refreshed.");
+      }
+    } catch (error) {
+      setState({ message: error.message });
+    }
+  });
+  elements.bookingReviewForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!state.selectedBooking) {
+      return;
+    }
+
+    try {
+      const review = await api.saveBookingReview(state.selectedBooking.id, {
+        rating: Number(elements.bookingReviewForm.elements.rating.value || 5),
+        comment: elements.bookingReviewForm.elements.comment.value.trim() || null,
+      });
+      setState({ selectedBookingReview: review, message: "Review saved." });
+    } catch (error) {
+      setState({ message: error.message });
+    }
+  });
 }
 
 export function renderBookingDetailView(state) {
@@ -360,51 +1239,67 @@ export function renderBookingDetailView(state) {
 
   const booking = state.selectedBooking;
   const hasBooking = Boolean(booking);
+  const checkoutMode = isCheckoutMode(booking);
+  renderBookingEmptyState(state);
   toggleHidden(elements.bookingDetailEmpty, hasBooking);
   toggleHidden(elements.bookingDetailCard, !hasBooking);
 
   if (!booking) {
     clearPaymentDeadlineTimer();
     clearPaymentElement();
+    reviewFormFingerprint = null;
     return;
   }
 
-  elements.bookingDetailTitle.textContent = `${booking.status} • ${booking.booking_code}`;
-  elements.bookingDetailWindow.textContent = `${formatBookingDate(booking.start_time)} to ${formatBookingDate(booking.end_time)}`;
-  elements.bookingDetailMeta.innerHTML = `
-    <span class="pill">${formatCurrency(booking.price_cents, booking.currency)}</span>
-    <span class="pill">${formatDuration(booking.duration_minutes)}</span>
-    <span class="pill">${booking.currency}</span>
-    <span class="pill">${(booking.staff_assignments || []).length} staff profile${(booking.staff_assignments || []).length === 1 ? "" : "s"}</span>
-    ${booking.checked_in_at ? `<span class="pill">Checked in ${formatBookingDate(booking.checked_in_at)}</span>` : ""}
-    ${booking.payment_intent_id ? `<span class="pill">Payment ${booking.payment_intent_id}</span>` : ""}
-  `;
+  persistLastBookingId(booking.id);
+  persistCheckoutDraft(
+    booking.status === "PendingPayment"
+      ? { booking }
+      : null,
+  );
+  elements.bookingDetailCard.classList.toggle("is-checkout-mode", checkoutMode);
+  if (elements.bookingDetailTitle) {
+    elements.bookingDetailTitle.textContent = checkoutMode
+      ? getBookingPrimaryTitle(booking)
+      : booking.room_name || getBookingPrimaryTitle(booking);
+  }
+  if (elements.bookingDetailWindow) {
+    elements.bookingDetailWindow.textContent = checkoutMode
+      ? "Review the details, then confirm the booking."
+      : `${formatDateLine(booking.start_time)} • ${formatTimeLine(booking.start_time, booking.end_time)}`;
+  }
   if (elements.bookingDetailNote) {
     elements.bookingDetailNote.textContent = booking.note
-      ? `Booking notes: ${booking.note}`
-      : "No booking notes added.";
+      ? `Booking note: ${booking.note}`
+      : booking.status === "PendingPayment"
+        ? "Confirm the booking from the summary panel."
+        : booking.status === "Paid"
+          ? "Use the actions below to add the booking to your calendar, download a receipt, or reschedule."
+          : "This booking is archived here for reference, follow-up actions, and receipts.";
   }
+  renderBookingSummaryLayout(booking);
   renderStaffAssignments(booking);
   renderPaymentDeadline(booking);
 
   const canCancel = booking.status === "PendingPayment" || booking.status === "Paid";
   const canPay = booking.status === "PendingPayment";
-  const canAddToCalendar = !["Cancelled", "Refunded"].includes(booking.status);
+  const canAddToCalendar = ["Paid", "Completed"].includes(booking.status);
   const canDownloadReceipt = ["Paid", "Completed", "Refunded"].includes(booking.status);
-  const settlementPill = isAdminWaivedPayment(booking)
-    ? '<span class="pill">Admin free booking</span>'
-    : isAdminManualPayment(booking)
-      ? '<span class="pill">Manual payment noted</span>'
-      : "";
-  elements.bookingDetailActions.innerHTML = `
-    ${canAddToCalendar ? `<button class="ghost-button" type="button" data-booking-detail-action="download-calendar" data-booking-id="${booking.id}">Add to calendar</button>` : ""}
-    ${canDownloadReceipt ? `<button class="ghost-button" type="button" data-booking-detail-action="download-receipt" data-booking-id="${booking.id}">Download receipt PDF</button>` : ""}
-    ${canCancel ? `<button class="ghost-button" type="button" data-booking-detail-action="cancel" data-booking-id="${booking.id}">Cancel booking</button>` : ""}
-    ${canPay ? `<button class="ghost-button" type="button" data-booking-detail-action="load-payment" data-booking-id="${booking.id}">Continue payment</button>` : ""}
-  `;
-  if (settlementPill) {
-    elements.bookingDetailMeta.insertAdjacentHTML("beforeend", settlementPill);
+  if (elements.bookingDetailActions) {
+    elements.bookingDetailActions.innerHTML = `
+      ${canAddToCalendar ? `<button class="ghost-button" type="button" data-booking-detail-action="download-calendar" data-booking-id="${booking.id}">Add to calendar</button>` : ""}
+      ${canDownloadReceipt ? `<button class="ghost-button" type="button" data-booking-detail-action="download-receipt" data-booking-id="${booking.id}">Download receipt PDF</button>` : ""}
+      ${canCancel ? `<button class="ghost-button" type="button" data-booking-detail-action="cancel" data-booking-id="${booking.id}">Cancel booking</button>` : ""}
+    `;
   }
+  toggleHidden(elements.bookingSessionPanel, checkoutMode);
+  toggleHidden(elements.bookingStaffPanel, checkoutMode);
+  toggleHidden(elements.bookingDetailActions, checkoutMode);
 
   renderPaymentPanel(state, booking);
+  renderReschedulePanel(booking);
+  renderReviewPanel(state, booking);
+  if (canPay) {
+    void ensureStripePaymentSession(booking);
+  }
 }

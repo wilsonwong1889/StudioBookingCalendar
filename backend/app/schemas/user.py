@@ -23,6 +23,7 @@ class UserOut(BaseModel):
     id: UUID
     email: str
     full_name: Optional[str]
+    avatar_url: Optional[str] = None
     phone: Optional[str]
     birthday: Optional[date] = None
     billing_address: Optional[BillingAddress] = None
@@ -41,6 +42,7 @@ class AdminUserAccountOut(BaseModel):
     id: UUID
     email: str
     full_name: Optional[str]
+    avatar_url: Optional[str] = None
     phone: Optional[str]
     birthday: Optional[date] = None
     billing_address: Optional[BillingAddress] = None
@@ -58,6 +60,7 @@ class AdminUserAccountOut(BaseModel):
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
+    avatar_url: Optional[str] = None
     phone: Optional[str] = None
     birthday: Optional[date] = None
     opt_in_email: Optional[bool] = None
@@ -85,6 +88,10 @@ class Token(BaseModel):
     two_factor_required: bool = False
     two_factor_token: Optional[str] = None
     two_factor_method: Optional[str] = None
+
+
+class GoogleAuthExchangeIn(BaseModel):
+    access_token: str = Field(min_length=1)
 
 
 class TwoFactorVerifyIn(BaseModel):

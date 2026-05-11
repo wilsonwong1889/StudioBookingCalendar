@@ -73,18 +73,20 @@ def create_payment_intent(
     currency: str,
     booking_id: str,
     user_email: str,
+    metadata: dict | None = None,
 ) -> PaymentIntentData:
     if _is_stripe_backend():
         _require_stripe_configuration(
             purpose="checkout",
             required_keys=("STRIPE_PUBLISHABLE_KEY", "STRIPE_SECRET_KEY"),
         )
+        request_metadata = {"booking_id": booking_id, **(metadata or {})}
         intent = _run_stripe_request(
             lambda: stripe.PaymentIntent.create(
                 amount=amount_cents,
                 currency=currency.lower(),
                 receipt_email=user_email,
-                metadata={"booking_id": booking_id},
+                metadata=request_metadata,
                 automatic_payment_methods={"enabled": True},
             ),
             purpose="payment setup",
@@ -105,12 +107,14 @@ def get_payment_intent_session(
     currency: str,
     booking_id: str,
     user_email: str,
+    metadata: dict | None = None,
 ) -> PaymentIntentData:
     if _is_stripe_backend():
         _require_stripe_configuration(
             purpose="checkout",
             required_keys=("STRIPE_PUBLISHABLE_KEY", "STRIPE_SECRET_KEY"),
         )
+        request_metadata = {"booking_id": booking_id, **(metadata or {})}
         if _can_reuse_stripe_payment_intent(payment_intent_id):
             intent = _run_stripe_request(
                 lambda: stripe.PaymentIntent.retrieve(payment_intent_id),
@@ -122,7 +126,7 @@ def get_payment_intent_session(
                     amount=amount_cents,
                     currency=currency.lower(),
                     receipt_email=user_email,
-                    metadata={"booking_id": booking_id},
+                    metadata=request_metadata,
                     automatic_payment_methods={"enabled": True},
                 ),
                 purpose="payment setup",

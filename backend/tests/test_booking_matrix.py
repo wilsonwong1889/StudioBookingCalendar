@@ -9,6 +9,7 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import IntegrityError
 
 
 BUSINESS_TIMEZONE = ZoneInfo("America/Edmonton")
@@ -34,7 +35,17 @@ class BookingSchemaMatrixTest(unittest.TestCase):
         cls.resolve_staff_assignments = staticmethod(resolve_staff_assignments)
 
     def _aware_time(self, hour: int = 10, minute: int = 0, second: int = 0) -> datetime:
-        return datetime(2026, 5, 1, hour, minute, second, tzinfo=BUSINESS_TIMEZONE)
+        target_date = datetime.now(BUSINESS_TIMEZONE).date() + timedelta(days=30)
+        shifted_hour = hour + 2
+        return datetime(
+            target_date.year,
+            target_date.month,
+            target_date.day,
+            shifted_hour,
+            minute,
+            second,
+            tzinfo=BUSINESS_TIMEZONE,
+        )
 
 
 class ReservationHoldMatrixTest(unittest.TestCase):
@@ -76,12 +87,12 @@ class BookingServiceMatrixTest(unittest.TestCase):
         from app.core.security import hash_password
         from app.database import Base, SessionLocal, engine
         from app.main import app
-        from app.models.booking import AuditLog, Booking, BookingSlot, NotificationLog, Refund
+        from app.models.booking import AuditLog, Booking, BookingSlot, NotificationLog, Refund, Review
         from app.models.promo_code import PromoCode
         from app.models.room import Room
         from app.models.staff_profile import StaffProfile
         from app.models.user import User
-        from app.schemas.booking import BookingCreate, ManualBookingCreate, RefundCreate
+        from app.schemas.booking import BookingCreate, GuestBookingCreate, ManualBookingCreate, RefundCreate
         from app.services import booking_service
         from app.services.booking_service import (
             BookingConflictError,
@@ -96,6 +107,8 @@ class BookingServiceMatrixTest(unittest.TestCase):
             clear_bookings_for_admin_day,
             clear_past_bookings_for_admin,
             create_booking,
+            create_or_update_booking_review,
+            create_guest_booking,
             create_manual_booking,
             create_reservation_hold,
             expire_pending_booking,
@@ -109,7 +122,9 @@ class BookingServiceMatrixTest(unittest.TestCase):
             get_room_max_booking_duration_minutes,
             handle_payment_webhook_event,
             list_bookings_for_user,
+            list_room_reviews,
             mark_booking_paid,
+            reschedule_booking,
             normalize_booking_start,
             process_refund,
             serialize_admin_booking,
@@ -132,11 +147,13 @@ class BookingServiceMatrixTest(unittest.TestCase):
         cls.BookingSlot = BookingSlot
         cls.NotificationLog = NotificationLog
         cls.Refund = Refund
+        cls.Review = Review
         cls.PromoCode = PromoCode
         cls.Room = Room
         cls.StaffProfile = StaffProfile
         cls.User = User
         cls.BookingCreate = BookingCreate
+        cls.GuestBookingCreate = GuestBookingCreate
         cls.ManualBookingCreate = ManualBookingCreate
         cls.RefundCreate = RefundCreate
         cls.BookingConflictError = BookingConflictError
@@ -148,9 +165,11 @@ class BookingServiceMatrixTest(unittest.TestCase):
         cls.calculate_booking_total_cents = staticmethod(calculate_booking_total_cents)
         cls.calculate_price_cents = staticmethod(calculate_price_cents)
         cls.cancel_booking = staticmethod(cancel_booking)
+        cls.create_guest_booking = staticmethod(create_guest_booking)
         cls.clear_bookings_for_admin_day = staticmethod(clear_bookings_for_admin_day)
         cls.clear_past_bookings_for_admin = staticmethod(clear_past_bookings_for_admin)
         cls.create_booking = staticmethod(create_booking)
+        cls.create_or_update_booking_review = staticmethod(create_or_update_booking_review)
         cls.create_manual_booking = staticmethod(create_manual_booking)
         cls.create_reservation_hold = staticmethod(create_reservation_hold)
         cls.expire_pending_booking = staticmethod(expire_pending_booking)
@@ -164,7 +183,9 @@ class BookingServiceMatrixTest(unittest.TestCase):
         cls.get_room_max_booking_duration_minutes = staticmethod(get_room_max_booking_duration_minutes)
         cls.handle_payment_webhook_event = staticmethod(handle_payment_webhook_event)
         cls.list_bookings_for_user = staticmethod(list_bookings_for_user)
+        cls.list_room_reviews = staticmethod(list_room_reviews)
         cls.mark_booking_paid = staticmethod(mark_booking_paid)
+        cls.reschedule_booking = staticmethod(reschedule_booking)
         cls.normalize_booking_start = staticmethod(normalize_booking_start)
         cls.process_refund = staticmethod(process_refund)
         cls.serialize_admin_booking = staticmethod(serialize_admin_booking)
@@ -211,6 +232,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
                 self.AuditLog,
                 self.NotificationLog,
                 self.Refund,
+                self.Review,
                 self.PromoCode,
                 self.BookingSlot,
                 self.Booking,
@@ -221,8 +243,21 @@ class BookingServiceMatrixTest(unittest.TestCase):
                 db.query(model).delete()
             db.commit()
 
+    def _aware_date(self, day: int = 1) -> date:
+        return datetime.now(BUSINESS_TIMEZONE).date() + timedelta(days=30 + day - 1)
+
     def _aware_time(self, day: int = 1, hour: int = 10, minute: int = 0, second: int = 0) -> datetime:
-        return datetime(2026, 5, day, hour, minute, second, tzinfo=BUSINESS_TIMEZONE)
+        target_date = self._aware_date(day)
+        shifted_hour = hour + 2
+        return datetime(
+            target_date.year,
+            target_date.month,
+            target_date.day,
+            shifted_hour,
+            minute,
+            second,
+            tzinfo=BUSINESS_TIMEZONE,
+        )
 
     def _create_user(
         self,
@@ -493,6 +528,43 @@ class BookingServiceMatrixTest(unittest.TestCase):
             )
             self.assertEqual(replacement.status, "PendingPayment")
 
+    def test_120a_db_exclusion_constraint_blocks_overlapping_bookings_without_slots(self) -> None:
+        with self.SessionLocal() as db:
+            user = self._create_user(db)
+            room = self._create_room(db)
+
+            self._insert_booking_direct(
+                db,
+                user=user,
+                room=room,
+                start_time=self._aware_time(day=5, hour=10),
+                duration_minutes=120,
+                create_slots=False,
+            )
+
+            overlapping_booking = self.Booking(
+                user_id=user.id,
+                room_id=room.id,
+                start_time=self.normalize_booking_start(self._aware_time(day=5, hour=11)),
+                end_time=self.normalize_booking_start(self._aware_time(day=5, hour=13)),
+                duration_minutes=120,
+                price_cents=5000,
+                currency="CAD",
+                status="Paid",
+                booking_code=f"BOOK{uuid4().hex[:8].upper()}",
+                user_email_snapshot=user.email,
+                user_full_name_snapshot=user.full_name,
+                user_phone_snapshot=user.phone,
+                payment_intent_id=f"pi_stub_{uuid4().hex[:18]}",
+                confirmed_at=datetime.now(timezone.utc),
+                staff_assignments=[],
+            )
+            db.add(overlapping_booking)
+
+            with self.assertRaises(IntegrityError):
+                db.commit()
+            db.rollback()
+
     def test_121_customer_daily_limit_blocks_second_same_day(self) -> None:
         with self.SessionLocal() as db:
             user = self._create_user(db)
@@ -603,7 +675,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
         with self.SessionLocal() as db:
             room = self._create_room(db)
 
-            availability = self.get_room_availability(db, str(room.id), date(2026, 5, 4))
+            availability = self.get_room_availability(db, str(room.id), self._aware_date(4))
 
             self.assertEqual(availability["timezone"], "America/Edmonton")
             open_slot = self._aware_time(day=4, hour=10).isoformat()
@@ -621,7 +693,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
                 start_time=self._aware_time(day=5, hour=10),
             )
 
-            availability = self.get_room_availability(db, str(room.id), date(2026, 5, 5))
+            availability = self.get_room_availability(db, str(room.id), self._aware_date(5))
 
             self.assertNotIn(self._aware_time(day=5, hour=10).isoformat(), availability["available_start_times"])
             self.assertIn(self._aware_time(day=5, hour=11).isoformat(), availability["available_start_times"])
@@ -630,7 +702,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
         with self.SessionLocal() as db:
             room = self._create_room(db, max_booking_duration_minutes=120)
 
-            availability = self.get_room_availability(db, str(room.id), date(2026, 5, 5))
+            availability = self.get_room_availability(db, str(room.id), self._aware_date(5))
 
             open_slot = self._aware_time(day=5, hour=10).isoformat()
             self.assertEqual(availability["max_duration_minutes_by_start"][open_slot], 120)
@@ -639,7 +711,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
         with self.SessionLocal() as db:
             room = self._create_room(db)
 
-            availability = self.get_room_availability(db, str(room.id), date(2026, 5, 5))
+            availability = self.get_room_availability(db, str(room.id), self._aware_date(5))
 
             last_slot = self._aware_time(day=5, hour=17).isoformat()
             self.assertEqual(availability["max_duration_minutes_by_start"][last_slot], 60)
@@ -863,7 +935,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
                 start_time=self._aware_time(day=9, hour=10),
             )
 
-            result = self.clear_bookings_for_admin_day(db, admin, date(2026, 5, 8))
+            result = self.clear_bookings_for_admin_day(db, admin, self._aware_date(8))
 
             self.assertEqual(result["deleted_count"], 1)
             self.assertIsNone(db.query(self.Booking).filter(self.Booking.id == target.id).first())
@@ -914,7 +986,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
                 ),
             )
 
-            result = self.clear_bookings_for_admin_day(db, admin, date(2026, 5, 8))
+            result = self.clear_bookings_for_admin_day(db, admin, self._aware_date(8))
 
             self.assertEqual(result["deleted_count"], 1)
             db.expire_all()
@@ -1584,7 +1656,7 @@ def _add_booking_service_helper_tests() -> None:
         )
 
     def test_161_get_day_bounds_spans_exactly_one_business_day(self) -> None:
-        utc_start, utc_end = self.get_day_bounds(date(2026, 5, 10))
+        utc_start, utc_end = self.get_day_bounds(self._aware_date(10))
         self.assertEqual(int((utc_end - utc_start).total_seconds()), 86400)
 
     setattr(BookingServiceMatrixTest, "test_146_normalize_booking_start_converts_to_utc", test_146_normalize_booking_start_converts_to_utc)
@@ -1609,3 +1681,33 @@ _add_booking_schema_duration_tests()
 _add_booking_schema_model_tests()
 _add_reservation_hold_tests()
 _add_booking_service_helper_tests()
+
+
+def test_162_create_guest_booking_returns_token_and_snapshots_guest_details(self) -> None:
+    with self.SessionLocal() as db:
+        room = self._create_room(db, hourly_rate_cents=5000)
+        payload = self.GuestBookingCreate(
+            room_id=room.id,
+            start_time=self._aware_time(day=3, hour=11),
+            duration_minutes=60,
+            guest_name="Guest Booker",
+            guest_phone="4035550102",
+            staff_assignments=[],
+        )
+
+        result = self.create_guest_booking(db, payload)
+        booking = db.query(self.Booking).filter(self.Booking.id == result.booking.id).first()
+
+        self.assertTrue(result.access_token)
+        self.assertEqual(result.booking.status, "PendingPayment")
+        self.assertIsNotNone(booking)
+        self.assertEqual(booking.user_full_name_snapshot, "Guest Booker")
+        self.assertEqual(booking.user_phone_snapshot, "4035550102")
+        self.assertTrue(booking.user_email_snapshot.startswith("guest+"))
+
+
+setattr(
+    BookingServiceMatrixTest,
+    "test_162_create_guest_booking_returns_token_and_snapshots_guest_details",
+    test_162_create_guest_booking_returns_token_and_snapshots_guest_details,
+)

@@ -1,4 +1,12 @@
-import { elements } from "../dom.js?v=20260401r";
+import { elements } from "../dom.js";
+const ROOM_CATEGORY_VISUALS = {
+  recording: "/assets/media/studio-room-2.png",
+  podcast: "/assets/media/studio-lobby-2.png",
+  production: "/assets/media/studio-room-2.png",
+  photography: "/assets/media/studio-room-2.png",
+  dance: "/assets/media/studio-exterior-2.png",
+  film: "/assets/media/studio-exterior-2.png",
+};
 
 function formatCurrency(cents) {
   return new Intl.NumberFormat("en-US", {
@@ -7,16 +15,45 @@ function formatCurrency(cents) {
   }).format((cents || 0) / 100);
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function formatDuration(minutes) {
   const hours = minutes / 60;
   return `${hours} hour${hours === 1 ? "" : "s"}`;
 }
 
-function renderStaffImage(photoUrl, label) {
-  if (photoUrl) {
-    return `<img class="staff-profile-image" src="${photoUrl}" alt="${label}" loading="lazy" />`;
+function formatCategoryLabel(room) {
+  const category = getRoomCategory(room);
+  return `${category.charAt(0).toUpperCase()}${category.slice(1)} studio`;
+}
+
+function getReviewTrustCopy(summary) {
+  if (!summary || !summary.review_count) {
+    return ["Reviews pending", "Free cancellation up to 24h before", "Plan to arrive 10-15 min early"];
   }
-  return `<div class="staff-profile-image staff-avatar-fallback">${label.slice(0, 1).toUpperCase()}</div>`;
+
+  const averageLabel =
+    typeof summary.average_rating === "number" ? summary.average_rating.toFixed(1) : summary.average_rating;
+  return [
+    `${summary.review_count} review${summary.review_count === 1 ? "" : "s"} · ${averageLabel}/5 average`,
+    "Free cancellation up to 24h before",
+    "Plan to arrive 10-15 min early",
+  ];
+}
+
+function renderStaffImage(photoUrl, label) {
+  const safeLabel = escapeHtml(label);
+  if (photoUrl) {
+    return `<img class="staff-profile-image" src="${escapeHtml(photoUrl)}" alt="${safeLabel}" loading="lazy" />`;
+  }
+  return `<div class="staff-profile-image staff-avatar-fallback">${escapeHtml(label.slice(0, 1).toUpperCase())}</div>`;
 }
 
 function renderTagGroup(label, values = []) {
@@ -26,12 +63,70 @@ function renderTagGroup(label, values = []) {
 
   return `
     <div class="staff-tag-group">
-      <span>${label}</span>
+      <span>${escapeHtml(label)}</span>
       <div class="preview-pill-row">
-        ${values.map((value) => `<span class="pill">${value}</span>`).join("")}
+        ${values.map((value) => `<span class="pill">${escapeHtml(value)}</span>`).join("")}
       </div>
     </div>
   `;
+}
+
+function getRoomCategory(room) {
+  const text = `${room.name || ""} ${room.description || ""}`.toLowerCase();
+  if (text.includes("podcast")) {
+    return "podcast";
+  }
+  if (text.includes("production")) {
+    return "production";
+  }
+  if (text.includes("photo")) {
+    return "photography";
+  }
+  if (text.includes("dance")) {
+    return "dance";
+  }
+  if (text.includes("film") || text.includes("video")) {
+    return "film";
+  }
+  return "recording";
+}
+
+function getRoomGallery(room) {
+  const rawPhotos = Array.isArray(room.photos) ? room.photos : [];
+  const usablePhotos = rawPhotos.filter((photo) => photo && !String(photo).includes("/assets/media/rooms/"));
+  if (usablePhotos.length) {
+    return usablePhotos;
+  }
+
+  const category = getRoomCategory(room);
+  const fallback = ROOM_CATEGORY_VISUALS[category] || "/assets/media/studio-room-2.png";
+  if (category === "podcast") {
+    return [
+      "/assets/media/studio-lobby-2.png",
+      "/assets/media/studio-exterior-2.png",
+      "/assets/media/studio-room-2.png",
+    ];
+  }
+  return [
+    fallback,
+    "/assets/media/studio-lobby-2.png",
+    "/assets/media/studio-exterior-2.png",
+  ];
+}
+
+function buildAmenityList(room) {
+  const amenities = [];
+  if ((room.capacity || 0) >= 4) {
+    amenities.push("Group-friendly setup");
+  }
+  if ((room.staff_roles || []).length) {
+    amenities.push("Optional staff support");
+  }
+  if ((room.photos || []).length > 1) {
+    amenities.push("Multi-angle gallery");
+  }
+  amenities.push("Central location");
+  return amenities.slice(0, 4);
 }
 
 function renderRoomStaffList(room) {
@@ -48,8 +143,8 @@ function renderRoomStaffList(room) {
               <div class="staff-profile-card-top">
                 ${renderStaffImage(role.photo_url, role.name)}
                 <div class="staff-option-copy">
-                  <strong>${role.name}</strong>
-                  <span>${role.description || "Available as an optional add-on for this room."}</span>
+                  <strong>${escapeHtml(role.name)}</strong>
+                  <span>${escapeHtml(role.description || "Available as an optional add-on for this room.")}</span>
                 </div>
               </div>
               <strong class="staff-option-price">${formatCurrency(role.add_on_price_cents)} add-on</strong>
@@ -62,6 +157,41 @@ function renderRoomStaffList(room) {
         )
         .join("")
     : '<div class="empty-state">This room does not have extra staff add-ons configured yet.</div>';
+}
+
+function renderRoomReviews(currentState) {
+  if (!elements.roomDetailReviewsSummary || !elements.roomDetailReviewsList) {
+    return;
+  }
+
+  const summary = currentState.selectedRoomReviewSummary;
+  const reviews = currentState.selectedRoomReviews || [];
+  if (!summary || !summary.review_count) {
+    elements.roomDetailReviewsSummary.textContent =
+      "No public reviews yet. Completed sessions can add ratings here once the room has hosted guests.";
+    elements.roomDetailReviewsList.innerHTML =
+      '<div class="empty-state">The first finished session review will appear here.</div>';
+    return;
+  }
+
+  const averageLabel =
+    typeof summary.average_rating === "number" ? summary.average_rating.toFixed(1) : summary.average_rating;
+  elements.roomDetailReviewsSummary.textContent = `${averageLabel}/5 from ${summary.review_count} review${summary.review_count === 1 ? "" : "s"}.`;
+  elements.roomDetailReviewsList.innerHTML = reviews.length
+    ? reviews
+        .map(
+          (review) => `
+            <article class="review-card">
+              <div class="review-card-top">
+                <strong>${escapeHtml(review.reviewer_name || "Guest")}</strong>
+                <span class="pill">${"★".repeat(review.rating)}${"☆".repeat(5 - review.rating)}</span>
+              </div>
+              <p>${escapeHtml(review.comment || "Rated this room without a written comment.")}</p>
+            </article>
+          `,
+        )
+        .join("")
+    : '<div class="empty-state">Review summary is available, but no recent comments were returned.</div>';
 }
 
 export function initRoomDetailView() {}
@@ -82,23 +212,40 @@ export function renderRoomDetailView(state) {
 
   elements.roomDetailTitle.textContent = room.name;
   elements.roomDetailDescription.textContent = room.description || "No description available yet.";
+  const summary = state.selectedRoomReviewSummary;
+  const reviewCountLabel = summary && summary.review_count
+    ? `${summary.review_count} review${summary.review_count === 1 ? "" : "s"}`
+    : "No public reviews yet";
   elements.roomDetailMeta.innerHTML = `
-    <span class="pill">${formatCurrency(room.hourly_rate_cents)}/hour CAD</span>
-    <span class="pill">Max ${formatDuration(room.max_booking_duration_minutes || 300)}</span>
-    <span class="pill">Capacity ${room.capacity || "n/a"}</span>
-    <span class="pill">${(room.staff_roles || []).length} staff profile${(room.staff_roles || []).length === 1 ? "" : "s"} available</span>
-    <span class="pill ${room.active ? "" : "muted"}">${room.active ? "Active" : "Inactive"}</span>
+    <span class="pill">${escapeHtml(formatCategoryLabel(room))}</span>
+    <span class="pill ${room.active ? "" : "muted"}">${room.active ? "Available" : "Inactive"}</span>
+    <span class="pill">Up to ${escapeHtml(room.capacity || "n/a")} people</span>
+    <span class="pill">Min 1 hour</span>
+    <span class="pill">${escapeHtml(reviewCountLabel)}</span>
   `;
+  if (elements.roomDetailAmenities) {
+    elements.roomDetailAmenities.innerHTML = buildAmenityList(room)
+      .map((item) => `<span class="room-detail-amenity">${escapeHtml(item)}</span>`)
+      .join("");
+  }
   renderRoomStaffList(room);
+  renderRoomReviews(state);
 
-  const photos = Array.isArray(room.photos) ? room.photos : [];
+  const trustStrip = document.getElementById("room-detail-trust-strip");
+  if (trustStrip) {
+    trustStrip.innerHTML = getReviewTrustCopy(summary)
+      .map((item) => `<span class="pill">${escapeHtml(item)}</span>`)
+      .join("");
+  }
+
+  const photos = getRoomGallery(room);
   elements.roomDetailPhotos.innerHTML = photos.length
     ? photos
         .map(
           (photo, index) => `
-            <figure class="media-card">
-              <img class="detail-image" src="${photo}" alt="${room.name} image ${index + 1}" loading="lazy" />
-              <figcaption>Image ${index + 1}</figcaption>
+            <figure class="${index === 0 ? "room-detail-hero-media" : "room-detail-thumb-card"}">
+              <img class="detail-image" src="${escapeHtml(photo)}" alt="${escapeHtml(room.name)} image ${index + 1}" loading="lazy" />
+              ${index === 0 ? "" : `<figcaption>Image ${index + 1}</figcaption>`}
             </figure>
           `,
         )
@@ -106,6 +253,17 @@ export function renderRoomDetailView(state) {
     : '<div class="empty-state">No room images were added for this room yet.</div>';
 
   if (elements.roomDetailBookingLink) {
-    elements.roomDetailBookingLink.href = `/bookings?room=${room.id}`;
+    elements.roomDetailBookingLink.href = `/reserve?id=${room.id}`;
+    elements.roomDetailBookingLink.textContent = "Book this room";
+  }
+  if (elements.roomDetailReserveLink) {
+    elements.roomDetailReserveLink.href = `/rooms`;
+    elements.roomDetailReserveLink.textContent = "Back to rooms";
+  }
+  if (elements.roomDetailPrice) {
+    elements.roomDetailPrice.textContent = formatCurrency(room.hourly_rate_cents);
+  }
+  if (elements.roomDetailBookingCopy) {
+    elements.roomDetailBookingCopy.textContent = `Move into reserve to choose a time, confirm availability, and finish payment with Stripe.`;
   }
 }

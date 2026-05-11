@@ -1,10 +1,70 @@
-import { api } from "../api.js?v=20260401r";
-import { API_BASE_URL, getSearchParam } from "../config.js?v=20260401r";
-import { elements, toggleHidden } from "../dom.js?v=20260401ab";
-import { persistToken, setState } from "../state.js?v=20260401r";
+import { api } from "../api.js";
+import { API_BASE_URL, getSearchParam } from "../config.js";
+import { elements, toggleHidden } from "../dom.js";
+import {
+  exchangeSupabaseSession,
+  hasSupabaseConfig,
+  signOutSupabase,
+  startGoogleSignIn,
+} from "../supabase.js";
+import { persistToken, setState } from "../state.js";
 
 let pendingTwoFactorToken = null;
 let pendingTwoFactorMethod = "email";
+let googleButtonBusy = false;
+let headerMenuOpen = false;
+let headerMenuBound = false;
+
+function setHeaderMenuOpen(isOpen) {
+  const shouldOpen =
+    Boolean(isOpen) &&
+    Boolean(elements.headerUserMenuShell) &&
+    !elements.headerUserMenuShell.classList.contains("hidden");
+  headerMenuOpen = shouldOpen;
+  toggleHidden(elements.headerUserMenu, !shouldOpen);
+  elements.headerUserTrigger?.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+}
+
+function bindHeaderMenu() {
+  if (headerMenuBound) {
+    return;
+  }
+  headerMenuBound = true;
+
+  elements.headerUserTrigger?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (elements.headerUserMenuShell?.classList.contains("hidden")) {
+      return;
+    }
+    setHeaderMenuOpen(!headerMenuOpen);
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!headerMenuOpen || !elements.headerUserMenuShell) {
+      return;
+    }
+    if (event.target instanceof Node && elements.headerUserMenuShell.contains(event.target)) {
+      return;
+    }
+    setHeaderMenuOpen(false);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      setHeaderMenuOpen(false);
+    }
+  });
+
+  [
+    elements.headerProfileLink,
+    elements.headerBookingsLink,
+    elements.headerAdminLink,
+    elements.headerLogoutButton,
+  ].forEach((element) => {
+    element?.addEventListener("click", () => setHeaderMenuOpen(false));
+  });
+}
 
 function currentResetToken() {
   return getSearchParam("reset_token");
@@ -50,6 +110,25 @@ function showAuthFeedback(message, tone = "neutral") {
   elements.authFeedback.classList.toggle("is-success", tone === "success");
 }
 
+function setAccountAuthCopy(mode) {
+  const title = document.getElementById("account-auth-title");
+  const copy = document.getElementById("account-auth-copy");
+  if (!title || !copy) {
+    return;
+  }
+
+  const content = {
+    login: ["Welcome Back", "Sign in to manage your bookings"],
+    signup: ["Create account", "Save your details for faster studio bookings"],
+    "forgot-password": ["Reset password", "Enter your email and we will send a reset link"],
+    "reset-password": ["Choose a new password", "Save the new password for your account"],
+    "two-factor": ["Verify sign in", "Enter the code sent to your sign-in method"],
+  };
+  const [nextTitle, nextCopy] = content[mode] || content.login;
+  title.textContent = nextTitle;
+  copy.textContent = nextCopy;
+}
+
 function clearPasswordMatchFeedback(target) {
   if (!target) {
     return;
@@ -84,6 +163,7 @@ function updatePasswordMatchFeedback(target, passwordValue, confirmValue) {
 }
 
 function setAuthMode(mode, { preserveFeedback = false } = {}) {
+  setAccountAuthCopy(mode);
   if (!preserveFeedback) {
     hideAuthFeedback();
   }
@@ -114,6 +194,68 @@ function activateTab(tab) {
   pendingTwoFactorToken = null;
   pendingTwoFactorMethod = "email";
   setAuthMode(tab === "signup" ? "signup" : "login");
+}
+
+function setGoogleButtonsDisabled(isDisabled) {
+  [elements.googleLoginButton, elements.googleSignupButton].forEach((button) => {
+    if (!button) {
+      return;
+    }
+    button.disabled = isDisabled;
+    button.textContent = isDisabled ? "Redirecting to Google..." : button.dataset.defaultLabel;
+  });
+}
+
+async function handleGoogleSignIn() {
+  if (googleButtonBusy) {
+    return;
+  }
+  googleButtonBusy = true;
+  setGoogleButtonsDisabled(true);
+  hideAuthFeedback();
+
+  try {
+    await startGoogleSignIn();
+    showAuthFeedback("Redirecting to Google...", "success");
+    setState({ message: "Redirecting to Google..." });
+  } catch (error) {
+    googleButtonBusy = false;
+    setGoogleButtonsDisabled(false);
+    showAuthFeedback(error.message || "Google sign-in failed.", "error");
+    setState({ message: error.message || "Google sign-in failed." });
+  }
+}
+
+async function finalizeGoogleSignIn(actions) {
+  const supabaseReady = await hasSupabaseConfig();
+  if (!supabaseReady || state.token) {
+    return;
+  }
+
+  const accessToken = await exchangeSupabaseSession();
+  if (!accessToken) {
+    return;
+  }
+
+  googleButtonBusy = true;
+  setGoogleButtonsDisabled(true);
+  showAuthFeedback("Finishing Google sign-in...", "success");
+  setState({ message: "Finishing Google sign-in..." });
+
+  try {
+    const session = await api.loginWithGoogle(accessToken);
+    persistToken(session.access_token);
+    clearTwoFactorStep();
+    await actions.refreshSession("Logged in with Google.");
+    hideAuthFeedback();
+    window.history.replaceState({}, "", "/account");
+  } catch (error) {
+    showAuthFeedback(error.message || "Google sign-in failed.", "error");
+    setState({ message: error.message || "Google sign-in failed." });
+  } finally {
+    googleButtonBusy = false;
+    setGoogleButtonsDisabled(false);
+  }
 }
 
 function setTwoFactorStep(method) {
@@ -175,6 +317,25 @@ function applyLoginError(message) {
 }
 
 export function initAuthView(actions) {
+  bindHeaderMenu();
+
+  [elements.googleLoginButton, elements.googleSignupButton].forEach((button) => {
+    if (!button) {
+      return;
+    }
+    button.dataset.defaultLabel = button.textContent;
+    button.addEventListener("click", handleGoogleSignIn);
+  });
+
+  hasSupabaseConfig().then((ready) => {
+    [elements.googleLoginButton, elements.googleSignupButton].forEach((button) => {
+      toggleHidden(button, !ready);
+    });
+    toggleHidden(elements.googleAuthNote, !ready);
+  });
+
+  finalizeGoogleSignIn(actions);
+
   elements.authTabs.forEach((button) => {
     button.addEventListener("click", () => activateTab(button.dataset.authTab));
   });
@@ -440,6 +601,7 @@ export function initAuthView(actions) {
   const handleLogout = async () => {
     clearTwoFactorStep();
     hideAuthFeedback();
+    await signOutSupabase();
     persistToken(null);
     await actions.clearSession();
   };
@@ -454,6 +616,7 @@ export function initAuthView(actions) {
 
 export function renderAuthView(state) {
   const isSessionRestoring = Boolean(state.token && !state.currentUser);
+  document.body?.setAttribute("data-auth-pending", isSessionRestoring ? "true" : "false");
   if (state.currentUser) {
     clearTwoFactorStep();
     hideAuthFeedback();
@@ -491,26 +654,37 @@ export function renderAuthView(state) {
 
   if (elements.headerAccountLink) {
     elements.headerAccountLink.href = "/account";
-    elements.headerAccountLink.textContent = state.currentUser ? "My account" : "Log in";
+    elements.headerAccountLink.textContent = "Log in";
   }
 
   if (elements.headerSecondaryLink) {
-    if (state.currentUser?.is_admin) {
-      elements.headerSecondaryLink.href = "/admin";
-      elements.headerSecondaryLink.textContent = "Admin";
-      elements.headerSecondaryLink.classList.remove("hidden");
-    } else if (state.currentUser) {
-      elements.headerSecondaryLink.href = "/bookings";
-      elements.headerSecondaryLink.textContent = "My bookings";
-      elements.headerSecondaryLink.classList.remove("hidden");
-    } else {
-      elements.headerSecondaryLink.href = "/account?mode=signup";
-      elements.headerSecondaryLink.textContent = "Create account";
-      elements.headerSecondaryLink.classList.remove("hidden");
-    }
+    elements.headerSecondaryLink.href = "/rooms";
+    elements.headerSecondaryLink.textContent = "Book Now";
+    elements.headerSecondaryLink.classList.remove("hidden");
   }
 
-  if (elements.headerLogoutButton) {
-    elements.headerLogoutButton.classList.toggle("hidden", !state.currentUser);
+  toggleHidden(elements.headerAccountLink, Boolean(state.currentUser) || isSessionRestoring);
+  toggleHidden(elements.headerSecondaryLink, isSessionRestoring ? true : false);
+  toggleHidden(elements.headerUserMenuShell, !state.currentUser || isSessionRestoring);
+
+  if (elements.headerUserEmail) {
+    elements.headerUserEmail.textContent = state.currentUser?.email || "account@example.com";
+  }
+
+  if (elements.headerProfileLink) {
+    elements.headerProfileLink.href = "/account";
+  }
+
+  if (elements.headerBookingsLink) {
+    elements.headerBookingsLink.href = "/bookings";
+  }
+
+  if (elements.headerAdminLink) {
+    elements.headerAdminLink.href = "/admin";
+    elements.headerAdminLink.classList.toggle("hidden", !state.currentUser?.is_admin);
+  }
+
+  if (!state.currentUser) {
+    setHeaderMenuOpen(false);
   }
 }

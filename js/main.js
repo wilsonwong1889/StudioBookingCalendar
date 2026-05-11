@@ -1,25 +1,36 @@
-import { api } from "./api.js?v=20260401r";
-import { CURRENT_PAGE, getSearchParam } from "./config.js?v=20260401r";
-import { setState, state, subscribe, persistToken } from "./state.js?v=20260401r";
-import { initAdminView, renderAdminView } from "./views/admin.js?v=20260409c";
-import { initAuthView, renderAuthView } from "./views/auth.js?v=20260401ab";
-import { initBookingDetailView, renderBookingDetailView } from "./views/booking-detail.js?v=20260409a";
-import { initBookingsView, renderBookingsView } from "./views/bookings.js?v=20260409c";
-import { initInfoView, renderInfoView } from "./views/info.js?v=20260401r";
-import { initPaymentSuccessView, renderPaymentSuccessView } from "./views/payment-success.js?v=20260409a";
-import { initProfileView, renderProfileView } from "./views/profile.js?v=20260408m";
-import { initRoomBookingView, renderRoomBookingView } from "./views/room-booking.js?v=20260409c";
-import { initRoomDetailView, renderRoomDetailView } from "./views/room-detail.js?v=20260401r";
-import { initRoomsView, renderRoomsView } from "./views/rooms.js?v=20260408q";
-import { initStaffDirectoryView, renderStaffDirectoryView } from "./views/staff-directory.js?v=20260401v";
-import { renderStatus } from "./views/status.js?v=20260401r";
+import { api } from "./api.js";
+import { CURRENT_PAGE, getSearchParam } from "./config.js";
+import {
+  getPersistedCheckoutDraft,
+  getPersistedLastBookingId,
+  persistCheckoutDraft,
+  persistLastBookingId,
+  setState,
+  state,
+  subscribe,
+  persistToken,
+} from "./state.js";
+import { initAdminView, renderAdminView } from "./views/admin.js";
+import { initAuthView, renderAuthView } from "./views/auth.js";
+import { initBookingDetailView, renderBookingDetailView } from "./views/booking-detail.js";
+import { initBookingsView, renderBookingsView } from "./views/bookings.js";
+import { initHomeView, renderHomeView } from "./views/home.js";
+import { initInfoView, renderInfoView } from "./views/info.js";
+import { initPaymentSuccessView, renderPaymentSuccessView } from "./views/payment-success.js";
+import { initProfileView, renderProfileView } from "./views/profile.js";
+import { initRoomBookingView, renderRoomBookingView } from "./views/room-booking.js";
+import { initRoomDetailView, renderRoomDetailView } from "./views/room-detail.js";
+import { initRoomsView, renderRoomsView } from "./views/rooms.js";
+import { initStaffDirectoryView, renderStaffDirectoryView } from "./views/staff-directory.js";
+import { renderStatus } from "./views/status.js";
 
 const PAGE_DATA_REQUIREMENTS = {
-  home: { rooms: false, bookings: false, admin: false, selectedRoom: false, selectedBooking: false },
+  home: { rooms: true, bookings: false, admin: false, selectedRoom: false, selectedBooking: false },
   account: { rooms: false, bookings: false, admin: false, selectedRoom: false, selectedBooking: false },
   contact: { rooms: false, bookings: false, admin: false, selectedRoom: false, selectedBooking: false, publicStaff: false },
   faq: { rooms: false, bookings: false, admin: false, selectedRoom: false, selectedBooking: false, publicStaff: false },
   info: { rooms: false, bookings: false, admin: false, selectedRoom: false, selectedBooking: false, publicStaff: false },
+  pricing: { rooms: false, bookings: false, admin: false, selectedRoom: false, selectedBooking: false, publicStaff: false },
   rooms: { rooms: true, bookings: false, admin: false, selectedRoom: false, selectedBooking: false },
   room: { rooms: false, bookings: false, admin: false, selectedRoom: true, selectedBooking: false },
   reserve: { rooms: false, bookings: false, admin: false, selectedRoom: true, selectedBooking: false },
@@ -34,7 +45,46 @@ function currentRequirements() {
   return PAGE_DATA_REQUIREMENTS[CURRENT_PAGE] || PAGE_DATA_REQUIREMENTS.home;
 }
 
+function getBookingKind(booking, fallbackKind = null) {
+  const explicitKind = String(booking?.booking_kind || booking?.kind || fallbackKind || "").toLowerCase();
+  if (explicitKind === "staff") {
+    return "staff";
+  }
+  if (explicitKind === "room") {
+    return "room";
+  }
+  if (booking?.staff_profile_id || booking?.staff_profile_name || booking?.staff_name || booking?.service_type) {
+    return "staff";
+  }
+  return "room";
+}
+
+function normalizeBookingRecord(booking, fallbackKind = null) {
+  if (!booking) {
+    return booking;
+  }
+
+  const kind = getBookingKind(booking, fallbackKind);
+  const staffName =
+    booking.staff_name ||
+    booking.staff_profile_name ||
+    booking.staff_profile?.name ||
+    booking.service_type ||
+    booking.room_name ||
+    "Staff booking";
+  return {
+    ...booking,
+    booking_kind: kind,
+    kind,
+    room_name: kind === "staff" ? staffName : booking.room_name,
+    staff_name: kind === "staff" ? staffName : booking.staff_name,
+    staff_photo_url: booking.staff_photo_url || booking.staff_profile?.photo_url || booking.staff_profile?.avatar_url || null,
+    location_label: booking.location_label || booking.room_location || (kind === "staff" ? "Staff session" : "Downtown studio district"),
+  };
+}
+
 function renderApp(currentState) {
+  renderHomeView(currentState);
   renderStatus(currentState);
   renderAuthView(currentState);
   renderAdminView(currentState);
@@ -49,6 +99,45 @@ function renderApp(currentState) {
   renderStaffDirectoryView(currentState);
 }
 
+function initRevealAnimations() {
+  const revealNodes = Array.from(document.querySelectorAll("[data-reveal]"));
+  if (!revealNodes.length) {
+    return;
+  }
+
+  const stagedNodes = revealNodes.filter((node) => !node.dataset.reveal.startsWith("hero"));
+  if (!stagedNodes.length) {
+    return;
+  }
+
+  if (!("IntersectionObserver" in window)) {
+    stagedNodes.forEach((node) => node.classList.add("is-visible"));
+    return;
+  }
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) {
+          return;
+        }
+
+        entry.target.classList.add("is-visible");
+        observer.unobserve(entry.target);
+      });
+    },
+    {
+      threshold: 0.18,
+      rootMargin: "0px 0px -8% 0px",
+    },
+  );
+
+  stagedNodes.forEach((node, index) => {
+    node.dataset.revealDelay = String(Math.min(index, 4));
+    observer.observe(node);
+  });
+}
+
 function resetScopedData() {
   const requirements = currentRequirements();
   const patch = {};
@@ -56,6 +145,13 @@ function resetScopedData() {
   if (!requirements.rooms) {
     patch.rooms = [];
     patch.roomAvailabilityPreview = {};
+    patch.roomAvailabilitySearch = {
+      date: new Date().toISOString().slice(0, 10),
+      time: "15:00",
+      duration: 60,
+      matchingRoomIds: [],
+      hasSearched: false,
+    };
     patch.showInactiveRooms = false;
   }
   if (!requirements.bookings) {
@@ -76,9 +172,13 @@ function resetScopedData() {
   }
   if (!requirements.selectedRoom) {
     patch.selectedRoom = null;
+    patch.selectedRoomReviews = [];
+    patch.selectedRoomReviewSummary = null;
   }
   if (!requirements.selectedBooking) {
     patch.selectedBooking = null;
+    patch.selectedBookingKind = null;
+    patch.selectedBookingReview = null;
   }
 
   if (Object.keys(patch).length) {
@@ -122,8 +222,11 @@ async function refreshBookings(message) {
   }
 
   try {
-    const bookings = await api.getBookings();
-    setState({ bookings, message: message || "Bookings loaded." });
+    const bookings = await api.getBookingsFeed();
+    setState({
+      bookings: bookings.map((booking) => normalizeBookingRecord(booking)),
+      message: message || "Bookings loaded.",
+    });
   } catch (error) {
     setState({ message: error.message });
   }
@@ -281,9 +384,23 @@ async function loadSelectedRoom(message) {
 
   try {
     const selectedRoom = await api.getRoom(roomId);
-    setState({ selectedRoom, message: message || "Room loaded." });
+    const reviewFeed = await api.getRoomReviews(roomId).catch(() => ({
+      summary: null,
+      reviews: [],
+    }));
+    setState({
+      selectedRoom,
+      selectedRoomReviews: reviewFeed.reviews || [],
+      selectedRoomReviewSummary: reviewFeed.summary || null,
+      message: message || "Room loaded.",
+    });
   } catch (error) {
-    setState({ selectedRoom: null, message: error.message });
+    setState({
+      selectedRoom: null,
+      selectedRoomReviews: [],
+      selectedRoomReviewSummary: null,
+      message: error.message,
+    });
   }
 }
 
@@ -292,22 +409,126 @@ async function loadSelectedBooking(message) {
     return;
   }
 
-  const bookingId = getSearchParam("id");
+  const explicitBookingId = getSearchParam("id");
+  const requestedKind = String(getSearchParam("kind") || "").toLowerCase() || null;
+  const persistedBookingId = getPersistedLastBookingId();
+  const persistedCheckoutDraft = getPersistedCheckoutDraft();
+  const checkoutDraftKind = String(persistedCheckoutDraft?.kind || persistedCheckoutDraft?.booking?.booking_kind || "").toLowerCase() || null;
+  const bookingKind = requestedKind || checkoutDraftKind || null;
+
+  let bookingId = explicitBookingId || persistedBookingId || persistedCheckoutDraft?.booking?.id;
+  if (!bookingId && state.token) {
+    try {
+      const bookings = (await api.getBookingsFeed()).map((booking) => normalizeBookingRecord(booking));
+      const prioritizedBooking =
+        bookings.find((booking) => booking.status === "PendingPayment" && (!bookingKind || booking.booking_kind === bookingKind))
+        || bookings.find((booking) => booking.status === "PendingPayment")
+        || bookings.find((booking) => booking.status === "Paid" && (!bookingKind || booking.booking_kind === bookingKind))
+        || bookings.find((booking) => booking.status === "Paid")
+        || bookings[0];
+      if (prioritizedBooking?.id) {
+        bookingId = prioritizedBooking.id;
+        persistLastBookingId(bookingId);
+      }
+    } catch (error) {
+      setState({ message: error.message });
+    }
+  }
+
   if (!bookingId) {
-    setState({ selectedBooking: null, message: "Booking id is missing." });
+    setState({
+      selectedBooking: null,
+      selectedBookingKind: bookingKind,
+      message: "Start from Rooms or My Bookings to open the active checkout with the correct booking details.",
+    });
     return;
   }
 
-  if (!state.token) {
-    setState({ selectedBooking: null, message: "Log in to view booking details." });
-    return;
+  if (!explicitBookingId) {
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set("id", bookingId);
+    if (bookingKind) {
+      nextUrl.searchParams.set("kind", bookingKind);
+    }
+    window.history.replaceState({}, "", nextUrl);
   }
 
   try {
-    const selectedBooking = await api.getBooking(bookingId);
-    setState({ selectedBooking, message: message || "Booking loaded." });
+    const selectedBooking = normalizeBookingRecord(
+      await api.getBookingByKind(bookingKind, bookingId),
+      bookingKind,
+    );
+    const selectedBookingReview = await api.getBookingReview(bookingId).catch(() => null);
+    persistLastBookingId(selectedBooking.id);
+    if (selectedBooking.status !== "PendingPayment") {
+      persistCheckoutDraft(null);
+    } else {
+      persistCheckoutDraft({ booking: selectedBooking, kind: selectedBooking.booking_kind });
+    }
+    setState({
+      selectedBooking,
+      selectedBookingKind: selectedBooking.booking_kind,
+      selectedBookingReview,
+      message: message || "Booking loaded.",
+    });
   } catch (error) {
-    setState({ selectedBooking: null, message: error.message });
+    if (!explicitBookingId && state.token) {
+      try {
+        const bookings = (await api.getBookingsFeed()).map((booking) => normalizeBookingRecord(booking));
+        const fallbackBooking =
+          bookings.find((booking) => booking.status === "PendingPayment" && (!bookingKind || booking.booking_kind === bookingKind))
+          || bookings.find((booking) => booking.status === "PendingPayment")
+          || bookings.find((booking) => booking.status === "Paid" && (!bookingKind || booking.booking_kind === bookingKind))
+          || bookings.find((booking) => booking.status === "Paid")
+          || bookings[0];
+        if (fallbackBooking?.id && fallbackBooking.id !== bookingId) {
+          persistLastBookingId(fallbackBooking.id);
+          const nextUrl = new URL(window.location.href);
+          nextUrl.searchParams.set("id", fallbackBooking.id);
+          if (fallbackBooking.booking_kind) {
+            nextUrl.searchParams.set("kind", fallbackBooking.booking_kind);
+          }
+          window.history.replaceState({}, "", nextUrl);
+          const selectedBooking = normalizeBookingRecord(
+            await api.getBookingByKind(fallbackBooking.booking_kind, fallbackBooking.id),
+            fallbackBooking.booking_kind,
+          );
+          const selectedBookingReview = await api.getBookingReview(fallbackBooking.id).catch(() => null);
+          setState({
+            selectedBooking,
+            selectedBookingKind: selectedBooking.booking_kind,
+            selectedBookingReview,
+            message: message || "Booking loaded.",
+          });
+          return;
+        }
+      } catch (fallbackError) {
+        setState({ message: fallbackError.message });
+      }
+    }
+
+    if (
+      persistedCheckoutDraft?.booking &&
+      String(persistedCheckoutDraft.booking.id) === String(bookingId)
+    ) {
+      setState({
+        selectedBooking: normalizeBookingRecord(
+          persistedCheckoutDraft.booking,
+          persistedCheckoutDraft.kind || bookingKind,
+        ),
+        selectedBookingKind: persistedCheckoutDraft.kind || bookingKind || persistedCheckoutDraft.booking.booking_kind || null,
+        selectedBookingReview: null,
+        message: "Checkout restored from your last booking.",
+      });
+      return;
+    }
+
+    setState({
+      selectedBooking: null,
+      selectedBookingKind: bookingKind,
+      selectedBookingReview: null,
+      message: error.message,
+    });
   }
 }
 
@@ -323,23 +544,6 @@ async function refreshAvailabilityAndBookings(message) {
   await refreshAdminPromoCodes(message);
   await refreshPublicStaffProfiles(message);
   await loadSelectedBooking(message);
-
-  if (!currentRequirements().bookings) {
-    return;
-  }
-
-  const roomId = document.getElementById("booking-room-select")?.value;
-  const date = document.getElementById("booking-date-input")?.value;
-  if (!roomId || !date) {
-    return;
-  }
-
-  try {
-    const availability = await api.getAvailability(roomId, date);
-    setState({ availability, message: message || "Booking state refreshed." });
-  } catch (error) {
-    setState({ availability: null, message: error.message });
-  }
 }
 
 async function loadPageData(message) {
@@ -398,7 +602,11 @@ async function refreshSession(message) {
       adminPromoCodes: [],
       publicStaffProfiles: [],
       selectedRoom: null,
+      selectedRoomReviews: [],
+      selectedRoomReviewSummary: null,
       selectedBooking: null,
+      selectedBookingKind: null,
+      selectedBookingReview: null,
       availability: null,
       message: error.message,
     });
@@ -419,7 +627,11 @@ async function clearSession() {
     adminPromoCodes: [],
     publicStaffProfiles: [],
     selectedRoom: null,
+    selectedRoomReviews: [],
+    selectedRoomReviewSummary: null,
     selectedBooking: null,
+    selectedBookingKind: null,
+    selectedBookingReview: null,
     availability: null,
     message: "Signed out.",
   });
@@ -432,6 +644,7 @@ initAdminView({ refreshAll: refreshAvailabilityAndBookings, getState: () => stat
 initAuthView({ refreshSession, clearSession });
 initBookingsView({ refreshAvailabilityAndBookings });
 initBookingDetailView({ reloadBookingDetail: loadSelectedBooking });
+initHomeView();
 initInfoView();
 initPaymentSuccessView({ reloadPaymentSuccess: loadSelectedBooking });
 initProfileView({ clearSession });
@@ -442,5 +655,6 @@ initStaffDirectoryView();
 
 renderApp(state);
 resetScopedData();
+initRevealAnimations();
 await loadHealth();
 await refreshSession("Frontend ready.");

@@ -42,6 +42,7 @@ def serialize_admin_account(user: User, booking_stats: Optional[dict] = None) ->
         "id": user.id,
         "email": user.email,
         "full_name": user.full_name,
+        "avatar_url": user.avatar_url,
         "phone": user.phone,
         "birthday": user.birthday,
         "billing_address": user.billing_address,

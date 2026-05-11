@@ -51,6 +51,11 @@ class BookingCreate(BaseModel):
     def normalize_staff_assignments(cls, value):
         return normalize_staff_selection_ids(value)
 
+
+class GuestBookingCreate(BookingCreate):
+    guest_name: str = Field(min_length=1, max_length=120)
+    guest_phone: str = Field(min_length=7, max_length=40)
+
 class BookingOut(BaseModel):
     id: UUID
     room_id: UUID
@@ -74,6 +79,9 @@ class BookingOut(BaseModel):
     cancelled_at: Optional[datetime] = None
     cancellation_reason: Optional[str] = None
     note: Optional[str] = None
+    user_email: Optional[str] = None
+    user_full_name: Optional[str] = None
+    user_phone: Optional[str] = None
     staff_assignments: List[StaffOption] = Field(default_factory=list)
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -124,6 +132,34 @@ class BookingCancel(BaseModel):
     reason: Optional[str] = None
 
 
+class BookingContactUpdate(BaseModel):
+    full_name: Optional[str] = Field(default=None, max_length=120)
+    email: Optional[str] = Field(default=None, max_length=255)
+    phone: Optional[str] = Field(default=None, max_length=40)
+    note: Optional[str] = Field(default=None, max_length=500)
+
+    @field_validator("full_name", "email", "phone", "note", mode="before")
+    @classmethod
+    def normalize_optional_text(cls, value):
+        if value is None:
+            return None
+        cleaned = str(value).strip()
+        return cleaned or None
+
+
+class BookingRescheduleIn(BaseModel):
+    start_time: datetime
+
+    @field_validator("start_time")
+    @classmethod
+    def validate_start_time(cls, v):
+        if v.tzinfo is None or v.utcoffset() is None:
+            raise ValueError("Bookings must include a timezone offset")
+        if v.minute != 0 or v.second != 0:
+            raise ValueError("Bookings must start on the hour")
+        return v.replace(microsecond=0)
+
+
 class PaymentSessionOut(BaseModel):
     booking_id: UUID
     payment_intent_id: str
@@ -132,6 +168,11 @@ class PaymentSessionOut(BaseModel):
     stripe_publishable_key: Optional[str] = None
     payment_expires_at: Optional[datetime] = None
     payment_seconds_remaining: Optional[int] = None
+
+
+class GuestBookingCreateOut(BaseModel):
+    access_token: str
+    booking: BookingOut
 
 
 class AdminAnalyticsRoomSummaryOut(BaseModel):
@@ -226,8 +267,40 @@ class ManualBookingCreate(BookingCreate):
     full_name: Optional[str] = None
 
 
-class AdminBookingLookupOut(BookingOut):
+class AdminBookingLookupOut(BaseModel):
+    id: UUID
+    booking_kind: str = "room"
+    room_id: Optional[UUID] = None
+    staff_profile_id: Optional[UUID] = None
+    user_id: Optional[UUID] = None
+    start_time: datetime
+    end_time: datetime
+    duration_minutes: int
+    original_price_cents: Optional[int] = None
+    discount_cents: int = 0
+    promo_code: Optional[str] = None
+    price_cents: int
+    currency: str
+    status: str
+    booking_code: str
+    payment_intent_id: Optional[str] = None
+    payment_expires_at: Optional[datetime] = None
+    payment_seconds_remaining: Optional[int] = None
+    confirmed_at: Optional[datetime] = None
+    checked_in_at: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
+    cancellation_reason: Optional[str] = None
+    note: Optional[str] = None
+    staff_assignments: List[StaffOption] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: Optional[datetime] = None
     user_email: Optional[str] = None
     user_full_name: Optional[str] = None
     user_phone: Optional[str] = None
     room_name: Optional[str] = None
+    staff_name: Optional[str] = None
+    staff_photo_url: Optional[str] = None
+    service_type: Optional[str] = None
+    location_label: Optional[str] = None
+
+    model_config = {"from_attributes": True}

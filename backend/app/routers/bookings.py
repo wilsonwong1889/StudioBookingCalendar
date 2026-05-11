@@ -12,26 +12,38 @@ from app.models.user import User
 from app.schemas.booking import (
     BookingAvailabilityOut,
     BookingCancel,
+    BookingContactUpdate,
     BookingCreate,
+    BookingRescheduleIn,
+    GuestBookingCreate,
+    GuestBookingCreateOut,
     BookingOut,
     PaymentSessionOut,
     ReservationCreate,
     ReservationOut,
 )
 from app.schemas.promo_code import PromoCodePreviewIn, PromoCodePreviewOut
+from app.schemas.review import ReviewCreate, ReviewOut
 from app.services.booking_service import (
     BookingConflictError,
     DailyBookingLimitError,
     cancel_booking,
+    create_or_update_booking_review,
     create_booking,
+    create_guest_booking,
     create_reservation_hold,
     get_booking_payment_session,
     get_booking_for_user,
+    get_booking_review_for_user,
     get_room_availability,
+    list_booking_feed_for_user,
     list_bookings_for_user,
     PaymentSessionError,
+    PastBookingError,
+    reschedule_booking,
     StaffAvailabilityError,
     StaffSelectionError,
+    update_booking_contact,
 )
 from app.config import settings
 from app.services.payment_service import PaymentBackendError
@@ -41,6 +53,7 @@ from app.services.receipt_service import (
     build_booking_receipt_filename,
     build_booking_receipt_pdf,
 )
+from app.services.staff_booking_service import build_staff_booking_feed_item, list_staff_bookings_for_user
 
 
 router = APIRouter(prefix="/api", tags=["Bookings"])
@@ -73,6 +86,8 @@ def create_reservation(
             payload.start_time,
             payload.duration_minutes,
         )
+    except PastBookingError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -94,10 +109,36 @@ def create_booking_endpoint(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except PromoCodeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except PastBookingError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except PaymentBackendError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except BookingConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.post("/bookings/guest", response_model=GuestBookingCreateOut, status_code=201)
+def create_guest_booking_endpoint(
+    payload: GuestBookingCreate,
+    db: Session = Depends(get_db),
+    _: None = Depends(booking_rate_limit),
+):
+    try:
+        return create_guest_booking(db, payload)
+    except DailyBookingLimitError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except StaffSelectionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except StaffAvailabilityError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except PromoCodeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except PastBookingError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except PaymentBackendError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except BookingConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -108,6 +149,20 @@ def list_my_bookings(
     current_user: User = Depends(get_current_user),
 ):
     return list_bookings_for_user(db, current_user)
+
+
+@router.get("/bookings/feed", response_model=List[dict])
+def list_my_bookings_feed(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    room_bookings = list_booking_feed_for_user(db, current_user)
+    staff_bookings = [build_staff_booking_feed_item(booking) for booking in list_staff_bookings_for_user(db, current_user)]
+    return sorted(
+        [*room_bookings, *staff_bookings],
+        key=lambda item: item.get("start_time"),
+        reverse=True,
+    )
 
 
 @router.get("/bookings/{booking_id}", response_model=BookingOut)
@@ -183,6 +238,20 @@ def get_my_booking_payment_session(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@router.put("/bookings/{booking_id}/contact", response_model=BookingOut)
+def update_my_booking_contact(
+    booking_id: str,
+    payload: BookingContactUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(booking_rate_limit),
+):
+    booking = get_booking_for_user(db, booking_id, current_user)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    return update_booking_contact(db, booking, current_user, payload)
+
+
 @router.post("/bookings/{booking_id}/cancel", response_model=BookingOut)
 def cancel_my_booking(
     booking_id: str,
@@ -196,5 +265,59 @@ def cancel_my_booking(
         raise HTTPException(status_code=404, detail="Booking not found")
     try:
         return cancel_booking(db, booking, current_user, payload.reason)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/bookings/{booking_id}/reschedule", response_model=BookingOut)
+def reschedule_my_booking(
+    booking_id: str,
+    payload: BookingRescheduleIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(booking_rate_limit),
+):
+    booking = get_booking_for_user(db, booking_id, current_user)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    try:
+        return reschedule_booking(db, booking, current_user, payload)
+    except BookingConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/bookings/{booking_id}/review", response_model=ReviewOut)
+def get_my_booking_review(
+    booking_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    booking = get_booking_for_user(db, booking_id, current_user)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    try:
+        review = get_booking_review_for_user(db, booking, current_user)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+    return review
+
+
+@router.put("/bookings/{booking_id}/review", response_model=ReviewOut)
+def save_my_booking_review(
+    booking_id: str,
+    payload: ReviewCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(booking_rate_limit),
+):
+    booking = get_booking_for_user(db, booking_id, current_user)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    try:
+        return create_or_update_booking_review(db, booking, current_user, payload)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

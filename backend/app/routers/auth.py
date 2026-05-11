@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from secrets import randbelow
+from secrets import randbelow, token_urlsafe
+
+import httpx
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
@@ -15,6 +17,7 @@ from app.core.security import create_access_token, decode_token, hash_password, 
 from app.database import get_db
 from app.models.user import User
 from app.schemas.user import (
+    GoogleAuthExchangeIn,
     PasswordResetConfirmIn,
     PasswordResetRequestIn,
     Token,
@@ -191,6 +194,65 @@ def signup(
     send_account_created_sms_task.delay(str(user.id))
     sync_suitedash_contact_task.delay(str(user.id), "signup")
     return user
+
+
+@router.post("/google/exchange", response_model=Token)
+def google_exchange(
+    payload: GoogleAuthExchangeIn,
+    db: Session = Depends(get_db),
+    _: None = Depends(auth_rate_limit),
+):
+    if not settings.SUPABASE_URL or not settings.SUPABASE_PUBLISHABLE_KEY:
+        raise HTTPException(status_code=503, detail="Google sign-in is not configured yet.")
+
+    try:
+        response = httpx.get(
+            f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/user",
+            headers={
+                "Authorization": f"Bearer {payload.access_token}",
+                "apikey": settings.SUPABASE_PUBLISHABLE_KEY,
+            },
+            timeout=settings.SUPABASE_TIMEOUT_SECONDS,
+        )
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail="Google sign-in could not be verified right now.") from exc
+
+    if response.status_code >= 400:
+        raise HTTPException(status_code=401, detail="Google sign-in session is invalid or expired.")
+
+    data = response.json()
+    email = _validate_email_address(data.get("email", ""))
+    metadata = data.get("user_metadata") or {}
+    full_name = metadata.get("full_name") or metadata.get("name") or email.split("@", 1)[0]
+    phone = metadata.get("phone") or data.get("phone")
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        user = User(
+            email=email,
+            password_hash=hash_password(token_urlsafe(32)),
+            full_name=full_name,
+            phone=phone,
+        )
+        db.add(user)
+        db.flush()
+        create_notification_log(
+            db,
+            user_id=user.id,
+            booking_id=None,
+            notification_type="account_created",
+            status="Sent",
+            details={"source": "google_oauth"},
+        )
+    else:
+        if full_name and not user.full_name:
+            user.full_name = full_name
+        if phone and not user.phone:
+            user.phone = phone
+
+    db.commit()
+    db.refresh(user)
+    return Token(access_token=create_access_token({"sub": str(user.id)}), token_type="bearer")
 
 
 @router.post("/login", response_model=Token)

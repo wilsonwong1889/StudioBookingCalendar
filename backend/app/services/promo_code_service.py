@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.booking import Booking
 from app.models.promo_code import PromoCode
+from app.models.staff_booking import StaffBooking
 from app.schemas.promo_code import PromoCodeCreate, PromoCodeUpdate, normalize_promo_code
 
 
@@ -64,12 +65,19 @@ def update_promo_code(db: Session, promo_code_id: str, payload: PromoCodeUpdate)
 
 
 def serialize_promo_code(db: Session, promo_code: PromoCode) -> dict:
-    active_redemptions = (
+    room_redemptions = (
         db.query(Booking)
         .filter(Booking.promo_code == promo_code.code)
         .filter(Booking.status.in_(("PendingPayment", "Paid", "Completed", "Refunded")))
         .count()
     )
+    staff_redemptions = (
+        db.query(StaffBooking)
+        .filter(StaffBooking.promo_code == promo_code.code)
+        .filter(StaffBooking.status.in_(("PendingPayment", "Paid", "Completed", "Refunded")))
+        .count()
+    )
+    active_redemptions = room_redemptions + staff_redemptions
     return {
         "id": promo_code.id,
         "code": promo_code.code,
@@ -120,12 +128,19 @@ def _ensure_promo_code_is_usable(db: Session, promo_code: PromoCode) -> None:
     if promo_code.expires_at and promo_code.expires_at < now:
         raise PromoCodeError("Promo code has expired")
     if promo_code.max_redemptions is not None:
-        active_redemptions = (
+        room_redemptions = (
             db.query(Booking)
             .filter(Booking.promo_code == promo_code.code)
             .filter(Booking.status.in_(("PendingPayment", "Paid", "Completed", "Refunded")))
             .count()
         )
+        staff_redemptions = (
+            db.query(StaffBooking)
+            .filter(StaffBooking.promo_code == promo_code.code)
+            .filter(StaffBooking.status.in_(("PendingPayment", "Paid", "Completed", "Refunded")))
+            .count()
+        )
+        active_redemptions = room_redemptions + staff_redemptions
         if active_redemptions >= promo_code.max_redemptions:
             raise PromoCodeError("Promo code has reached its usage limit")
 

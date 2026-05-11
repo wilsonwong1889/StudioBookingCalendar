@@ -14,6 +14,7 @@ from app.services.booking_service import (
     expire_stale_pending_bookings,
     handle_payment_webhook_event,
 )
+from app.services.staff_booking_service import handle_staff_booking_payment_webhook_event
 from app.services.notification_service import (
     account_created_email,
     account_created_sms,
@@ -109,7 +110,15 @@ def sync_suitedash_contact_task(user_id: str, source: str, role: Optional[str] =
 def process_webhook_event_task(event: dict):
     db = SessionLocal()
     try:
-        result = handle_payment_webhook_event(db, event)
+        metadata = event.get("data", {}).get("object", {}).get("metadata", {}) or {}
+        booking_type = metadata.get("booking_type")
+        if booking_type == "staff":
+            result = handle_staff_booking_payment_webhook_event(db, event)
+        else:
+            try:
+                result = handle_payment_webhook_event(db, event)
+            except ValueError:
+                result = handle_staff_booking_payment_webhook_event(db, event)
         record_task_run("process_webhook_event")
         return result
     finally:
