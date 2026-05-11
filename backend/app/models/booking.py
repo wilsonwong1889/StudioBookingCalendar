@@ -76,6 +76,20 @@ class Booking(Base):
         remaining = int((expires_at - datetime.now(timezone.utc)).total_seconds())
         return max(0, remaining)
 
+    @property
+    def user_email(self):
+        if self.user_email_snapshot and not self.user_email_snapshot.endswith("@guest.studiobooking.local"):
+            return self.user_email_snapshot
+        return None
+
+    @property
+    def user_full_name(self):
+        return self.user_full_name_snapshot
+
+    @property
+    def user_phone(self):
+        return self.user_phone_snapshot
+
 
 class BookingSlot(Base):
     __tablename__ = "booking_slots"

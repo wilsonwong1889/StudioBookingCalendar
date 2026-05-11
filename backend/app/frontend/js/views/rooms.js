@@ -110,6 +110,10 @@ function getPrimaryPhoto(room) {
   return Array.isArray(room.photos) && room.photos.length ? room.photos[0] : null;
 }
 
+function isAdminPage() {
+  return document.body?.dataset.page === "admin";
+}
+
 function getRoomCategory(room) {
   const haystack = `${room.name || ""} ${room.description || ""}`.toLowerCase();
   if (haystack.includes("podcast")) {
@@ -256,7 +260,10 @@ function resetRoomForm() {
   if (elements.roomFormSubmit) {
     elements.roomFormSubmit.textContent = "Create room";
   }
-  elements.roomFormCancel?.classList.add("hidden");
+  if (elements.roomFormCancel) {
+    elements.roomFormCancel.textContent = isAdminPage() ? "Close" : "Cancel edit";
+    elements.roomFormCancel.classList.toggle("hidden", !isAdminPage());
+  }
   if (elements.roomForm?.elements?.hourly_rate_cents) {
     elements.roomForm.elements.hourly_rate_cents.value = "5000";
   }
@@ -403,6 +410,41 @@ function renderRoomCard(room, canManageRooms) {
   const safeCategoryLabel = escapeHtml(categoryLabel);
   const safeDescription = escapeHtml(formatRoomDescription(room));
   const canEditRoom = canManageRooms && Boolean(elements.roomForm);
+  if (canManageRooms && isAdminPage()) {
+    const managementActions = [
+      canEditRoom
+        ? `<button class="admin-icon-button" type="button" data-room-action="edit" data-room-id="${safeRoomId}" aria-label="Edit ${safeRoomName}">✎</button>`
+        : "",
+      room.active
+        ? `<button class="admin-icon-button" type="button" data-room-action="archive" data-room-id="${safeRoomId}" aria-label="Archive ${safeRoomName}">◌</button>`
+        : `<button class="admin-icon-button" type="button" data-room-action="restore" data-room-id="${safeRoomId}" aria-label="Restore ${safeRoomName}">↻</button>`,
+      `<button class="admin-icon-button is-danger" type="button" data-room-action="delete" data-room-id="${safeRoomId}" data-room-name="${safeRoomName}" aria-label="Delete ${safeRoomName}">⌫</button>`,
+    ].filter(Boolean).join("");
+
+    return `
+      <article class="admin-studio-row">
+        <div class="admin-studio-thumb">
+          ${
+            primaryPhoto
+              ? `<img src="${safePrimaryPhoto}" alt="${safeRoomName}" loading="lazy" onerror="this.onerror=null;this.src='${safeFallback}';" />`
+              : '<span>No image</span>'
+          }
+        </div>
+        <div class="admin-studio-main">
+          <div class="admin-studio-title-row">
+            <h3>${safeRoomName}</h3>
+            <span class="pill">${safeCategoryLabel}</span>
+            ${room.active ? "" : '<span class="pill status-cancelled">Unavailable</span>'}
+          </div>
+          <p>${formatCompactCurrency(room.hourly_rate_cents)}/hr · capacity ${escapeHtml(room.capacity || "n/a")} · ★ ${rating.toFixed(1).replace(".0", "")}</p>
+        </div>
+        <div class="admin-studio-actions">
+          ${managementActions}
+        </div>
+      </article>
+    `;
+  }
+
   const managementActions = canManageRooms
     ? [
         canEditRoom
@@ -411,7 +453,7 @@ function renderRoomCard(room, canManageRooms) {
         room.active
           ? `<button class="ghost-button room-action" type="button" data-room-action="archive" data-room-id="${safeRoomId}">Archive</button>`
           : `<button class="ghost-button room-action" type="button" data-room-action="restore" data-room-id="${safeRoomId}">Restore</button>`,
-        `<button class="ghost-button room-action room-action-danger" type="button" data-room-action="delete" data-room-id="${safeRoomId}" data-room-name="${safeRoomName}">Delete room</button>`,
+        `<button class="ghost-button room-action" type="button" data-room-action="delete" data-room-id="${safeRoomId}" data-room-name="${safeRoomName}">Delete room</button>`,
       ].filter(Boolean).join("")
     : "";
 
@@ -500,6 +542,10 @@ async function searchRoomsByAvailability() {
   const duration = Number(elements.roomsSearchDuration?.value || 60);
   if (!searchDate || !searchTime) {
     setState({ message: "Choose a date and start time to search for rooms." });
+    return;
+  }
+  if (searchTime < "12:00" || searchTime > "19:00") {
+    setState({ message: "Choose a start time between 12:00 PM and 7:00 PM." });
     return;
   }
 
@@ -616,6 +662,18 @@ export function initRoomsView(actions) {
     elements.roomFormCancel?.addEventListener("click", () => {
       resetRoomForm();
       renderCreateRoomStaffOptions(state);
+      if (isAdminPage()) {
+        window.dispatchEvent(
+          new CustomEvent("admin-subpage-request", {
+            detail: { group: "rooms", subpage: "inventory" },
+          }),
+        );
+      }
+    });
+
+    window.addEventListener("admin-room-create-request", () => {
+      resetRoomForm();
+      renderCreateRoomStaffOptions(state);
     });
 
     getRoomPhotoFileInput()?.addEventListener("change", () => {
@@ -684,6 +742,13 @@ export function initRoomsView(actions) {
           await api.createRoom(payload);
         }
         resetRoomForm();
+        if (isAdminPage()) {
+          window.dispatchEvent(
+            new CustomEvent("admin-subpage-request", {
+              detail: { group: "rooms", subpage: "inventory" },
+            }),
+          );
+        }
         setState({ roomAvailabilityPreview: {} });
         await actions.refreshRooms(isEditingRoom ? "Room updated." : "Room created.");
       } catch (error) {
@@ -719,7 +784,9 @@ export function initRoomsView(actions) {
               detail: { group: "rooms", subpage: "editor" },
             }),
           );
-          elements.roomForm?.scrollIntoView({ behavior: "smooth", block: "start" });
+          if (!isAdminPage()) {
+            elements.roomForm?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
           setState({ message: `Editing ${room.name}.` });
           return;
         }
@@ -871,9 +938,11 @@ export function renderRoomsView(currentState) {
     elements.adminEmpty.classList.toggle("hidden", canManageRooms);
   }
   if (elements.roomForm) {
-    elements.roomForm.classList.toggle("hidden", !canManageRooms);
     if (!canManageRooms) {
+      elements.roomForm.classList.add("hidden");
       resetRoomForm();
+    } else if (!isAdminPage()) {
+      elements.roomForm.classList.remove("hidden");
     }
   }
 }

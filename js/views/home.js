@@ -88,6 +88,21 @@ function renderFeaturedRooms(currentState) {
     .join("");
 }
 
+function normalizePublicBookingCtas() {
+  const homeBookNowLink = document.querySelector(".home-book-now-button");
+  if (homeBookNowLink) {
+    homeBookNowLink.href = "/rooms";
+    homeBookNowLink.textContent = "Book now";
+  }
+
+  const pricingBookLinks = Array.from(document.querySelectorAll(".pricing-page-grid a[href='/rooms']"));
+  pricingBookLinks.forEach((link) => {
+    if (link.classList.contains("hero-primary")) {
+      link.textContent = "Book room";
+    }
+  });
+}
+
 function normalizeIndex(index, total) {
   if (!total) {
     return 0;
@@ -219,5 +234,6 @@ export function initHomeView() {
 }
 
 export function renderHomeView(currentState) {
+  normalizePublicBookingCtas();
   renderFeaturedRooms(currentState);
 }

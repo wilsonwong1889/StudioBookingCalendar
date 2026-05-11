@@ -28,13 +28,16 @@ from app.services.booking_service import (
     PaymentSessionError,
     create_audit_log,
     create_notification_log,
+    ensure_booking_start_not_in_past,
     ensure_single_booking_per_day,
+    is_booking_date_before_today,
 )
 from app.services.payment_service import (
     PaymentBackendError,
     create_payment_intent,
     get_payment_intent_session,
 )
+from app.services.promo_code_service import apply_promo_code_to_amount
 
 
 ACTIVE_BOOKING_STATUSES = ("PendingPayment", "Paid", "Completed")
@@ -199,11 +202,23 @@ def get_staff_availability(db: Session, staff_profile_id: UUID | str, target_dat
     utc_start, utc_end = get_day_bounds(target_date)
     available_start_times: list[str] = []
     max_duration_minutes_by_start: dict[str, int] = {}
+    current_time = datetime.now(timezone.utc)
+
+    if is_booking_date_before_today(target_date, now=current_time):
+        return {
+            "staff_profile_id": staff_profile_id,
+            "date": target_date,
+            "timezone": settings.BUSINESS_TIMEZONE,
+            "available_start_times": [],
+            "max_duration_minutes_by_start": {},
+        }
 
     for local_hour in range(open_hour, close_hour):
         local_start = datetime.combine(target_date, time(hour=local_hour), tzinfo=business_timezone)
         start_time = local_start.astimezone(timezone.utc)
         if start_time < utc_start or start_time >= utc_end:
+            continue
+        if start_time <= current_time:
             continue
 
         max_duration_minutes = 0
@@ -349,6 +364,40 @@ def get_staff_booking_for_user(db: Session, staff_booking_id: UUID | str, user: 
     return attach_staff_profile_snapshot(db, booking)
 
 
+def update_staff_booking_contact(db: Session, booking: StaffBooking, user: User, payload) -> StaffBooking:
+    previous = {
+        "full_name": booking.user_full_name_snapshot,
+        "email": booking.user_email_snapshot,
+        "phone": booking.user_phone_snapshot,
+        "note": booking.note,
+    }
+    next_values = {
+        "full_name": payload.full_name,
+        "email": payload.email,
+        "phone": payload.phone,
+        "note": payload.note,
+    }
+    booking.user_full_name_snapshot = payload.full_name
+    booking.user_email_snapshot = payload.email
+    booking.user_phone_snapshot = payload.phone
+    booking.note = payload.note
+    create_audit_log(
+        db,
+        actor_id=user.id,
+        booking_id=None,
+        action="staff_booking_contact_updated",
+        details={
+            "staff_booking_id": str(booking.id),
+            "changed_fields": [
+                field for field, old_value in previous.items() if old_value != next_values[field]
+            ],
+        },
+    )
+    db.commit()
+    db.refresh(booking)
+    return attach_staff_profile_snapshot(db, booking)
+
+
 def _create_staff_booking_record(
     db: Session,
     *,
@@ -357,16 +406,20 @@ def _create_staff_booking_record(
     service_type: Optional[str],
     start_time: datetime,
     duration_minutes: int,
+    promo_code: Optional[str],
     note: Optional[str],
     enforce_daily_limit: bool,
 ) -> StaffBooking:
     expire_stale_pending_staff_bookings(db)
     normalized_start = normalize_booking_start(start_time)
+    ensure_booking_start_not_in_past(normalized_start)
     end_time = normalized_start + timedelta(minutes=duration_minutes)
     validate_booking_window(normalized_start, end_time)
     if enforce_daily_limit:
         ensure_single_booking_per_day(db, user, normalized_start)
     ensure_staff_is_available(db, profile.id, normalized_start, end_time)
+    original_price_cents = calculate_price_cents(get_staff_booking_rate_cents(profile), duration_minutes)
+    promo_result = apply_promo_code_to_amount(db, promo_code, original_price_cents)
 
     booking = StaffBooking(
         user_id=user.id,
@@ -375,9 +428,10 @@ def _create_staff_booking_record(
         start_time=normalized_start,
         end_time=end_time,
         duration_minutes=duration_minutes,
-        original_price_cents=calculate_price_cents(get_staff_booking_rate_cents(profile), duration_minutes),
-        discount_cents=0,
-        price_cents=calculate_price_cents(get_staff_booking_rate_cents(profile), duration_minutes),
+        original_price_cents=original_price_cents,
+        discount_cents=promo_result["discount_cents"],
+        promo_code=promo_result["promo_code"].code if promo_result["promo_code"] else None,
+        price_cents=promo_result["final_amount_cents"],
         currency=settings.DEFAULT_CURRENCY,
         status="PendingPayment",
         booking_code=generate_booking_code(),
@@ -421,6 +475,8 @@ def _create_staff_booking_record(
         details={
             "staff_booking_id": str(booking.id),
             "booking_code": booking.booking_code,
+            "promo_code": booking.promo_code,
+            "discount_cents": booking.discount_cents,
         },
     )
     create_audit_log(
@@ -446,6 +502,7 @@ def create_staff_booking(db: Session, user: User, payload: StaffBookingCreate) -
         service_type=payload.service_type,
         start_time=payload.start_time,
         duration_minutes=payload.duration_minutes,
+        promo_code=payload.promo_code,
         note=payload.note,
         enforce_daily_limit=not user.is_admin,
     )
@@ -474,6 +531,7 @@ def create_guest_staff_booking(db: Session, payload: GuestStaffBookingCreate) ->
         service_type=payload.service_type,
         start_time=payload.start_time,
         duration_minutes=payload.duration_minutes,
+        promo_code=payload.promo_code,
         note=payload.note,
         enforce_daily_limit=True,
     )
@@ -570,6 +628,7 @@ def reschedule_staff_booking(
     if booking.status not in ("PendingPayment", "Paid"):
         raise ValueError("Only pending or paid staff bookings can be rescheduled")
     normalized_start = normalize_booking_start(payload.start_time)
+    ensure_booking_start_not_in_past(normalized_start)
     end_time = normalized_start + timedelta(minutes=booking.duration_minutes)
     validate_booking_window(normalized_start, end_time)
     ensure_staff_is_available(

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260508d" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260511a" />
   </head>
   <body data-page="home">
     <div class="site-frame site-frame-home">
@@ -30,7 +30,7 @@
             <a class="home-social-link" href="/contact" aria-label="Studio help">▶</a>
             <span class="home-utility-divider" aria-hidden="true"></span>
             <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
-            <a id="header-secondary-link" class="primary-button home-header-book-button" href="/rooms">Book a room</a>
+            <a id="header-secondary-link" class="primary-button home-header-book-button" href="/rooms">Book Now</a>
             <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
               <button
                 id="header-user-trigger"
@@ -54,7 +54,7 @@
       </div>
       <header class="site-header site-header-simple site-header-public">
         <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
-          <span class="brand-mark-icon" aria-hidden="true">♪</span>
+          <span class="brand-mark-icon" aria-hidden="true">SB</span>
           <span class="brand-mark-label">StudioBook</span>
         </a>
         <nav class="site-nav" aria-label="Primary">
@@ -73,9 +73,19 @@
             <div class="home-carousel-slides-container">
               <div class="home-carousel-slide is-active" data-home-slide>
                 <img class="home-hero-image" src="/assets/media/studio-hero-premium.png" alt="Premium podcast and creator studio" loading="eager" />
+                <div class="carousel-slide-announcement">
+                  <span>Beta launch</span>
+                  <strong>Open Studio Night</strong>
+                  <em>May 9, 2026</em>
+                </div>
               </div>
               <div class="home-carousel-slide" data-home-slide>
                 <img class="home-hero-image" src="/assets/media/studio-lounge-premium.png" alt="Podcast lounge with microphones and studio lighting" loading="lazy" />
+                <div class="carousel-slide-announcement carousel-slide-announcement-discount">
+                  <span>Limited time discount</span>
+                  <strong>Code: SUMMER60</strong>
+                  <em>60% off bookings</em>
+                </div>
               </div>
               <div class="home-carousel-slide" data-home-slide>
                 <img class="home-hero-image" src="/assets/media/studio-production-premium.png" alt="Flexible production studio with lights and backdrop" loading="lazy" />
@@ -108,7 +118,7 @@
               <div>
                 <h2>BIPOC Foundation Digital Media & Creative Innovation Hub</h2>
                 <p class="panel-copy">
-                  A community-first creative production space in Lethbridge designed for artists, entrepreneurs, creators,
+                  A community-first creative production space in Lethbridge for artists, entrepreneurs, creators,
                   organizations, and community members.
                 </p>
               </div>
@@ -116,10 +126,12 @@
             </div>
           </div>
           <p class="panel-copy">
-            The Hub provides affordable access to professional studio spaces, media tools, service engineers, creative
-            programming, and business support so people can create content, record stories, build brands, and develop
-            creative projects in a supportive community environment.
+            Start here for the broad studio overview. Use Pricing for rates, deposits, membership, and cancellation policy, or Help for booking rules, equipment notes, and support questions.
           </p>
+          <div class="hero-actions">
+            <a class="ghost-button ghost-link" href="/pricing">View pricing</a>
+            <a class="ghost-button ghost-link" href="/faq">Read Help</a>
+          </div>
         </section>
 
         <section class="panel panel-wide home-information-panel">
@@ -190,9 +202,9 @@
               <p>2525 36 St N, Lethbridge, AB T1H 5L1</p>
               <p>Confirm the route before your session, review arrival details, and then jump out to Google Maps when you are ready to head over.</p>
               <div class="home-arrival-points">
-                <div class="summary-line"><span>Guest ready</span><strong>Name and phone is enough to start</strong></div>
-                <div class="summary-line"><span>Payments</span><strong>Stripe checkout and reminders are already integrated</strong></div>
-                <div class="summary-line"><span>Support</span><strong>Review staff, rules, and access notes before arrival</strong></div>
+                <div class="summary-line"><span>Arrival</span><strong>Use Contact for address, map, and check-in notes</strong></div>
+                <div class="summary-line"><span>Pricing</span><strong>Use Pricing for rates, deposits, membership, and cancellation</strong></div>
+                <div class="summary-line"><span>Help</span><strong>Use Help for booking rules, equipment, and support</strong></div>
               </div>
               <div class="hero-actions">
                 <a
@@ -267,6 +279,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260508d"></script>
+    <script type="module" src="/assets/js/main.js?v=20260511a"></script>
   </body>
 </html>

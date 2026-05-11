@@ -277,7 +277,15 @@ function getHistoryBookings(bookings) {
 
 function renderBookingCollection(bookings, emptyMessage, { upcoming = false } = {}) {
   if (!bookings.length) {
-    return `<div class="empty-state">${escapeHtml(emptyMessage)}</div>`;
+    return `
+      <div class="empty-state">
+        <p>${escapeHtml(emptyMessage)}</p>
+        <div class="booking-card-actions">
+          <a class="primary-button primary-link" href="/rooms">Book room</a>
+          <a class="ghost-button ghost-link" href="/staff">Book staff</a>
+        </div>
+      </div>
+    `;
   }
   return bookings.map((booking) => renderBookingCard(booking, { upcoming })).join("");
 }

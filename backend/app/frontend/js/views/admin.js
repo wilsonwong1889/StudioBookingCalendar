@@ -3,7 +3,8 @@ import { elements } from "../dom.js";
 import { setState } from "../state.js";
 
 let editingStaffProfileId = null;
-let activeAdminTab = "bookings";
+let activeAdminTab = "rooms";
+let adminRoomEditorOpen = false;
 let selectedAdminScheduleDate = new Date().toISOString().slice(0, 10);
 let selectedAdminScheduleRoomId = "all";
 let selectedAdminCalendarMonth = new Date().toISOString().slice(0, 7);
@@ -16,7 +17,7 @@ const DEFAULT_ADMIN_SUBPAGES = {
   accounts: "directory",
   bookings: "queue",
   staff: "editor",
-  rooms: "editor",
+  rooms: "inventory",
 };
 const activeAdminSubpages = { ...DEFAULT_ADMIN_SUBPAGES };
 
@@ -80,6 +81,9 @@ function getAdminTriageMetrics(currentState) {
 
 function setActiveAdminTab(tab) {
   activeAdminTab = tab;
+  if (tab !== "rooms") {
+    adminRoomEditorOpen = false;
+  }
   const panels = Array.from(elements.adminPanels || []);
   elements.adminTabs?.forEach((button) => {
     const isActive = button.dataset.adminTab === tab;
@@ -105,11 +109,15 @@ function setActiveAdminTab(tab) {
   if (elements.adminWorkspaceSelect && elements.adminWorkspaceSelect.value !== tab) {
     elements.adminWorkspaceSelect.value = tab;
   }
+  syncAdminModalState();
 }
 
 function setActiveAdminSubpage(group, subpage) {
   const nextSubpage = subpage || DEFAULT_ADMIN_SUBPAGES[group] || "overview";
   activeAdminSubpages[group] = nextSubpage;
+  if (group === "rooms" && nextSubpage !== "editor") {
+    adminRoomEditorOpen = false;
+  }
 
   const panels = Array.from(document.querySelectorAll("[data-admin-subpage-panel]")).filter(
     (panel) => panel.dataset.adminSubpagePanel === group,
@@ -146,6 +154,16 @@ function setActiveAdminSubpage(group, subpage) {
     panel.classList.toggle("hidden", !isActive);
     panel.setAttribute("aria-hidden", isActive ? "false" : "true");
   });
+  syncAdminModalState();
+}
+
+function syncAdminModalState() {
+  const roomEditorOpen = adminRoomEditorOpen && activeAdminTab === "rooms" && activeAdminSubpages.rooms === "editor";
+  document.body?.classList.toggle("admin-room-modal-active", roomEditorOpen);
+  if (!roomEditorOpen) {
+    elements.roomForm?.classList.add("hidden");
+    elements.roomForm?.setAttribute("aria-hidden", "true");
+  }
 }
 
 function toIsoStringFromLocal(value) {
@@ -511,6 +529,75 @@ function renderAdminBookingQuickFilters(filterOptions) {
       `,
     )
     .join("");
+}
+
+function renderAdminDashboardMetrics(currentState) {
+  if (!elements.adminDashboardMetrics) {
+    return;
+  }
+
+  const analytics = currentState.adminAnalytics;
+  const rooms = currentState.rooms || [];
+  const currency = analytics?.currency || "CAD";
+  const cards = [
+    { label: "Studios", value: analytics?.active_rooms ?? rooms.length, icon: "▦" },
+    { label: "Total bookings", value: analytics ? analytics.total_bookings : "Loading", icon: "▣" },
+    { label: "Confirmed", value: analytics ? analytics.paid_bookings : "Loading", icon: "♙" },
+    {
+      label: "Revenue",
+      value: analytics ? formatMoney(analytics.net_revenue_cents, currency) : "Loading",
+      icon: "$",
+    },
+  ];
+
+  elements.adminDashboardMetrics.innerHTML = cards
+    .map(
+      (card) => `
+        <article class="admin-kpi-card">
+          <div>
+            <span>${escapeHtml(card.label)}</span>
+            <strong>${escapeHtml(card.value)}</strong>
+          </div>
+          <span class="admin-kpi-icon" aria-hidden="true">${escapeHtml(card.icon)}</span>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function renderAdminRoles(currentState) {
+  if (!elements.adminRolesList) {
+    return;
+  }
+
+  const admins = (currentState.adminUsers || []).filter((account) => account.is_admin);
+  if (elements.adminRolesCount) {
+    elements.adminRolesCount.textContent = `${admins.length} admin${admins.length === 1 ? "" : "s"}`;
+  }
+  elements.adminRolesList.innerHTML = admins.length
+    ? admins
+        .map((account) => {
+          const isCurrentUser = String(account.id) === String(currentState.currentUser?.id || "");
+          return `
+            <article class="admin-role-row">
+              <div class="admin-role-identity">
+                <span class="admin-role-avatar" aria-hidden="true">${escapeHtml(String(account.full_name || account.email || "A").slice(0, 1).toUpperCase())}</span>
+                <div>
+                  <strong>${escapeHtml(account.full_name || account.email)}</strong>
+                  <p>${escapeHtml(account.id)}</p>
+                </div>
+              </div>
+              <div class="room-meta">
+                <span class="pill">${isCurrentUser ? "Signed in" : "Admin"}</span>
+                <button class="ghost-button" type="button" data-admin-action="select-role-account" data-user-id="${escapeAttribute(account.id)}">
+                  Review
+                </button>
+              </div>
+            </article>
+          `;
+        })
+        .join("")
+    : '<div class="empty-state">No admin accounts are available yet.</div>';
 }
 
 function renderAdminBookingResultsCopy(baseBookings, filteredBookings, filterOptions, searchActive) {
@@ -1152,7 +1239,72 @@ function renderManualBookingStaffOptions(currentState) {
     .join("");
 }
 
+function renderAdminBookingCompactRow(booking) {
+  const isStaffBooking = booking.booking_kind === "staff";
+  const bookingKind = booking.booking_kind || "room";
+  const statusClass = getStatusClass(booking.status);
+  const guestName = booking.user_full_name || booking.user_email || "Guest";
+  const venueLabel = isStaffBooking
+    ? booking.staff_name || booking.service_type || "Staff booking"
+    : booking.room_name || "Room";
+  const bookingHref = `/booking?id=${encodeURIComponent(booking.id)}${isStaffBooking ? "&kind=staff" : ""}`;
+  const refundButton =
+    !isStaffBooking &&
+    booking.price_cents > 0 &&
+    (booking.status === "Paid" || booking.status === "Cancelled" || booking.status === "Completed")
+      ? `<button class="admin-icon-button admin-action-button is-danger" type="button" data-admin-action="refund" data-booking-kind="${escapeAttribute(bookingKind)}" data-booking-id="${escapeAttribute(booking.id)}" data-amount="${escapeAttribute(booking.price_cents)}">Refund</button>`
+      : "";
+  const manualPaidButton =
+    booking.status === "PendingPayment" && booking.price_cents > 0
+      ? `<button class="admin-icon-button admin-action-button" type="button" data-admin-action="mark-paid" data-booking-kind="${escapeAttribute(bookingKind)}" data-booking-id="${escapeAttribute(booking.id)}">Mark paid</button>`
+      : "";
+  const waivePaymentButton =
+    booking.status === "PendingPayment"
+      ? `<button class="admin-icon-button admin-action-button" type="button" data-admin-action="waive-payment" data-booking-kind="${escapeAttribute(bookingKind)}" data-booking-id="${escapeAttribute(booking.id)}">Free</button>`
+      : "";
+  const checkInButton =
+    !isStaffBooking && booking.status === "Paid" && !booking.checked_in_at
+      ? `<button class="admin-icon-button admin-action-button is-primary" type="button" data-admin-action="check-in" data-booking-kind="${escapeAttribute(bookingKind)}" data-booking-id="${escapeAttribute(booking.id)}">Arrived</button>`
+      : "";
+
+  return `
+    <article class="admin-booking-row is-${escapeAttribute(statusClass)}">
+      <div class="admin-booking-row-select" aria-hidden="true"></div>
+      <div class="admin-booking-row-cell admin-booking-row-customer">
+        <strong>${escapeHtml(guestName)}</strong>
+        <span>${escapeHtml(booking.booking_code)}</span>
+      </div>
+      <div class="admin-booking-row-cell">
+        <strong>${escapeHtml(venueLabel)}</strong>
+        <span>${isStaffBooking ? "Staff session" : "Studio booking"}</span>
+      </div>
+      <div class="admin-booking-row-cell">
+        <strong>${escapeHtml(formatDateOnly(booking.start_time))}</strong>
+        <span>${escapeHtml(formatTimeOnly(booking.start_time))}</span>
+      </div>
+      <div class="admin-booking-row-cell">
+        <strong>${escapeHtml(formatDuration(booking.duration_minutes))}</strong>
+        <span>${escapeHtml(formatMoney(booking.price_cents, booking.currency))}</span>
+      </div>
+      <div class="admin-booking-row-status">
+        <span class="pill ${escapeAttribute(statusClass)}">${escapeHtml(getStatusLabel(booking.status))}</span>
+      </div>
+      <div class="admin-booking-row-actions">
+        <a class="admin-icon-button" href="${escapeAttribute(bookingHref)}" aria-label="Open booking">✎</a>
+        ${manualPaidButton}
+        ${waivePaymentButton}
+        ${checkInButton}
+        ${refundButton}
+      </div>
+    </article>
+  `;
+}
+
 function renderAdminBookingCard(booking) {
+  if (document.body?.dataset.page === "admin") {
+    return renderAdminBookingCompactRow(booking);
+  }
+
   const isStaffBooking = booking.booking_kind === "staff";
   const bookingKind = booking.booking_kind || "room";
   const refundButton =
@@ -1310,8 +1462,8 @@ function renderScheduleBlocks(bookings) {
       const end = new Date(booking.end_time);
       const startMinutes = start.getHours() * 60 + start.getMinutes();
       const endMinutes = end.getHours() * 60 + end.getMinutes();
-      const businessStart = 10 * 60;
-      const businessEnd = 18 * 60;
+      const businessStart = 12 * 60;
+      const businessEnd = 20 * 60;
       const clampedStart = Math.max(startMinutes, businessStart);
       const clampedEnd = Math.min(endMinutes, businessEnd);
       const width = Math.max(((clampedEnd - clampedStart) / (businessEnd - businessStart)) * 100, 10);
@@ -1337,7 +1489,7 @@ function renderAdminDaySchedule(currentState) {
   const rooms = (currentState.rooms || [])
     .filter((room) => selectedAdminScheduleRoomId === "all" || String(room.id) === selectedAdminScheduleRoomId)
     .sort((left, right) => left.name.localeCompare(right.name));
-  const hourLabels = Array.from({ length: 8 }, (_value, index) => 10 + index);
+  const hourLabels = Array.from({ length: 8 }, (_value, index) => 12 + index);
 
   if (!rooms.length) {
     elements.adminDaySchedule.innerHTML = '<div class="empty-state">No rooms match the selected filter.</div>';
@@ -1752,12 +1904,20 @@ export function initAdminView(actions) {
 
   document.querySelectorAll("[data-admin-subpage-button]").forEach((button) => {
     button.addEventListener("click", () => {
-      setActiveAdminSubpage(button.dataset.adminSubpageButton, button.dataset.adminSubpage);
+      const group = button.dataset.adminSubpageButton;
+      const subpage = button.dataset.adminSubpage;
+      if (group === "rooms" && subpage === "editor") {
+        adminRoomEditorOpen = true;
+      }
+      setActiveAdminSubpage(group, subpage);
     });
   });
 
   document.querySelectorAll("[data-admin-subpage-select]").forEach((select) => {
     select.addEventListener("change", () => {
+      if (select.dataset.adminSubpageSelect === "rooms" && select.value === "editor") {
+        adminRoomEditorOpen = true;
+      }
       setActiveAdminSubpage(select.dataset.adminSubpageSelect, select.value);
     });
   });
@@ -1770,6 +1930,13 @@ export function initAdminView(actions) {
     button.addEventListener("click", () => {
       const tab = button.dataset.adminFocusTab || "overview";
       const subpage = button.dataset.adminFocusSubpage || DEFAULT_ADMIN_SUBPAGES[tab] || "overview";
+      if (button.dataset.adminCreateRoom === "true") {
+        adminRoomEditorOpen = true;
+        window.dispatchEvent(new CustomEvent("admin-room-create-request"));
+      }
+      if (tab === "rooms" && subpage === "editor") {
+        adminRoomEditorOpen = true;
+      }
       setActiveAdminTab(tab);
       setActiveAdminSubpage(tab, subpage);
     });
@@ -1814,6 +1981,18 @@ export function initAdminView(actions) {
     } catch (error) {
       setState({ message: error.message });
     }
+  });
+
+  elements.adminRolesList?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-admin-action='select-role-account']");
+    if (!button) {
+      return;
+    }
+
+    selectedAdminAccountId = button.dataset.userId;
+    setActiveAdminTab("accounts");
+    setActiveAdminSubpage("accounts", "detail");
+    renderAdminView(actions.getState());
   });
 
   elements.adminStaffPhotoFile?.addEventListener("change", () => {
@@ -1957,6 +2136,11 @@ export function initAdminView(actions) {
       }
 
       if (button.dataset.adminAction === "refund") {
+        const amountLabel = formatMoney(Number(button.dataset.amount || 0));
+        const confirmed = window.confirm(`Process a ${amountLabel} refund? This changes payment records.`);
+        if (!confirmed) {
+          return;
+        }
         setState({ message: "Processing refund..." });
         await api.adminRefundBooking(button.dataset.bookingId, {
           amount_cents: Number(button.dataset.amount),
@@ -2111,6 +2295,9 @@ export function initAdminView(actions) {
     if (!detail.group || !detail.subpage) {
       return;
     }
+    if (detail.group === "rooms" && detail.subpage === "editor") {
+      adminRoomEditorOpen = true;
+    }
     setActiveAdminTab(detail.group);
     setActiveAdminSubpage(detail.group, detail.subpage);
   });
@@ -2185,9 +2372,10 @@ export function renderAdminView(currentState) {
   }
 
   if (!isAdmin) {
-    setActiveAdminTab("bookings");
+    setActiveAdminTab("rooms");
     Object.assign(activeAdminSubpages, DEFAULT_ADMIN_SUBPAGES);
     adminSearchResults = null;
+    elements.adminDashboardMetrics && (elements.adminDashboardMetrics.innerHTML = "");
     elements.adminAnalyticsGrid && (elements.adminAnalyticsGrid.innerHTML = "");
     elements.adminRoomBreakdown && (elements.adminRoomBreakdown.innerHTML = "");
     elements.adminStaffBreakdown && (elements.adminStaffBreakdown.innerHTML = "");
@@ -2196,6 +2384,10 @@ export function renderAdminView(currentState) {
     elements.adminStaffCatalogList && (elements.adminStaffCatalogList.innerHTML = "");
     elements.adminAccountsList && (elements.adminAccountsList.innerHTML = "");
     elements.adminAccountDetail && (elements.adminAccountDetail.innerHTML = "");
+    elements.adminRolesList && (elements.adminRolesList.innerHTML = "");
+    if (elements.adminRolesCount) {
+      elements.adminRolesCount.textContent = "0 admins";
+    }
     elements.adminTestCaseSummary && (elements.adminTestCaseSummary.innerHTML = "");
     elements.adminTestCasesList && (elements.adminTestCasesList.innerHTML = "");
     elements.adminManualStaffOptions && (elements.adminManualStaffOptions.innerHTML = "");
@@ -2219,6 +2411,8 @@ export function renderAdminView(currentState) {
   Object.entries(activeAdminSubpages).forEach(([group, subpage]) => {
     setActiveAdminSubpage(group, subpage);
   });
+  renderAdminDashboardMetrics(currentState);
+  renderAdminRoles(currentState);
   renderAdminDaySummary(currentState);
   renderAdminDaySchedule(currentState);
   renderAdminRoomCalendarSummary(currentState);

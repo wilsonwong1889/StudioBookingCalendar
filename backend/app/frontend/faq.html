@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FAQ | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260508d" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260511a" />
   </head>
   <body data-page="faq">
     <div class="site-frame">
@@ -30,7 +30,7 @@
             <a class="home-social-link" href="/contact" aria-label="Studio help">▶</a>
             <span class="home-utility-divider" aria-hidden="true"></span>
             <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
-            <a id="header-secondary-link" class="primary-button home-header-book-button" href="/rooms">Book a room</a>
+            <a id="header-secondary-link" class="primary-button home-header-book-button" href="/rooms">Book Now</a>
             <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
               <button
                 id="header-user-trigger"
@@ -54,7 +54,7 @@
       </div>
       <header class="site-header site-header-simple site-header-public">
         <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
-          <span class="brand-mark-icon" aria-hidden="true">♪</span>
+          <span class="brand-mark-icon" aria-hidden="true">SB</span>
           <span class="brand-mark-label">StudioBook</span>
         </a>
         <nav class="site-nav" aria-label="Primary">
@@ -74,9 +74,8 @@
               <p class="eyebrow">FAQ</p>
               <h1>Clear answers before you book.</h1>
               <p class="hero-copy">
-                This page covers the booking basics people ask first: how reservations work, when to
-                arrive, how guest checkout works, and what to know about payments, cancellations, rooms,
-                and staff support.
+                This page covers the booking rules people ask first: how reservations work, what to
+                bring, how guest checkout works, and what to know about rooms, equipment, and staff support.
               </p>
               <div class="hero-actions">
                 <a class="primary-button hero-primary" href="/rooms">Start a booking</a>
@@ -87,7 +86,7 @@
             <aside class="page-hero-summary">
               <p class="panel-kicker">Quick Read</p>
               <div class="summary-line"><span>Guest option</span><strong>Continue with just your name and phone number where supported</strong></div>
-              <div class="summary-line"><span>Support</span><strong>Room, payment, cancellation, and staff questions live here</strong></div>
+              <div class="summary-line"><span>Support</span><strong>Room, equipment, booking rule, and staff questions live here</strong></div>
               <div class="summary-line"><span>Next step</span><strong>Browse rooms, then jump into booking when you are ready</strong></div>
             </aside>
           </div>
@@ -133,13 +132,38 @@
             <article class="story-card">
               <span>2</span>
               <strong>How long can I book for?</strong>
-              <p>Booking length depends on the room. The available durations shown in the flow are the ones that room currently supports.</p>
+              <p>Booking length depends on the room and availability. Standard users can book up to 5 hours per day.</p>
             </article>
             <article class="story-card">
               <span>3</span>
               <strong>Can I add staff support?</strong>
               <p>Yes. If a room has staff options available, you can add them during booking and see the updated price before you confirm.</p>
             </article>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">Booking rules</p>
+            <h2>How reservations are approved</h2>
+          </div>
+          <div class="detail-stack">
+            <div class="summary-line">
+              <span>Availability</span>
+              <strong>Bookings are based on open room times and confirmed room setup</strong>
+            </div>
+            <div class="summary-line">
+              <span>Required details</span>
+              <strong>Select your space, date, time, and user category before checkout</strong>
+            </div>
+            <div class="summary-line">
+              <span>Payment</span>
+              <strong>Full payment is required before the session begins</strong>
+            </div>
+            <div class="summary-line">
+              <span>Special projects</span>
+              <strong>Projects with unusual setup, staffing, or access needs may require approval</strong>
+            </div>
           </div>
         </section>
 
@@ -193,26 +217,30 @@
 
         <section class="panel panel-wide">
           <div class="panel-header">
-            <p class="panel-kicker">Payment and cancellation</p>
-            <h2>How checkout and refunds are handled</h2>
+            <p class="panel-kicker">Rates and deposits</p>
+            <h2>Where pricing policy lives</h2>
           </div>
           <div class="detail-stack">
             <div class="summary-line">
-              <span>Payment timing</span>
-              <strong>Review the booking first, then complete checkout when prompted</strong>
+              <span>Rates</span>
+              <strong>Pricing lists the approved public room, full-space, and membership rates</strong>
+            </div>
+            <div class="summary-line">
+              <span>Deposits</span>
+              <strong>Pricing lists the current booking deposit amounts</strong>
             </div>
             <div class="summary-line">
               <span>Cancellations</span>
-              <strong>Use the booking tools or contact the team if you need help changing a reservation</strong>
+              <strong>Pricing is the source of truth for cancellation timing and deposit refunds</strong>
             </div>
             <div class="summary-line">
-              <span>Refunds</span>
-              <strong>Handled through admin review when a refund is approved</strong>
+              <span>Need help</span>
+              <strong>Contact the team before the session starts if something looks wrong</strong>
             </div>
-            <div class="summary-line">
-              <span>Booking issues</span>
-              <strong>If something looks wrong, reach out before the session starts</strong>
-            </div>
+          </div>
+          <div class="hero-actions">
+            <a class="ghost-button ghost-link" href="/pricing">View pricing policy</a>
+            <a class="ghost-button ghost-link" href="/contact">Contact support</a>
           </div>
         </section>
 
@@ -236,6 +264,30 @@
               <span>12</span>
               <strong>When should I choose staff support?</strong>
               <p>Add staff support when you want help with setup, room guidance, or a more hands-on session. If the room offers it, the booking flow will show it clearly.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="panel-header">
+            <p class="panel-kicker">Equipment</p>
+            <h2>Before you use studio gear</h2>
+          </div>
+          <div class="story-grid">
+            <article class="story-card">
+              <span>13</span>
+              <strong>What equipment should I expect?</strong>
+              <p>Check the room page for the available setup, then bring your own files, drives, references, and specialty gear for the session.</p>
+            </article>
+            <article class="story-card">
+              <span>14</span>
+              <strong>Can I rent equipment?</strong>
+              <p>Equipment rentals may require a credit card authorization and signed usage agreement before use.</p>
+            </article>
+            <article class="story-card">
+              <span>15</span>
+              <strong>Can an engineer help with gear?</strong>
+              <p>Users may request a service engineer for podcasting, sound, photography, video, branding, or other production support, depending on availability.</p>
             </article>
           </div>
         </section>
@@ -278,7 +330,7 @@
             <h3>Support</h3>
             <a href="/faq">Policies</a>
             <a href="/contact">Get help</a>
-            <a href="/rooms">Book a room</a>
+            <a href="/rooms">Book room</a>
           </div>
         </div>
         <div class="studio-footer-bottom">
@@ -302,6 +354,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260508d"></script>
+    <script type="module" src="/assets/js/main.js?v=20260511a"></script>
   </body>
 </html>

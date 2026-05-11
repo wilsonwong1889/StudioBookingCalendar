@@ -8,7 +8,7 @@ from app.schemas.review import RoomReviewFeedOut
 from app.schemas.room import RoomCreate, RoomOut, RoomUpdate
 from app.core.dependencies import get_admin_user, get_optional_current_user
 from app.models.user import User
-from app.services.booking_service import list_room_reviews
+from app.services.booking_service import create_audit_log, list_room_reviews
 
 router = APIRouter(prefix="/api/rooms", tags=["Rooms"])
 
@@ -56,6 +56,14 @@ def create_room(
 ):
     room = Room(**payload.model_dump())
     db.add(room)
+    db.flush()
+    create_audit_log(
+        db,
+        actor_id=admin.id,
+        booking_id=None,
+        action="room_created",
+        details={"room_id": str(room.id), "name": room.name},
+    )
     db.commit()
     db.refresh(room)
     return room
@@ -71,6 +79,13 @@ def archive_room(
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
     room.active = False
+    create_audit_log(
+        db,
+        actor_id=admin.id,
+        booking_id=None,
+        action="room_archived",
+        details={"room_id": room_id, "name": room.name},
+    )
     db.commit()
     return Response(status_code=204)
 
@@ -84,6 +99,13 @@ def delete_room_permanently(
     room = db.query(Room).filter(Room.id == room_id).first()
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
+    create_audit_log(
+        db,
+        actor_id=admin.id,
+        booking_id=None,
+        action="room_permanently_deleted",
+        details={"room_id": room_id, "name": room.name},
+    )
     db.delete(room)
     db.commit()
     return Response(status_code=204)
@@ -99,6 +121,13 @@ def restore_room(
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
     room.active = True
+    create_audit_log(
+        db,
+        actor_id=admin.id,
+        booking_id=None,
+        action="room_restored",
+        details={"room_id": room_id, "name": room.name},
+    )
     db.commit()
     db.refresh(room)
     return room
@@ -113,8 +142,16 @@ def update_room(
     room = db.query(Room).filter(Room.id == room_id).first()
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
-    for field, value in payload.model_dump(exclude_none=True).items():
+    update_data = payload.model_dump(exclude_none=True)
+    for field, value in update_data.items():
         setattr(room, field, value)
+    create_audit_log(
+        db,
+        actor_id=admin.id,
+        booking_id=None,
+        action="room_updated",
+        details={"room_id": room_id, "updated_fields": sorted(update_data.keys())},
+    )
     db.commit()
     db.refresh(room)
     return room

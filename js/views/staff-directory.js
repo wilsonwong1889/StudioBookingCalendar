@@ -23,6 +23,7 @@ let viewBound = false;
 let staffSearchQuery = "";
 let staffCategoryFilter = "all";
 let staffSortMode = "recommended";
+let staffPromoPreview = null;
 
 const STAFF_DURATION_OPTIONS = [60, 120, 180, 240, 300];
 
@@ -32,6 +33,14 @@ function todayString() {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function isDateBeforeToday(value) {
+  return Boolean(value && value < todayString());
+}
+
+function clampBookingDate(value) {
+  return isDateBeforeToday(value) ? todayString() : value || todayString();
 }
 
 function formatCurrency(cents) {
@@ -276,6 +285,18 @@ function getBookingNotesInput() {
   return document.getElementById("staff-booking-notes");
 }
 
+function getStaffPromoCodeInput() {
+  return document.getElementById("staff-booking-promo-code");
+}
+
+function getStaffPromoPreviewButton() {
+  return document.getElementById("staff-booking-promo-preview-button");
+}
+
+function getStaffPromoFeedback() {
+  return document.getElementById("staff-booking-promo-feedback");
+}
+
 function getBookingShell() {
   return document.getElementById("staff-booking-shell");
 }
@@ -359,6 +380,109 @@ function setStatus(message, isError = false) {
     status.classList.toggle("staff-booking-status-error", Boolean(isError));
   }
   setState({ message });
+}
+
+function getStaffPromoInputValue() {
+  return (getStaffPromoCodeInput()?.value || "").trim().toUpperCase();
+}
+
+function getEstimatedStaffTotal(profile, durationMinutes = getSelectedDurationMinutes()) {
+  const rateCents = profile ? getStaffRateCents(profile) : 0;
+  return Math.round((rateCents * durationMinutes) / 60);
+}
+
+function getStaffPromoSelectionKey(profile, durationMinutes, amountCents) {
+  return [profile?.id || "", durationMinutes || 0, amountCents || 0].join(":");
+}
+
+function getCurrentStaffPromoPreview(profile, durationMinutes, amountCents) {
+  const code = getStaffPromoInputValue();
+  if (!code || !staffPromoPreview) {
+    return null;
+  }
+  const selectionKey = getStaffPromoSelectionKey(profile, durationMinutes, amountCents);
+  if (staffPromoPreview.code !== code || staffPromoPreview.selectionKey !== selectionKey) {
+    return null;
+  }
+  return staffPromoPreview;
+}
+
+function clearStaffPromoState() {
+  staffPromoPreview = null;
+}
+
+function renderStaffPromoFeedback(profile) {
+  const feedback = getStaffPromoFeedback();
+  if (!feedback) {
+    return;
+  }
+
+  const code = getStaffPromoInputValue();
+  const durationMinutes = getSelectedDurationMinutes();
+  const amountCents = getEstimatedStaffTotal(profile, durationMinutes);
+  const appliedPromo = getCurrentStaffPromoPreview(profile, durationMinutes, amountCents);
+
+  if (!code && !appliedPromo) {
+    feedback.className = "empty-state booking-promo-feedback hidden";
+    feedback.textContent = "";
+    return;
+  }
+
+  if (appliedPromo) {
+    feedback.className = "empty-state booking-promo-feedback booking-promo-feedback-success";
+    feedback.innerHTML = `<strong>${escapeHtml(appliedPromo.code)}</strong> saves ${formatCurrency(appliedPromo.discount_cents)}. New total: ${formatCurrency(appliedPromo.final_amount_cents)}.`;
+    return;
+  }
+
+  feedback.className = "empty-state booking-promo-feedback";
+  feedback.textContent = "Apply the promo code to preview the staff booking total.";
+}
+
+async function applyStaffPromoPreview() {
+  const profile = getSelectedStaffProfile();
+  const code = getStaffPromoInputValue();
+  const durationMinutes = getSelectedDurationMinutes();
+  const amountCents = getEstimatedStaffTotal(profile, durationMinutes);
+  const feedback = getStaffPromoFeedback();
+
+  if (!profile || amountCents <= 0) {
+    clearStaffPromoState();
+    renderStaffPromoFeedback(profile);
+    setStatus("Choose staff and duration before applying a promo code.", true);
+    return;
+  }
+  if (!code) {
+    clearStaffPromoState();
+    renderStaffPromoFeedback(profile);
+    setStatus("Enter a promo code first.", true);
+    return;
+  }
+
+  try {
+    setStatus("Checking promo code...");
+    const preview = await request("/api/public/promo-codes/preview", {
+      method: "POST",
+      body: JSON.stringify({
+        code,
+        amount_cents: amountCents,
+      }),
+    });
+    staffPromoPreview = {
+      ...preview,
+      code: preview.code || code,
+      selectionKey: getStaffPromoSelectionKey(profile, durationMinutes, amountCents),
+    };
+    renderStaffBookingShell({ currentUser: state.currentUser });
+    setStatus(`${staffPromoPreview.code} applied.`);
+  } catch (error) {
+    clearStaffPromoState();
+    if (feedback) {
+      feedback.className = "empty-state booking-promo-feedback booking-promo-feedback-error";
+      feedback.textContent = error.message || "Promo code could not be applied.";
+    }
+    renderSummary(profile);
+    setStatus(error.message || "Promo code could not be applied.", true);
+  }
 }
 
 function syncSelectionUrl(staffId) {
@@ -691,8 +815,9 @@ function renderSummary(profile) {
   const selection = getStaffSelectionValidity(profile);
   const formReady = Boolean(selection.valid && selectedDate && hasContactDetails());
   const durationMinutes = selection.durationMinutes;
-  const rateCents = profile ? getStaffRateCents(profile) : 0;
-  const estimatedTotal = Math.round((rateCents * durationMinutes) / 60);
+  const estimatedTotal = getEstimatedStaffTotal(profile, durationMinutes);
+  const appliedPromo = getCurrentStaffPromoPreview(profile, durationMinutes, estimatedTotal);
+  const checkoutTotal = appliedPromo ? appliedPromo.final_amount_cents : estimatedTotal;
 
   if (dateNode) {
     dateNode.textContent = selectedDate ? formatDateLabel(selectedDate) : "Select a date";
@@ -704,11 +829,11 @@ function renderSummary(profile) {
     durationNode.textContent = formatDuration(durationMinutes);
   }
   if (totalNode) {
-    totalNode.textContent = formatCurrency(estimatedTotal);
+    totalNode.textContent = formatCurrency(checkoutTotal);
   }
   if (submitButton) {
     submitButton.disabled = !formReady;
-    submitButton.textContent = formReady ? `Continue to checkout ${formatCurrency(estimatedTotal)}` : "Continue to checkout";
+    submitButton.textContent = formReady ? `Continue to checkout ${formatCurrency(checkoutTotal)}` : "Continue to checkout";
   }
 }
 
@@ -746,6 +871,8 @@ function renderStaffBookingShell(currentState) {
   renderSummaryCard(profile);
 
   if (dateInput) {
+    dateInput.min = todayString();
+    selectedDate = clampBookingDate(selectedDate);
     if (dateInput.value !== selectedDate) {
       dateInput.value = selectedDate;
     }
@@ -771,6 +898,7 @@ function renderStaffBookingShell(currentState) {
   renderAvailability(profile);
   syncDurationControls();
   renderSummary(profile);
+  renderStaffPromoFeedback(profile);
   renderStaffBookingSteps(profile);
 
   const status = getBookingStatus();
@@ -801,7 +929,8 @@ async function loadAvailabilityForSelectedStaff() {
   }
 
   const staffId = String(profile.id);
-  const targetDate = selectedDate;
+  const targetDate = clampBookingDate(selectedDate);
+  selectedDate = targetDate;
   const requestKey = `${staffId}:${targetDate}`;
   if (lastAvailabilityKey === requestKey && selectedAvailability) {
     renderStaffBookingShell({ currentUser: state.currentUser });
@@ -873,13 +1002,13 @@ async function selectStaffBooking(staffId, { syncUrl = true, scroll = true } = {
 }
 
 function handleTeamGridClick(event) {
-  const button = event.target.closest("[data-staff-book-button]");
+  const button = event.target.closest("[data-staff-book-button], [data-staff-details-button]");
   if (!button) {
     return;
   }
 
   event.preventDefault();
-  void selectStaffBooking(button.dataset.staffBookButton);
+  void selectStaffBooking(button.dataset.staffBookButton || button.dataset.staffDetailsButton);
 }
 
 function handleTimeGridClick(event) {
@@ -918,12 +1047,23 @@ async function handleBookingSubmit(event) {
     setStatus("Enter your name and phone number to continue.", true);
     return;
   }
+  if (isDateBeforeToday(selectedDate)) {
+    selectedDate = todayString();
+    selectedAvailability = null;
+    selectedTime = "";
+    lastAvailabilityKey = "";
+    setStatus("Choose today or a future date.", true);
+    renderStaffBookingShell({ currentUser: state.currentUser });
+    await loadAvailabilityForSelectedStaff();
+    return;
+  }
 
   const payload = {
     staff_profile_id: profile.id,
     service_type: serviceType,
     start_time: buildTimeValue(selection.selectedSlot.value),
     duration_minutes: durationMinutes,
+    promo_code: getStaffPromoInputValue() || null,
     guest_name: name,
     guest_phone: phone,
     guest_email: email || null,
@@ -974,7 +1114,7 @@ function renderStaffCard(profile) {
   const isSelected = String(profile.id) === String(selectedStaffId);
   const category = getStaffPrimaryCategory(profile);
   const rating = getStaffRating(profile);
-  const description = profile.description || `Book ${profile.name} for focused studio support, creative direction, or production help.`;
+  const description = profile.description || `${profile.name} is available for studio support and production help.`;
   const rateCents = getStaffRateCents(profile);
   const priceMarkup = rateCents
     ? `${formatCurrency(rateCents)}<span>/hr</span>`
@@ -1010,7 +1150,7 @@ function renderStaffCard(profile) {
         </div>
         <div class="availability-preview availability-preview-idle">
           <span class="availability-label">Live openings</span>
-          <p>Select this staff member to load the same date, time, and checkout flow used for room bookings.</p>
+          <p>Choose a date and available start time before checkout.</p>
           ${
             skills.length
               ? `<div class="preview-pill-row">${skills.map((skill) => `<span class="pill">${escapeHtml(skill)}</span>`).join("")}</div>`
@@ -1029,10 +1169,10 @@ function renderStaffCard(profile) {
         </div>
         <div class="room-actions room-catalog-actions">
           <button class="primary-button room-catalog-book-button staff-book-button" type="button" data-staff-book-button="${escapeHtml(profile.id)}">
-            Book now
+            Book staff
           </button>
-          <button class="ghost-button room-catalog-details-button staff-book-button-secondary" type="button" data-staff-book-button="${escapeHtml(profile.id)}">
-            Select
+          <button class="ghost-button room-catalog-details-button staff-book-button-secondary" type="button" data-staff-details-button="${escapeHtml(profile.id)}">
+            Details
           </button>
         </div>
       </div>
@@ -1069,7 +1209,8 @@ export function initStaffDirectoryView() {
   });
   getTimeGrid()?.addEventListener("click", handleTimeGridClick);
   getBookingDateInput()?.addEventListener("change", async (event) => {
-    selectedDate = event.target.value || selectedDate;
+    selectedDate = clampBookingDate(event.target.value || selectedDate);
+    event.target.value = selectedDate;
     selectedAvailability = null;
     selectedTime = "";
     lastAvailabilityKey = "";
@@ -1093,6 +1234,17 @@ export function initStaffDirectoryView() {
     renderStaffBookingShell({ currentUser: state.currentUser });
   });
   getBookingServiceSelect()?.addEventListener("change", () => {
+    renderStaffBookingShell({ currentUser: state.currentUser });
+  });
+  getStaffPromoPreviewButton()?.addEventListener("click", async () => {
+    await applyStaffPromoPreview();
+  });
+  getStaffPromoCodeInput()?.addEventListener("input", () => {
+    if (!getStaffPromoInputValue()) {
+      clearStaffPromoState();
+    } else if (staffPromoPreview && staffPromoPreview.code !== getStaffPromoInputValue()) {
+      clearStaffPromoState();
+    }
     renderStaffBookingShell({ currentUser: state.currentUser });
   });
   [getBookingNameInput(), getBookingPhoneInput(), getBookingEmailInput(), getBookingNotesInput()]

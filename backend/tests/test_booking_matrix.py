@@ -35,7 +35,17 @@ class BookingSchemaMatrixTest(unittest.TestCase):
         cls.resolve_staff_assignments = staticmethod(resolve_staff_assignments)
 
     def _aware_time(self, hour: int = 10, minute: int = 0, second: int = 0) -> datetime:
-        return datetime(2026, 5, 1, hour, minute, second, tzinfo=BUSINESS_TIMEZONE)
+        target_date = datetime.now(BUSINESS_TIMEZONE).date() + timedelta(days=30)
+        shifted_hour = hour + 2
+        return datetime(
+            target_date.year,
+            target_date.month,
+            target_date.day,
+            shifted_hour,
+            minute,
+            second,
+            tzinfo=BUSINESS_TIMEZONE,
+        )
 
 
 class ReservationHoldMatrixTest(unittest.TestCase):
@@ -233,8 +243,21 @@ class BookingServiceMatrixTest(unittest.TestCase):
                 db.query(model).delete()
             db.commit()
 
+    def _aware_date(self, day: int = 1) -> date:
+        return datetime.now(BUSINESS_TIMEZONE).date() + timedelta(days=30 + day - 1)
+
     def _aware_time(self, day: int = 1, hour: int = 10, minute: int = 0, second: int = 0) -> datetime:
-        return datetime(2026, 5, day, hour, minute, second, tzinfo=BUSINESS_TIMEZONE)
+        target_date = self._aware_date(day)
+        shifted_hour = hour + 2
+        return datetime(
+            target_date.year,
+            target_date.month,
+            target_date.day,
+            shifted_hour,
+            minute,
+            second,
+            tzinfo=BUSINESS_TIMEZONE,
+        )
 
     def _create_user(
         self,
@@ -652,7 +675,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
         with self.SessionLocal() as db:
             room = self._create_room(db)
 
-            availability = self.get_room_availability(db, str(room.id), date(2026, 5, 4))
+            availability = self.get_room_availability(db, str(room.id), self._aware_date(4))
 
             self.assertEqual(availability["timezone"], "America/Edmonton")
             open_slot = self._aware_time(day=4, hour=10).isoformat()
@@ -670,7 +693,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
                 start_time=self._aware_time(day=5, hour=10),
             )
 
-            availability = self.get_room_availability(db, str(room.id), date(2026, 5, 5))
+            availability = self.get_room_availability(db, str(room.id), self._aware_date(5))
 
             self.assertNotIn(self._aware_time(day=5, hour=10).isoformat(), availability["available_start_times"])
             self.assertIn(self._aware_time(day=5, hour=11).isoformat(), availability["available_start_times"])
@@ -679,7 +702,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
         with self.SessionLocal() as db:
             room = self._create_room(db, max_booking_duration_minutes=120)
 
-            availability = self.get_room_availability(db, str(room.id), date(2026, 5, 5))
+            availability = self.get_room_availability(db, str(room.id), self._aware_date(5))
 
             open_slot = self._aware_time(day=5, hour=10).isoformat()
             self.assertEqual(availability["max_duration_minutes_by_start"][open_slot], 120)
@@ -688,7 +711,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
         with self.SessionLocal() as db:
             room = self._create_room(db)
 
-            availability = self.get_room_availability(db, str(room.id), date(2026, 5, 5))
+            availability = self.get_room_availability(db, str(room.id), self._aware_date(5))
 
             last_slot = self._aware_time(day=5, hour=17).isoformat()
             self.assertEqual(availability["max_duration_minutes_by_start"][last_slot], 60)
@@ -912,7 +935,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
                 start_time=self._aware_time(day=9, hour=10),
             )
 
-            result = self.clear_bookings_for_admin_day(db, admin, date(2026, 5, 8))
+            result = self.clear_bookings_for_admin_day(db, admin, self._aware_date(8))
 
             self.assertEqual(result["deleted_count"], 1)
             self.assertIsNone(db.query(self.Booking).filter(self.Booking.id == target.id).first())
@@ -963,7 +986,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
                 ),
             )
 
-            result = self.clear_bookings_for_admin_day(db, admin, date(2026, 5, 8))
+            result = self.clear_bookings_for_admin_day(db, admin, self._aware_date(8))
 
             self.assertEqual(result["deleted_count"], 1)
             db.expire_all()
@@ -1633,7 +1656,7 @@ def _add_booking_service_helper_tests() -> None:
         )
 
     def test_161_get_day_bounds_spans_exactly_one_business_day(self) -> None:
-        utc_start, utc_end = self.get_day_bounds(date(2026, 5, 10))
+        utc_start, utc_end = self.get_day_bounds(self._aware_date(10))
         self.assertEqual(int((utc_end - utc_start).total_seconds()), 86400)
 
     setattr(BookingServiceMatrixTest, "test_146_normalize_booking_start_converts_to_utc", test_146_normalize_booking_start_converts_to_utc)

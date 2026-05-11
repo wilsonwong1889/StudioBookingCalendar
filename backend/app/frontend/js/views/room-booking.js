@@ -54,6 +54,14 @@ function todayString() {
   return localDateString();
 }
 
+function isDateBeforeToday(value) {
+  return Boolean(value && value < todayString());
+}
+
+function clampBookingDate(value) {
+  return isDateBeforeToday(value) ? todayString() : value || todayString();
+}
+
 function firstOfMonth(value) {
   const date = new Date(`${value}T00:00:00`);
   date.setDate(1);
@@ -502,6 +510,12 @@ async function loadDayAvailability(roomId, date) {
     return;
   }
 
+  const safeDate = clampBookingDate(date);
+  if (safeDate !== date) {
+    selectedDate = safeDate;
+    date = safeDate;
+  }
+
   const requestToken = dayAvailabilityRequestToken + 1;
   dayAvailabilityRequestToken = requestToken;
   loadingDay = true;
@@ -552,6 +566,9 @@ async function loadMonthAvailability(roomId, monthValue) {
         const date = new Date(`${monthValue}T00:00:00`);
         date.setDate(index + 1);
         const isoDate = date.toISOString().slice(0, 10);
+        if (isDateBeforeToday(isoDate)) {
+          return [isoDate, 0];
+        }
         const availability = await api.getAvailability(roomId, isoDate);
         return [isoDate, availability.available_start_times.length];
       }),
@@ -848,6 +865,9 @@ function renderCalendar() {
     month: "long",
     year: "numeric",
   }).format(monthDate);
+  if (elements.reservePrevMonth) {
+    elements.reservePrevMonth.disabled = displayedMonth <= firstOfMonth(todayString());
+  }
 
   const firstDay = new Date(`${displayedMonth}T00:00:00`);
   const startOffset = firstDay.getDay();
@@ -862,16 +882,18 @@ function renderCalendar() {
     const date = new Date(`${displayedMonth}T00:00:00`);
     date.setDate(day);
     const isoDate = date.toISOString().slice(0, 10);
-    const count = monthAvailability[isoDate];
+    const isPast = isDateBeforeToday(isoDate);
+    const count = isPast ? 0 : monthAvailability[isoDate];
     const isSelected = isoDate === selectedDate;
-    const label = loadingMonth && count === undefined ? "checking" : `${count || 0} slots`;
+    const label = isPast ? "Past" : loadingMonth && count === undefined ? "checking" : `${count || 0} slots`;
     const ariaLabel = `${formatDateLabel(isoDate)}: ${label}${isSelected ? ", selected" : ""}`;
     cells.push(`
       <button
-        class="calendar-cell ${isSelected ? "is-selected" : ""} ${count ? "is-open" : "is-closed"}"
+        class="calendar-cell ${isSelected ? "is-selected" : ""} ${count ? "is-open" : "is-closed"} ${isPast ? "is-past" : ""}"
         type="button"
         data-reserve-date="${escapeHtml(isoDate)}"
         aria-label="${escapeHtml(ariaLabel)}"
+        ${isPast ? "disabled" : ""}
       >
         <strong>${day}</strong>
         <span>${escapeHtml(label)}</span>
@@ -883,15 +905,15 @@ function renderCalendar() {
 }
 
 async function selectDate(roomId, date) {
-  selectedDate = date;
+  selectedDate = clampBookingDate(date);
   selectedStart = "";
   dayAvailability = null;
   clearReservePromoState("");
   if (elements.reserveDateInput) {
-    elements.reserveDateInput.value = date;
+    elements.reserveDateInput.value = selectedDate;
   }
   renderRoomBookingView(state);
-  await loadDayAvailability(roomId, date);
+  await loadDayAvailability(roomId, selectedDate);
 }
 
 export function initRoomBookingView() {
@@ -982,7 +1004,7 @@ export function initRoomBookingView() {
 
   elements.reserveMonthGrid.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-reserve-date]");
-    if (!button || !state.selectedRoom) {
+    if (!button || button.disabled || !state.selectedRoom) {
       return;
     }
     await selectDate(String(state.selectedRoom.id), button.dataset.reserveDate);
@@ -994,7 +1016,8 @@ export function initRoomBookingView() {
     }
     const date = new Date(`${displayedMonth}T00:00:00`);
     date.setMonth(date.getMonth() - 1);
-    displayedMonth = `${date.toISOString().slice(0, 7)}-01`;
+    const previousMonth = `${date.toISOString().slice(0, 7)}-01`;
+    displayedMonth = previousMonth < firstOfMonth(todayString()) ? firstOfMonth(todayString()) : previousMonth;
     renderCalendar();
     await loadMonthAvailability(String(state.selectedRoom.id), displayedMonth);
   });
@@ -1064,6 +1087,11 @@ export function initRoomBookingView() {
       renderSummary(state);
       renderSubmitButton(state);
       updateDurationDisplay();
+      return;
+    }
+    if (isDateBeforeToday(selectedDate)) {
+      await selectDate(String(state.selectedRoom.id), todayString());
+      setState({ message: "Choose today or a future date." });
       return;
     }
 
@@ -1161,6 +1189,7 @@ export function renderRoomBookingView(currentState) {
     selectedStaffIds = new Set();
     clearReservePromoState("");
     if (elements.reserveDateInput) {
+      elements.reserveDateInput.min = todayString();
       elements.reserveDateInput.value = selectedDate;
     }
     if (elements.reserveNoteInput) {
@@ -1186,6 +1215,7 @@ export function renderRoomBookingView(currentState) {
   }
 
   if (elements.reserveDateInput && selectedDate && elements.reserveDateInput.value !== selectedDate) {
+    elements.reserveDateInput.min = todayString();
     elements.reserveDateInput.value = selectedDate;
   }
 

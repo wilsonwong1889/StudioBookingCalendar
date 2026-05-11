@@ -30,11 +30,20 @@ function formatCurrency(cents, currency) {
 }
 
 function isAdminWaivedPayment(booking) {
-  return booking.price_cents === 0 && String(booking.payment_intent_id || "").startsWith("admin_waived_");
+  const paymentReference = String(booking.payment_intent_id || "");
+  return booking.price_cents === 0 && (
+    paymentReference.startsWith("admin_waived_") ||
+    paymentReference.startsWith("admin_staff_waived_")
+  );
 }
 
 function isAdminManualPayment(booking) {
-  return String(booking.payment_intent_id || "").startsWith("admin_manual_paid_");
+  const paymentReference = String(booking.payment_intent_id || "");
+  return paymentReference.startsWith("admin_manual_paid_") || paymentReference.startsWith("admin_staff_manual_paid_");
+}
+
+function getBookingKind(booking) {
+  return String(booking?.booking_kind || booking?.kind || (booking?.staff_profile_id ? "staff" : "room")).toLowerCase();
 }
 
 function renderPaymentSuccessSummary(booking) {
@@ -49,11 +58,17 @@ function renderPaymentSuccessSummary(booking) {
       : booking.confirmed_at
         ? `Payment confirmed ${formatBookingDate(booking.confirmed_at)}.`
         : "Payment confirmation is still being checked.";
+  const bookingKind = getBookingKind(booking);
+  const bookingLabel = bookingKind === "staff" ? "Staff" : "Room";
+  const bookingName = bookingKind === "staff"
+    ? booking.staff_name || booking.staff_profile_name || booking.service_type || "Staff booking"
+    : booking.room_name || "Studio booking";
 
   elements.paymentSuccessSummary.innerHTML = `
-    <div class="summary-line"><span>Room</span><strong>${booking.room_name || "Studio booking"}</strong></div>
+    <div class="summary-line"><span>${bookingLabel}</span><strong>${bookingName}</strong></div>
     <div class="summary-line"><span>Starts</span><strong>${formatBookingDate(booking.start_time)}</strong></div>
     <div class="summary-line"><span>Duration</span><strong>${booking.duration_minutes / 60} hour${booking.duration_minutes === 60 ? "" : "s"}</strong></div>
+    ${booking.promo_code ? `<div class="summary-line"><span>Promo</span><strong>${booking.promo_code} saved ${formatCurrency(booking.discount_cents, booking.currency)}</strong></div>` : ""}
     <div class="summary-line"><span>Booked at</span><strong>${formatBookingDate(booking.created_at)}</strong></div>
     <div class="summary-line"><span>Settlement</span><strong>${settlementLine}</strong></div>
   `;
@@ -148,9 +163,11 @@ export function renderPaymentSuccessView(state) {
 
   const paymentSettled = booking.status === "Paid" || booking.status === "Completed";
   const paymentStillProcessing = booking.status === "PendingPayment";
-  const canDownloadReceipt = ["Paid", "Completed", "Refunded"].includes(booking.status);
+  const bookingKind = getBookingKind(booking);
+  const canDownloadReceipt = bookingKind !== "staff" && ["Paid", "Completed", "Refunded"].includes(booking.status);
   const title = getPaymentSuccessTitle(booking, paymentSettled, paymentStillProcessing);
   const copy = getPaymentSuccessCopy(booking, paymentSettled, paymentStillProcessing);
+  const bookingHref = `/booking?id=${encodeURIComponent(booking.id)}${bookingKind === "staff" ? "&kind=staff" : ""}`;
 
   elements.paymentSuccessTitle.textContent = title;
   elements.paymentSuccessCopy.textContent = copy;
@@ -163,7 +180,7 @@ export function renderPaymentSuccessView(state) {
   renderPaymentSuccessSummary(booking);
   const canAddToCalendar = !["PendingPayment", "Cancelled", "Refunded"].includes(booking.status);
   elements.paymentSuccessActions.innerHTML = `
-    <a class="primary-button ghost-link" href="/booking?id=${booking.id}">View booking</a>
+    <a class="primary-button ghost-link" href="${bookingHref}">View booking</a>
     <a class="ghost-button ghost-link" href="/bookings">Back to bookings</a>
     ${canAddToCalendar ? '<button class="ghost-button" type="button" data-payment-success-action="download-calendar">Add to calendar</button>' : ""}
     ${canDownloadReceipt ? '<button class="ghost-button" type="button" data-payment-success-action="download-receipt">Download receipt PDF</button>' : ""}

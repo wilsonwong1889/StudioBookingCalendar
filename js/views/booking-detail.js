@@ -28,6 +28,9 @@ let autoLoadingPaymentBookingId = null;
 let publicConfigPromise = null;
 let paymentSessionStatus = "idle";
 let paymentSessionMessage = "";
+let bookingContactDraftId = null;
+let bookingContactDraft = null;
+let contactSaveInFlight = false;
 
 const BOOKING_VISUALS = {
   recording: "/assets/media/studio-room-2.png",
@@ -300,9 +303,12 @@ function isCheckoutMode(booking) {
   return booking?.status === "PendingPayment";
 }
 
-function buildPaymentSuccessUrl(bookingId) {
+function buildPaymentSuccessUrl(bookingId, kind = null) {
   const successUrl = new URL("/payment-success", window.location.origin);
   successUrl.searchParams.set("id", bookingId);
+  if (String(kind || "").toLowerCase() === "staff") {
+    successUrl.searchParams.set("kind", "staff");
+  }
   return successUrl;
 }
 
@@ -315,10 +321,10 @@ function renderBookingEmptyState(currentState) {
   const secondaryHref = currentState.currentUser ? "/bookings" : "/account";
   const secondaryLabel = currentState.currentUser ? "My bookings" : "Sign in";
   const fallbackCopy = resumeBookingId
-    ? "Your last booking is still available. Resume checkout to finish payment, review the summary, or jump back to your bookings."
+    ? "Your last booking is ready to review and confirm."
     : requestedKind === "staff"
-      ? "Start from Staff or My Bookings to open the active staff checkout with the correct booking details."
-      : "Start from Rooms or My Bookings to open the active checkout with the correct booking details.";
+      ? "Start from Staff or My Bookings to open checkout."
+      : "Start from Rooms or My Bookings to open checkout.";
   const message = currentState.message && currentState.message !== "Ready." ? currentState.message : fallbackCopy;
 
   if (elements.bookingEmptyTitle) {
@@ -385,6 +391,115 @@ function renderReadonlyField(label, value, className = "") {
       <div class="booking-contact-value">${value || "Not provided"}</div>
     </label>
   `;
+}
+
+function normalizeContactValue(value) {
+  const cleaned = String(value || "").trim();
+  return cleaned || "";
+}
+
+function getPublicContactEmail(booking) {
+  const email = normalizeContactValue(booking?.user_email);
+  return email.endsWith("@guest.studiobooking.local") ? "" : email;
+}
+
+function getInitialContactDraft(booking) {
+  return {
+    full_name: normalizeContactValue(booking?.user_full_name),
+    email: getPublicContactEmail(booking),
+    phone: normalizeContactValue(booking?.user_phone),
+    note: normalizeContactValue(booking?.note),
+  };
+}
+
+function getBookingContactDraft(booking) {
+  if (!booking) {
+    return { full_name: "", email: "", phone: "", note: "" };
+  }
+  const bookingId = String(booking.id || "");
+  if (bookingContactDraftId !== bookingId || !bookingContactDraft) {
+    bookingContactDraftId = bookingId;
+    bookingContactDraft = getInitialContactDraft(booking);
+  }
+  return bookingContactDraft;
+}
+
+function renderContactInputField(label, name, value, className = "", type = "text") {
+  return `
+    <label class="booking-contact-field ${className}">
+      <span>${escapeHtml(label)}</span>
+      <input
+        class="booking-contact-value"
+        type="${escapeHtml(type)}"
+        name="${escapeHtml(name)}"
+        value="${escapeHtml(value)}"
+        autocomplete="${name === "full_name" ? "name" : name === "email" ? "email" : name === "phone" ? "tel" : "off"}"
+      />
+    </label>
+  `;
+}
+
+function renderContactTextareaField(label, name, value, className = "") {
+  return `
+    <label class="booking-contact-field ${className}">
+      <span>${escapeHtml(label)}</span>
+      <textarea class="booking-contact-value booking-contact-textarea" name="${escapeHtml(name)}" rows="2">${escapeHtml(value)}</textarea>
+    </label>
+  `;
+}
+
+function readBookingContactForm() {
+  const contactRoot = document.getElementById("booking-detail-contact");
+  if (!contactRoot) {
+    return null;
+  }
+  return {
+    full_name: normalizeContactValue(contactRoot.querySelector("[name='full_name']")?.value),
+    email: normalizeContactValue(contactRoot.querySelector("[name='email']")?.value),
+    phone: normalizeContactValue(contactRoot.querySelector("[name='phone']")?.value),
+    note: normalizeContactValue(contactRoot.querySelector("[name='note']")?.value),
+  };
+}
+
+function updateContactDraftFromForm() {
+  const values = readBookingContactForm();
+  if (!values || !state.selectedBooking) {
+    return null;
+  }
+  bookingContactDraftId = String(state.selectedBooking.id || "");
+  bookingContactDraft = values;
+  return values;
+}
+
+async function saveBookingContactDetails({ silent = false } = {}) {
+  const booking = state.selectedBooking;
+  if (!booking || contactSaveInFlight) {
+    return booking;
+  }
+  const values = updateContactDraftFromForm() || getBookingContactDraft(booking);
+  contactSaveInFlight = true;
+  try {
+    if (!silent) {
+      setState({ message: "Saving contact information..." });
+    }
+    const updatedBooking =
+      getBookingKind(booking) === "staff"
+        ? await api.updateStaffBookingContact(booking.id, values)
+        : await api.updateBookingContact(booking.id, values);
+    bookingContactDraftId = String(updatedBooking.id || booking.id || "");
+    bookingContactDraft = getInitialContactDraft(updatedBooking);
+    contactSaveInFlight = false;
+    setState({
+      selectedBooking: {
+        ...booking,
+        ...updatedBooking,
+      },
+      message: silent ? state.message : "Contact information saved.",
+    });
+    return updatedBooking;
+  } finally {
+    contactSaveInFlight = false;
+  }
 }
 
 function clearPaymentElement() {
@@ -567,7 +682,8 @@ function renderPaymentPanel(state, booking) {
   }
 
   const isPending = booking.status === "PendingPayment";
-  const canAdminWaivePayment = isPending && Boolean(state.currentUser?.is_admin) && getBookingKind(booking) !== "staff";
+  const bookingKind = getBookingKind(booking);
+  const canAdminWaivePayment = isPending && Boolean(state.currentUser?.is_admin);
   const canAdminMarkPaid = canAdminWaivePayment && booking.price_cents > 0;
   toggleHidden(elements.bookingPaymentPanel, !isPending);
   if (!isPending) {
@@ -580,14 +696,14 @@ function renderPaymentPanel(state, booking) {
     idsMatch(activePaymentSession?.booking_id, booking.id) && activePaymentSession.payment_backend === "stripe";
   const isPaymentLoading = idsMatch(autoLoadingPaymentBookingId, booking.id) || paymentSessionStatus === "loading";
   elements.bookingPaymentCopy.textContent = hasStripeSession
-    ? "Enter payment details in the secure Stripe form, then confirm to lock in the session."
+    ? "Enter payment details, then pay to confirm the booking."
     : isPaymentLoading
-      ? "Preparing the secure Stripe checkout..."
-      : paymentSessionMessage || "Preparing the secure Stripe checkout...";
+      ? "Preparing payment..."
+      : paymentSessionMessage || "Prepare payment to confirm this booking.";
   const primaryAction =
     hasStripeSession ? "confirm-payment" : "load-payment";
   const primaryLabel =
-    hasStripeSession ? `Pay ${formatCurrency(booking.price_cents, booking.currency)}` : "Secure payment";
+    hasStripeSession && booking.price_cents > 0 ? "Pay now" : "Confirm booking";
   const primaryDisabled = isPaymentLoading ? "disabled" : "";
   elements.bookingPaymentControls.innerHTML = `
     <button class="primary-button" type="button" data-booking-detail-action="${primaryAction}" data-booking-id="${booking.id}" ${primaryDisabled}>
@@ -595,14 +711,14 @@ function renderPaymentPanel(state, booking) {
     </button>
     ${
       canAdminMarkPaid
-        ? `<button class="ghost-button" type="button" data-booking-detail-action="mark-paid" data-booking-id="${booking.id}">
+        ? `<button class="ghost-button" type="button" data-booking-detail-action="mark-paid" data-booking-id="${booking.id}" data-booking-kind="${bookingKind}">
       Mark paid manually as admin
     </button>`
         : ""
     }
     ${
       canAdminWaivePayment
-        ? `<button class="ghost-button" type="button" data-booking-detail-action="waive-payment" data-booking-id="${booking.id}">
+        ? `<button class="ghost-button" type="button" data-booking-detail-action="waive-payment" data-booking-id="${booking.id}" data-booking-kind="${bookingKind}">
       Skip Stripe as admin
     </button>`
         : ""
@@ -793,6 +909,41 @@ function renderStaffAssignments(booking) {
     : '<div class="empty-state">No extra staff add-ons were attached to this booking.</div>';
 }
 
+function renderCheckoutPricingRows(booking, kind, staffTotal) {
+  const originalTotal = Number(booking.original_price_cents ?? booking.price_cents ?? 0);
+  const discountCents = Number(booking.discount_cents || 0);
+  const finalTotal = Number(booking.price_cents || 0);
+
+  if (discountCents > 0) {
+    return `
+      <div class="booking-summary-price-line"><span>${kind === "staff" ? "Staff session" : "Session subtotal"}</span><strong>${formatCurrency(originalTotal, booking.currency)}</strong></div>
+      <div class="booking-summary-price-line"><span>Promo ${escapeHtml(booking.promo_code || "")}</span><strong class="booking-summary-price-free">-${formatCurrency(discountCents, booking.currency)}</strong></div>
+      <div class="booking-summary-price-line"><span>Service fee</span><strong class="booking-summary-price-free">Free</strong></div>
+      <div class="booking-summary-total"><span>Total</span><strong>${formatCurrency(finalTotal, booking.currency)}</strong></div>
+    `;
+  }
+
+  if (kind === "staff") {
+    return `
+      <div class="booking-summary-price-line"><span>Staff session</span><strong>${formatCurrency(finalTotal, booking.currency)}</strong></div>
+      <div class="booking-summary-price-line"><span>Service fee</span><strong class="booking-summary-price-free">Free</strong></div>
+      <div class="booking-summary-total"><span>Total</span><strong>${formatCurrency(finalTotal, booking.currency)}</strong></div>
+    `;
+  }
+
+  const roomSubtotal = Math.max(0, finalTotal - staffTotal);
+  return `
+    <div class="booking-summary-price-line"><span>${formatCurrency(roomSubtotal, booking.currency)} room session</span><strong>${formatCurrency(roomSubtotal, booking.currency)}</strong></div>
+    ${
+      staffTotal
+        ? `<div class="booking-summary-price-line"><span>Staff add-ons</span><strong>${formatCurrency(staffTotal, booking.currency)}</strong></div>`
+        : ""
+    }
+    <div class="booking-summary-price-line"><span>Service fee</span><strong class="booking-summary-price-free">Free</strong></div>
+    <div class="booking-summary-total"><span>Total</span><strong>${formatCurrency(finalTotal, booking.currency)}</strong></div>
+  `;
+}
+
 function renderBookingSummaryLayout(booking) {
   const layout = getBookingLayoutElements();
   const kind = getBookingKind(booking);
@@ -802,20 +953,15 @@ function renderBookingSummaryLayout(booking) {
     (sum, assignment) => sum + Number(assignment.add_on_price_cents || 0),
     0,
   );
-  const roomSubtotal = Math.max(0, Number(booking.price_cents || 0) - staffTotal);
   const statusLabel = getBookingStatusLabel(booking);
   const staffCount = (booking.staff_assignments || []).length;
-  const contactName = booking.user_full_name || "Guest booking";
-  const contactEmail = booking.user_email || "No email on file";
-  const contactPhone = booking.user_phone || "No phone on file";
+  const contactDraft = getBookingContactDraft(booking);
   const supportCopy =
     booking.status === "PendingPayment"
-      ? kind === "staff"
-        ? "Load payment to finish checkout and keep the staff session reserved."
-        : "Load payment to finish checkout and keep the slot reserved."
+      ? "Payment confirms this booking."
       : booking.status === "Paid"
-        ? "Calendar, receipt, reschedule, and review tools stay attached here."
-        : "Use this page for history, receipts, and follow-up actions.";
+        ? "Calendar and receipt tools stay attached here."
+        : "Use this page for booking history and receipts.";
 
   if (layout.kicker) {
     layout.kicker.textContent = getBookingPrimaryKicker(booking);
@@ -840,10 +986,15 @@ function renderBookingSummaryLayout(booking) {
     const typeLabel = getBookingTypeLabel(booking);
 
     layout.contact.innerHTML = `
-      ${renderReadonlyField("Full name", contactName, "booking-contact-field-full")}
-      ${renderReadonlyField("Email", contactEmail)}
-      ${renderReadonlyField("Phone", contactPhone)}
-      ${renderReadonlyField("Notes for the studio (optional)", booking.note || "No notes added for this booking.", "booking-contact-field-full")}
+      ${renderContactInputField("Full name", "full_name", contactDraft.full_name, "booking-contact-field-full")}
+      ${renderContactInputField("Email", "email", contactDraft.email, "", "email")}
+      ${renderContactInputField("Phone", "phone", contactDraft.phone, "", "tel")}
+      ${renderContactTextareaField("Notes for the studio (optional)", "note", contactDraft.note, "booking-contact-field-full")}
+      <div class="booking-contact-actions booking-contact-field-full">
+        <button class="ghost-button" type="button" data-booking-contact-save ${contactSaveInFlight ? "disabled" : ""}>
+          ${contactSaveInFlight ? "Saving..." : "Save contact information"}
+        </button>
+      </div>
     `;
 
     layout.sessionOverview.innerHTML = `
@@ -851,6 +1002,7 @@ function renderBookingSummaryLayout(booking) {
       ${renderSummaryLine("Date", formatDateLine(booking.start_time))}
       ${renderSummaryLine("Time", formatTimeLine(booking.start_time, booking.end_time))}
       ${renderSummaryLine("Duration", formatDuration(booking.duration_minutes))}
+      ${booking.promo_code ? renderSummaryLine("Promo", `${booking.promo_code} saved ${formatCurrency(booking.discount_cents, booking.currency)}`) : ""}
       ${renderSummaryLine("Booking code", booking.booking_code)}
       ${
         booking.payment_intent_id
@@ -883,31 +1035,8 @@ function renderBookingSummaryLayout(booking) {
           : renderSummaryLine("Staff", `${staffCount} add-on${staffCount === 1 ? "" : "s"}`)
       }
     `;
-    layout.summaryPricing.innerHTML =
-      kind === "staff"
-        ? `
-          <div class="booking-summary-price-line"><span>Session rate</span><strong>${formatCurrency(booking.subtotal_cents ?? booking.price_cents, booking.currency)}</strong></div>
-          ${
-            Number(booking.tax_cents || 0) > 0
-              ? `<div class="booking-summary-price-line"><span>Taxes & fees</span><strong>${formatCurrency(booking.tax_cents, booking.currency)}</strong></div>`
-              : ""
-          }
-          <div class="booking-summary-price-line"><span>Service fee</span><strong class="booking-summary-price-free">${Number(booking.service_fee_cents || 0) > 0 ? formatCurrency(booking.service_fee_cents, booking.currency) : "Free"}</strong></div>
-          <div class="booking-summary-total"><span>Total</span><strong>${formatCurrency(booking.total_cents ?? booking.price_cents, booking.currency)}</strong></div>
-        `
-        : `
-          <div class="booking-summary-price-line"><span>${formatCurrency(roomSubtotal, booking.currency)} room session</span><strong>${formatCurrency(roomSubtotal, booking.currency)}</strong></div>
-          ${
-            staffTotal
-              ? `<div class="booking-summary-price-line"><span>Staff add-ons</span><strong>${formatCurrency(staffTotal, booking.currency)}</strong></div>`
-              : ""
-          }
-          <div class="booking-summary-price-line"><span>Service fee</span><strong class="booking-summary-price-free">Free</strong></div>
-          <div class="booking-summary-total"><span>Total</span><strong>${formatCurrency(booking.price_cents, booking.currency)}</strong></div>
-        `;
+    layout.summaryPricing.innerHTML = renderCheckoutPricingRows(booking, kind, staffTotal);
     layout.summarySupport.innerHTML = `
-      <div class="booking-summary-support-item">${kind === "staff" ? "Free cancellation up to 24h before when the booking has not started." : "Free cancellation up to 24h before when the booking has not started."}</div>
-      <div class="booking-summary-support-item">Instant confirmation is delivered after payment succeeds.</div>
       <div class="booking-summary-support-item">${supportCopy}</div>
     `;
     return;
@@ -963,8 +1092,9 @@ export function initBookingDetailView(actions) {
         if (!stripeClient || !stripeElements || !activePaymentSession) {
           throw new Error("Load the payment session first");
         }
+        await saveBookingContactDetails({ silent: true });
         setState({ message: "Confirming payment..." });
-        const successUrl = buildPaymentSuccessUrl(activePaymentSession.booking_id);
+        const successUrl = buildPaymentSuccessUrl(activePaymentSession.booking_id, getBookingKind(state.selectedBooking));
         const submitResult = await stripeElements.submit();
         if (submitResult?.error) {
           throw new Error(submitResult.error.message || "Payment details are incomplete");
@@ -990,10 +1120,13 @@ export function initBookingDetailView(actions) {
           return;
         }
         setState({ message: "Skipping Stripe and marking booking free..." });
-        const booking = await api.adminWaiveBookingPayment(button.dataset.bookingId);
+        const booking =
+          button.dataset.bookingKind === "staff"
+            ? await api.adminWaiveStaffBookingPayment(button.dataset.bookingId)
+            : await api.adminWaiveBookingPayment(button.dataset.bookingId);
         clearPaymentElement();
         setState({ selectedBooking: booking, message: "Booking marked free." });
-        window.location.assign(buildPaymentSuccessUrl(booking.id).toString());
+        window.location.assign(buildPaymentSuccessUrl(booking.id, button.dataset.bookingKind).toString());
         return;
       }
 
@@ -1003,10 +1136,13 @@ export function initBookingDetailView(actions) {
           return;
         }
         setState({ message: "Marking booking paid manually..." });
-        const booking = await api.adminMarkBookingPaid(button.dataset.bookingId);
+        const booking =
+          button.dataset.bookingKind === "staff"
+            ? await api.adminMarkStaffBookingPaid(button.dataset.bookingId)
+            : await api.adminMarkBookingPaid(button.dataset.bookingId);
         clearPaymentElement();
         setState({ selectedBooking: booking, message: "Booking marked paid manually." });
-        window.location.assign(buildPaymentSuccessUrl(booking.id).toString());
+        window.location.assign(buildPaymentSuccessUrl(booking.id, button.dataset.bookingKind).toString());
         return;
       }
 
@@ -1030,6 +1166,20 @@ export function initBookingDetailView(actions) {
 
   elements.bookingDetailActions.addEventListener("click", handleAction);
   elements.bookingPaymentControls?.addEventListener("click", handleAction);
+  document.getElementById("booking-detail-contact")?.addEventListener("input", () => {
+    updateContactDraftFromForm();
+  });
+  document.getElementById("booking-detail-contact")?.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-booking-contact-save]");
+    if (!button) {
+      return;
+    }
+    try {
+      await saveBookingContactDetails();
+    } catch (error) {
+      setState({ message: error.message });
+    }
+  });
   elements.bookingRescheduleDate?.addEventListener("change", () => {
     if (!state.selectedBooking) {
       return;
@@ -1115,14 +1265,14 @@ export function renderBookingDetailView(state) {
   }
   if (elements.bookingDetailWindow) {
     elements.bookingDetailWindow.textContent = checkoutMode
-      ? "Review your reservation and confirm payment to lock in your slot."
+      ? "Review the details, then confirm the booking."
       : `${formatDateLine(booking.start_time)} • ${formatTimeLine(booking.start_time, booking.end_time)}`;
   }
   if (elements.bookingDetailNote) {
     elements.bookingDetailNote.textContent = booking.note
       ? `Booking note: ${booking.note}`
       : booking.status === "PendingPayment"
-        ? "Review the summary, finish payment, and keep the slot reserved."
+        ? "Confirm the booking from the summary panel."
         : booking.status === "Paid"
           ? "Use the actions below to add the booking to your calendar, download a receipt, or reschedule."
           : "This booking is archived here for reference, follow-up actions, and receipts.";

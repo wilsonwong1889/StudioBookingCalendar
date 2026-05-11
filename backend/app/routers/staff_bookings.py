@@ -9,7 +9,7 @@ from app.core.dependencies import get_current_user
 from app.core.rate_limit import rate_limit_dependency
 from app.database import get_db
 from app.models.user import User
-from app.schemas.booking import PaymentSessionOut
+from app.schemas.booking import BookingContactUpdate, PaymentSessionOut
 from app.schemas.staff_booking import (
     GuestStaffBookingCreate,
     GuestStaffBookingCreateOut,
@@ -31,6 +31,7 @@ from app.services.staff_booking_service import (
     get_staff_booking_payment_session,
     list_staff_bookings_for_user,
     reschedule_staff_booking,
+    update_staff_booking_contact,
 )
 
 
@@ -123,6 +124,20 @@ def get_my_staff_booking_payment_session(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except PaymentSessionError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.put("/staff-bookings/{staff_booking_id}/contact", response_model=StaffBookingOut)
+def update_my_staff_booking_contact(
+    staff_booking_id: str,
+    payload: BookingContactUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(booking_rate_limit),
+):
+    booking = get_staff_booking_for_user(db, staff_booking_id, current_user)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Staff booking not found")
+    return update_staff_booking_contact(db, booking, current_user, payload)
 
 
 @router.post("/staff-bookings/{staff_booking_id}/cancel", response_model=StaffBookingOut)

@@ -6,7 +6,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT_DIR))
 
 from app.database import SessionLocal
-from app.services.seed_service import ensure_admin_user, ensure_rooms, ensure_staff_profiles
+from app.services.seed_service import ensure_admin_user, ensure_promo_codes, ensure_rooms, ensure_staff_profiles
 
 
 def main() -> None:
@@ -20,15 +20,18 @@ def main() -> None:
         )
         staff_profiles = ensure_staff_profiles(db)
         rooms = ensure_rooms(db)
+        promo_codes = ensure_promo_codes(db)
         admin_email = admin.email
         staff_profile_count = len(staff_profiles)
         room_count = len(rooms)
+        promo_code_count = len(promo_codes)
     finally:
         db.close()
 
     print(f"Admin ready: {admin_email}")
     print(f"Staff profiles created this run: {staff_profile_count}")
     print(f"Rooms created this run: {room_count}")
+    print(f"Promo codes created this run: {promo_code_count}")
 
 
 if __name__ == "__main__":

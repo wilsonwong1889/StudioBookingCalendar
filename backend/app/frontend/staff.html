@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Staff | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260508d" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260511a" />
   </head>
   <body data-page="staff">
     <div class="site-frame">
@@ -30,7 +30,7 @@
             <a class="home-social-link" href="/contact" aria-label="Studio help">▶</a>
             <span class="home-utility-divider" aria-hidden="true"></span>
             <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
-            <a id="header-secondary-link" class="primary-button home-header-book-button" href="/rooms">Book a room</a>
+            <a id="header-secondary-link" class="primary-button home-header-book-button" href="/rooms">Book Now</a>
             <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
               <button
                 id="header-user-trigger"
@@ -54,7 +54,7 @@
       </div>
       <header class="site-header site-header-simple site-header-public">
         <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
-          <span class="brand-mark-icon" aria-hidden="true">♪</span>
+          <span class="brand-mark-icon" aria-hidden="true">SB</span>
           <span class="brand-mark-label">StudioBook</span>
         </a>
         <nav class="site-nav" aria-label="Primary">
@@ -69,9 +69,47 @@
 
       <main class="page-grid rooms-page-grid-modern staff-page-grid-modern">
         <section class="rooms-catalog-shell staff-catalog-shell" id="staff-team-section">
-          <div class="rooms-catalog-header">
-            <h1><span class="rooms-title-ink">All</span> <span class="rooms-title-accent">Staff</span></h1>
-            <p>Search, compare specialties, and jump straight into a staff booking.</p>
+          <div class="rooms-catalog-header staff-carousel-hero">
+            <div class="home-carousel staff-page-carousel" data-home-carousel aria-label="Staff booking studio carousel">
+              <div class="home-carousel-slides-container staff-carousel-slides-container">
+                <div class="home-carousel-slide is-active" data-home-slide>
+                  <img class="home-hero-image" src="/assets/media/studio-lounge-premium.png" alt="Podcast lounge ready for staff-supported sessions" loading="eager" />
+                  <div class="carousel-slide-announcement">
+                    <span>Grand Studio Opening</span>
+                    <strong>May 9</strong>
+                  </div>
+                </div>
+                <div class="home-carousel-slide" data-home-slide>
+                  <img class="home-hero-image" src="/assets/media/studio-hero-premium.png" alt="Premium recording studio with microphones and seating" loading="lazy" />
+                  <div class="carousel-slide-announcement carousel-slide-announcement-discount">
+                    <span>Limited time discount</span>
+                    <strong>Code: SUMMER60</strong>
+                    <em>60% off bookings</em>
+                  </div>
+                </div>
+                <div class="home-carousel-slide" data-home-slide>
+                  <img class="home-hero-image" src="/assets/media/studio-production-premium.png" alt="Production room with lighting and photo equipment" loading="lazy" />
+                </div>
+                <div class="home-hero-overlay home-hero-overlay-primary"></div>
+                <div class="home-hero-stage staff-carousel-stage">
+                  <div class="home-carousel-controls staff-carousel-controls">
+                    <button data-home-prev class="home-carousel-button home-carousel-button-prev" type="button" aria-label="Previous slide">‹</button>
+                    <div class="home-carousel-progress">
+                      <div class="home-carousel-dots">
+                        <button class="home-carousel-dot is-active" type="button" data-home-dot aria-current="true"></button>
+                        <button class="home-carousel-dot" type="button" data-home-dot aria-current="false"></button>
+                        <button class="home-carousel-dot" type="button" data-home-dot aria-current="false"></button>
+                      </div>
+                    </div>
+                    <button data-home-next class="home-carousel-button home-carousel-button-next" type="button" aria-label="Next slide">›</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="staff-carousel-copy">
+              <h1><span class="rooms-title-ink">All</span> <span class="rooms-title-accent">Staff</span></h1>
+              <p>Search by specialty, then book an available staff session.</p>
+            </div>
           </div>
 
           <div class="rooms-catalog-toolbar">
@@ -145,9 +183,9 @@
                 <span class="pill reserve-room-pill">Guest checkout</span>
                 <span class="pill reserve-room-pill">Stripe payment</span>
               </div>
-              <h1>Book staff the same way you book a room.</h1>
+              <h1>Book staff</h1>
               <p class="panel-copy">
-                Pick staff, choose a date, select an available start, set the duration, and continue to the same secure checkout flow.
+                Choose staff, time, duration, and contact details before checkout.
               </p>
             </div>
           </div>
@@ -218,6 +256,20 @@
                 <div class="reserve-price-line"><span>Service fee</span><strong class="reserve-price-free">Free</strong></div>
                 <div class="reserve-price-total"><span>Total</span><strong id="staff-booking-summary-total">CAD $0.00</strong></div>
               </div>
+
+              <section class="booking-promo-shell staff-booking-promo-shell">
+                <div class="reserve-section-heading">
+                  <strong>Promo Code</strong>
+                </div>
+                <div class="booking-promo-toolbar">
+                  <label class="booking-promo-field">
+                    <span>Code</span>
+                    <input id="staff-booking-promo-code" type="text" placeholder="SUMMER60" autocomplete="off" />
+                  </label>
+                  <button id="staff-booking-promo-preview-button" class="ghost-button" type="button">Apply</button>
+                </div>
+                <div id="staff-booking-promo-feedback" class="empty-state booking-promo-feedback hidden"></div>
+              </section>
 
               <section class="reserve-booking-section">
                 <div class="reserve-section-heading">
@@ -298,7 +350,7 @@
             <h3>Support</h3>
             <a href="/faq">FAQ</a>
             <a href="/contact">Get help</a>
-            <a href="/rooms">Book a room</a>
+            <a href="/rooms">Book room</a>
           </div>
         </div>
         <div class="studio-footer-bottom">
@@ -322,6 +374,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260508d"></script>
+    <script type="module" src="/assets/js/main.js?v=20260511a"></script>
   </body>
 </html>

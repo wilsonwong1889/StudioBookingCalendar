@@ -12,6 +12,7 @@ from app.models.user import User
 from app.schemas.booking import (
     BookingAvailabilityOut,
     BookingCancel,
+    BookingContactUpdate,
     BookingCreate,
     BookingRescheduleIn,
     GuestBookingCreate,
@@ -38,9 +39,11 @@ from app.services.booking_service import (
     list_booking_feed_for_user,
     list_bookings_for_user,
     PaymentSessionError,
+    PastBookingError,
     reschedule_booking,
     StaffAvailabilityError,
     StaffSelectionError,
+    update_booking_contact,
 )
 from app.config import settings
 from app.services.payment_service import PaymentBackendError
@@ -83,6 +86,8 @@ def create_reservation(
             payload.start_time,
             payload.duration_minutes,
         )
+    except PastBookingError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -103,6 +108,8 @@ def create_booking_endpoint(
     except StaffAvailabilityError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except PromoCodeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except PastBookingError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except PaymentBackendError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -127,6 +134,8 @@ def create_guest_booking_endpoint(
     except StaffAvailabilityError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except PromoCodeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except PastBookingError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except PaymentBackendError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -227,6 +236,20 @@ def get_my_booking_payment_session(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except PaymentSessionError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.put("/bookings/{booking_id}/contact", response_model=BookingOut)
+def update_my_booking_contact(
+    booking_id: str,
+    payload: BookingContactUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: None = Depends(booking_rate_limit),
+):
+    booking = get_booking_for_user(db, booking_id, current_user)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    return update_booking_contact(db, booking, current_user, payload)
 
 
 @router.post("/bookings/{booking_id}/cancel", response_model=BookingOut)

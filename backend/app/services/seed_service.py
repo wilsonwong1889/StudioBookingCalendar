@@ -3,14 +3,27 @@ from collections.abc import Sequence
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
+from app.models.promo_code import PromoCode
 from app.models.room import Room
 from app.models.staff_profile import StaffProfile
 from app.models.user import User
+from app.schemas.promo_code import normalize_promo_code
 
 
 DEFAULT_ROOM_SEEDS: tuple[dict, ...] = ()
 
 DEFAULT_STAFF_PROFILE_SEEDS: tuple[dict, ...] = ()
+
+DEFAULT_PROMO_CODE_SEEDS: tuple[dict, ...] = (
+    {
+        "code": "SUMMER60",
+        "description": "Limited time opening discount for public bookings",
+        "percent_off": 60,
+        "amount_off_cents": None,
+        "active": True,
+        "max_redemptions": None,
+    },
+)
 
 
 def ensure_admin_user(
@@ -109,3 +122,36 @@ def ensure_staff_profiles(db: Session, profiles: Sequence[dict] = DEFAULT_STAFF_
     for profile in created_profiles:
         db.refresh(profile)
     return created_profiles
+
+
+def ensure_promo_codes(db: Session, promo_codes: Sequence[dict] = DEFAULT_PROMO_CODE_SEEDS) -> list[PromoCode]:
+    created_promo_codes: list[PromoCode] = []
+    for payload in promo_codes:
+        code = normalize_promo_code(payload["code"])
+        existing = db.query(PromoCode).filter(PromoCode.code == code).first()
+        if existing:
+            updated = False
+            for field in (
+                "description",
+                "percent_off",
+                "amount_off_cents",
+                "active",
+                "max_redemptions",
+                "starts_at",
+                "expires_at",
+            ):
+                if field in payload and getattr(existing, field) != payload[field]:
+                    setattr(existing, field, payload[field])
+                    updated = True
+            if updated:
+                db.add(existing)
+            continue
+
+        promo_code = PromoCode(**{**payload, "code": code})
+        db.add(promo_code)
+        created_promo_codes.append(promo_code)
+
+    db.commit()
+    for promo_code in created_promo_codes:
+        db.refresh(promo_code)
+    return created_promo_codes

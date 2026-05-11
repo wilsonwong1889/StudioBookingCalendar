@@ -4,57 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260508d" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260511a" />
   </head>
   <body data-page="admin">
-    <div class="site-frame">
-      <div class="home-top-utility" aria-label="Studio contact details">
-        <div class="home-utility-inner">
-          <div class="home-contact-list">
-            <a class="home-contact-item" href="https://www.google.com/maps/search/?api=1&query=2525%2036%20St%20N%2C%20Lethbridge%2C%20AB%20T1H%205L1" target="_blank" rel="noreferrer">
-              <span class="home-contact-label">Location</span>
-              <span>2525 36 St N, Lethbridge</span>
-            </a>
-            <a class="home-contact-item" href="tel:188855578346">
-              <span class="home-contact-label">Phone</span>
-              <span>1-888-555-STUDIO</span>
-            </a>
-            <a class="home-contact-item" href="mailto:hello@studiobook.app">
-              <span class="home-contact-label">Email</span>
-              <span>hello@studiobook.app</span>
-            </a>
-          </div>
-          <div class="home-utility-actions">
-            <a class="home-social-link" href="/contact" aria-label="Contact StudioBook">◎</a>
-            <a class="home-social-link" href="/contact" aria-label="Booking support">f</a>
-            <a class="home-social-link" href="/contact" aria-label="Studio help">▶</a>
-            <span class="home-utility-divider" aria-hidden="true"></span>
-            <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
-            <a id="header-secondary-link" class="primary-button home-header-book-button" href="/rooms">Book a room</a>
-            <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
-              <button
-                id="header-user-trigger"
-                class="ghost-button header-user-trigger"
-                type="button"
-                aria-haspopup="menu"
-                aria-expanded="false"
-              >
-                <span id="header-user-email" class="header-user-trigger-label">account@example.com</span>
-                <span class="header-user-trigger-caret" aria-hidden="true">▾</span>
-              </button>
-              <div id="header-user-menu" class="header-user-menu hidden" role="menu" aria-label="Account menu">
-                <a id="header-profile-link" class="header-user-menu-item is-primary" href="/account" role="menuitem">My Profile</a>
-                <a id="header-bookings-link" class="header-user-menu-item" href="/bookings" role="menuitem">My Bookings</a>
-                <a id="header-admin-link" class="header-user-menu-item hidden" href="/admin" role="menuitem">Admin</a>
-                <button id="header-logout-button" class="header-user-menu-item header-user-menu-signout" type="button" role="menuitem">Sign Out</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <header class="site-header site-header-simple site-header-public">
+    <div class="site-frame admin-site-frame">
+      <header class="site-header site-header-simple site-header-public admin-site-header">
         <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
-          <span class="brand-mark-icon" aria-hidden="true">♪</span>
+          <span class="brand-mark-icon" aria-hidden="true">SB</span>
           <span class="brand-mark-label">StudioBook</span>
         </a>
         <nav class="site-nav" aria-label="Primary">
@@ -65,65 +21,74 @@
           <a class="nav-link" href="/bookings">Bookings</a>
           <a class="nav-link" href="/faq">Help</a>
         </nav>
+        <div class="header-actions admin-header-actions">
+          <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
+          <a id="header-secondary-link" class="primary-button home-header-book-button" href="/rooms">Book Now</a>
+          <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
+            <button
+              id="header-user-trigger"
+              class="ghost-button header-user-trigger"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            >
+              <span id="header-user-email" class="header-user-trigger-label">account@example.com</span>
+              <span class="header-user-trigger-caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="header-user-menu" class="header-user-menu hidden" role="menu" aria-label="Account menu">
+              <a id="header-profile-link" class="header-user-menu-item is-primary" href="/account" role="menuitem">My Profile</a>
+              <a id="header-bookings-link" class="header-user-menu-item" href="/bookings" role="menuitem">My Bookings</a>
+              <a id="header-admin-link" class="header-user-menu-item hidden" href="/admin" role="menuitem">Admin</a>
+              <button id="header-logout-button" class="header-user-menu-item header-user-menu-signout" type="button" role="menuitem">Sign Out</button>
+            </div>
+          </div>
+        </div>
       </header>
 
-      <main class="page-grid">
-        <section class="admin-command-center">
-          <div class="admin-command-copy">
+      <main class="admin-page-shell">
+        <section class="admin-dashboard-hero">
+          <div class="admin-dashboard-copy">
             <p class="eyebrow">Admin</p>
-            <h1>Today, queue, lookup, setup.</h1>
-            <p>Start with live booking work, then jump directly into customer support or inventory changes.</p>
+            <h1>Dashboard</h1>
+            <p>Manage your studios, monitor bookings, and keep customer support work in one place.</p>
           </div>
-          <div class="admin-command-actions" aria-label="Admin quick actions">
-            <button class="admin-command-card is-primary" type="button" data-admin-focus-tab="bookings" data-admin-focus-subpage="schedule">
-              <span>Today</span>
-              <strong>Day board</strong>
-            </button>
-            <button class="admin-command-card" type="button" data-admin-focus-tab="bookings" data-admin-focus-subpage="queue">
-              <span>Queue</span>
-              <strong>Needs attention</strong>
-            </button>
-            <button class="admin-command-card" type="button" data-admin-focus-tab="bookings" data-admin-focus-subpage="lookup">
-              <span>Lookup</span>
-              <strong>Find booking</strong>
-            </button>
-            <button class="admin-command-card" type="button" data-admin-focus-tab="rooms" data-admin-focus-subpage="editor">
-              <span>Setup</span>
-              <strong>Rooms</strong>
-            </button>
-          </div>
+          <button
+            class="primary-button admin-new-studio-button"
+            type="button"
+            data-admin-focus-tab="rooms"
+            data-admin-focus-subpage="editor"
+            data-admin-create-room="true"
+          >
+            + New Studio
+          </button>
         </section>
 
-        <section class="panel panel-wide">
-          <div class="panel-header">
-            <p class="panel-kicker">Workspace</p>
-            <h2>Admin workspace</h2>
-            <p class="panel-copy">Use the switcher for focused admin surfaces. Booking work stays first because it is the highest-frequency task.</p>
-          </div>
+        <div id="admin-empty" class="empty-state admin-empty-state">
+          Sign in as an admin user on the account page to use the dashboard, bookings, customer lookup, and studio management tools.
+        </div>
 
-          <div id="admin-empty" class="empty-state">
-            Sign in as an admin user on the account page to use the queue, lookup, manual booking, and room management tools.
-          </div>
-
-          <div id="admin-workspace-shell" class="hidden">
+        <div id="admin-workspace-shell" class="hidden">
+            <div id="admin-dashboard-metrics" class="admin-kpi-grid"></div>
             <div class="admin-workspace-nav">
               <div class="auth-switcher admin-tab-switcher" role="tablist" aria-label="Admin workspaces">
                 <button id="admin-tab-overview" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-overview" tabindex="-1" data-admin-tab="overview">Overview</button>
-                <button id="admin-tab-accounts" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-accounts" tabindex="-1" data-admin-tab="accounts">Accounts</button>
-                <button id="admin-tab-bookings" class="tab-button active" type="button" role="tab" aria-selected="true" aria-controls="admin-panel-bookings" tabindex="0" data-admin-tab="bookings">Bookings</button>
+                <button id="admin-tab-rooms" class="tab-button active" type="button" role="tab" aria-selected="true" aria-controls="admin-panel-rooms" tabindex="0" data-admin-tab="rooms">Studios<span class="sr-only"> Room management</span></button>
+                <button id="admin-tab-bookings" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-bookings" tabindex="-1" data-admin-tab="bookings">Bookings</button>
+                <button id="admin-tab-accounts" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-accounts" tabindex="-1" data-admin-tab="accounts">Customers</button>
                 <button id="admin-tab-staff" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-staff" tabindex="-1" data-admin-tab="staff">Staff catalog</button>
-                <button id="admin-tab-rooms" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-rooms" tabindex="-1" data-admin-tab="rooms">Room management</button>
-                <button id="admin-tab-qa" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-qa" tabindex="-1" data-admin-tab="qa">Backend test cases</button>
+                <button id="admin-tab-roles" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-roles" tabindex="-1" data-admin-tab="roles">Roles</button>
+                <button id="admin-tab-qa" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-qa" tabindex="-1" data-admin-tab="qa">Tests</button>
               </div>
               <label class="inline-field admin-workspace-picker">
                 <span>Workspace</span>
                 <select id="admin-workspace-select">
                   <option value="overview">Overview</option>
-                  <option value="accounts">Accounts</option>
-                  <option value="bookings" selected>Bookings</option>
+                  <option value="rooms" selected>Studios</option>
+                  <option value="bookings">Bookings</option>
+                  <option value="accounts">Customers</option>
                   <option value="staff">Staff catalog</option>
-                  <option value="rooms">Room management</option>
-                  <option value="qa">Backend test cases</option>
+                  <option value="roles">Roles</option>
+                  <option value="qa">Tests</option>
                 </select>
               </label>
             </div>
@@ -178,8 +143,8 @@
 
             <section id="admin-panel-accounts" class="admin-tab-panel hidden" role="tabpanel" aria-labelledby="admin-tab-accounts" aria-hidden="true" data-admin-panel="accounts">
               <div class="panel-header">
-                <p class="panel-kicker">Accounts</p>
-                <h3>Customer and admin profiles</h3>
+                <p class="panel-kicker">Customers</p>
+                <h3>Customer Accounts</h3>
                 <p class="panel-copy">Review account details, billing information, and booking activity. Card details stay in Stripe and are not stored in this app.</p>
               </div>
 
@@ -218,6 +183,22 @@
               </section>
             </section>
 
+            <section id="admin-panel-roles" class="admin-tab-panel hidden" role="tabpanel" aria-labelledby="admin-tab-roles" aria-hidden="true" data-admin-panel="roles">
+              <div class="panel-header admin-section-header-row">
+                <div>
+                  <p class="panel-kicker">Roles</p>
+                  <h3>Admin access</h3>
+                  <p class="panel-copy">Review who currently has admin privileges. Account deletion still requires password confirmation.</p>
+                </div>
+                <span id="admin-roles-count" class="pill">0 admins</span>
+              </div>
+              <div class="admin-role-search">
+                <span aria-hidden="true">⌕</span>
+                <input type="search" placeholder="Search by name or user ID..." disabled />
+              </div>
+              <div id="admin-roles-list" class="admin-roles-list"></div>
+            </section>
+
             <section id="admin-panel-qa" class="admin-tab-panel hidden" role="tabpanel" aria-labelledby="admin-tab-qa" aria-hidden="true" data-admin-panel="qa">
               <div class="panel-header">
                 <p class="panel-kicker">Backend Tests</p>
@@ -228,7 +209,7 @@
               <div id="admin-test-cases-list" class="admin-test-cases-list"></div>
             </section>
 
-            <section id="admin-panel-bookings" class="admin-tab-panel" role="tabpanel" aria-labelledby="admin-tab-bookings" aria-hidden="false" data-admin-panel="bookings">
+            <section id="admin-panel-bookings" class="admin-tab-panel hidden" role="tabpanel" aria-labelledby="admin-tab-bookings" aria-hidden="true" data-admin-panel="bookings">
               <div class="panel-header">
                 <p class="panel-kicker">Bookings</p>
                 <h3>Lookup, booking creation, and payment actions</h3>
@@ -553,30 +534,31 @@
               </section>
             </section>
 
-            <section id="admin-panel-rooms" class="admin-tab-panel hidden" role="tabpanel" aria-labelledby="admin-tab-rooms" aria-hidden="true" data-admin-panel="rooms">
+            <section id="admin-panel-rooms" class="admin-tab-panel" role="tabpanel" aria-labelledby="admin-tab-rooms" aria-hidden="false" data-admin-panel="rooms">
               <div class="panel-header">
-                <p class="panel-kicker">Rooms</p>
-                <h3>Create, edit, archive, and review rooms</h3>
-                <p class="panel-copy">This workspace keeps room setup and room inventory together as a separate operations surface.</p>
+                <p class="panel-kicker">Studios</p>
+                <h3>Studio inventory</h3>
+                <p class="panel-copy">Room management for creating, editing, archiving, and reviewing every public studio from one focused list.</p>
               </div>
 
               <div class="admin-subpage-nav" data-admin-subpage-group="rooms">
                 <div class="auth-switcher admin-subpage-switcher" role="tablist" aria-label="Room tools">
-                  <button class="tab-button active" type="button" data-admin-subpage-button="rooms" data-admin-subpage="editor">Room editor</button>
-                  <button class="tab-button" type="button" data-admin-subpage-button="rooms" data-admin-subpage="inventory">Inventory</button>
+                  <button class="tab-button" type="button" data-admin-subpage-button="rooms" data-admin-subpage="editor">Studio editor</button>
+                  <button class="tab-button active" type="button" data-admin-subpage-button="rooms" data-admin-subpage="inventory">Inventory</button>
                 </div>
                 <label class="inline-field admin-subpage-picker">
                   <span>View</span>
                   <select data-admin-subpage-select="rooms">
-                    <option value="editor">Room editor</option>
-                    <option value="inventory">Inventory</option>
+                    <option value="editor">Studio editor</option>
+                    <option value="inventory" selected>Inventory</option>
                   </select>
                 </label>
               </div>
 
               <div class="admin-grid admin-grid-rooms">
-                <form id="room-form" class="stack-form hidden admin-subpanel admin-subpage-panel" data-admin-subpage-panel="rooms" data-admin-subpage="editor">
+                <form id="room-form" class="stack-form hidden admin-subpanel admin-subpage-panel" aria-hidden="true" data-admin-subpage-panel="rooms" data-admin-subpage="editor">
                   <h3 id="room-form-title">Create room</h3>
+                  <p class="panel-copy">Update the studio details, images, capacity, pricing, and bookable staff options.</p>
                   <input id="room-form-id" type="hidden" name="room_id" />
                   <input id="room-photo-url" type="hidden" name="primary_photo_url" />
                   <label>
@@ -629,7 +611,7 @@
                 </form>
               </div>
 
-              <section class="admin-subpage-panel hidden" data-admin-subpage-panel="rooms" data-admin-subpage="inventory">
+              <section class="admin-subpage-panel" data-admin-subpage-panel="rooms" data-admin-subpage="inventory">
                 <div id="rooms-toolbar" class="rooms-toolbar hidden">
                   <label class="checkbox-row rooms-filter">
                     <input id="show-inactive-toggle" type="checkbox" />
@@ -640,13 +622,45 @@
               </section>
             </section>
           </div>
-        </section>
       </main>
 
-      <footer class="signal-ribbon">
-        <div class="signal-panel">
-          <strong>Activity</strong>
-          <div id="app-message" class="signal-copy" aria-live="polite">Ready.</div>
+      <footer class="studio-footer studio-footer-compact admin-footer">
+        <div class="studio-footer-grid">
+          <div class="studio-footer-brand">
+            <div class="studio-footer-logo">StudioBook</div>
+            <p>Premium studio spaces for creators. Book recording, podcast, photo and film studios on-demand.</p>
+            <p class="studio-footer-support-copy">
+              Questions about booking or studio availability?<br />
+              <a href="mailto:hello@studiobook.app">hello@studiobook.app</a>
+            </p>
+            <div id="app-message" class="signal-copy admin-app-message" aria-live="polite">Ready.</div>
+          </div>
+          <div>
+            <h3>Explore</h3>
+            <a href="/rooms">All Studios</a>
+            <a href="/info">How It Works</a>
+            <a href="/pricing">Pricing</a>
+          </div>
+          <div>
+            <h3>Account</h3>
+            <a href="/account">Sign In</a>
+            <a href="/bookings">My Bookings</a>
+            <a href="/account">Profile</a>
+          </div>
+          <div>
+            <h3>Company</h3>
+            <a href="/info">About</a>
+            <a href="/contact">Contact</a>
+            <a href="/faq">Support</a>
+          </div>
+        </div>
+        <div class="studio-footer-bottom">
+          <p>© 2026 StudioBook. All rights reserved.</p>
+          <div class="studio-footer-inline-links">
+            <a href="/faq">Privacy</a>
+            <a href="/faq">Terms</a>
+            <a href="/faq">Cookies</a>
+          </div>
         </div>
       </footer>
       <section class="site-acknowledgement" aria-label="Land acknowledgement">
@@ -661,6 +675,6 @@
       </section>
     </div>
 
-    <script type="module" src="/assets/js/main.js?v=20260508d"></script>
+    <script type="module" src="/assets/js/main.js?v=20260511a"></script>
   </body>
 </html>

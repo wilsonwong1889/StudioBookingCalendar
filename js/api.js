@@ -142,6 +142,12 @@ export const api = {
       method: "POST",
     });
   },
+  updateBookingContact(bookingId, payload) {
+    return request(`/api/bookings/${bookingId}/contact`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
   createBooking(payload) {
     return request("/api/bookings", {
       method: "POST",
@@ -181,6 +187,12 @@ export const api = {
   getStaffBookingPaymentSession(bookingId) {
     return request(`/api/staff-bookings/${bookingId}/payment-session`, {
       method: "POST",
+    });
+  },
+  updateStaffBookingContact(bookingId, payload) {
+    return request(`/api/staff-bookings/${bookingId}/contact`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
     });
   },
   cancelStaffBooking(bookingId, payload) {

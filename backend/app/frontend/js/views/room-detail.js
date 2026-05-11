@@ -254,10 +254,11 @@ export function renderRoomDetailView(state) {
 
   if (elements.roomDetailBookingLink) {
     elements.roomDetailBookingLink.href = `/reserve?id=${room.id}`;
-    elements.roomDetailBookingLink.textContent = "Reserve this studio";
+    elements.roomDetailBookingLink.textContent = "Book this room";
   }
   if (elements.roomDetailReserveLink) {
     elements.roomDetailReserveLink.href = `/rooms`;
+    elements.roomDetailReserveLink.textContent = "Back to rooms";
   }
   if (elements.roomDetailPrice) {
     elements.roomDetailPrice.textContent = formatCurrency(room.hourly_rate_cents);

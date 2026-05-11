@@ -90,8 +90,8 @@ class Settings(BaseSettings):
     ADMIN_RATE_LIMIT_MAX_REQUESTS: int = 40
 
     BUSINESS_TIMEZONE: str = "America/Edmonton"
-    BOOKING_OPEN_HOUR: int = 10
-    BOOKING_CLOSE_HOUR: int = 18
+    BOOKING_OPEN_HOUR: int = 12
+    BOOKING_CLOSE_HOUR: int = 20
     HOURLY_RATE_CENTS: int = 5000
     DEFAULT_CURRENCY: str = "CAD"
 

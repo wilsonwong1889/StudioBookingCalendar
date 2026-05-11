@@ -55,6 +55,10 @@ class DailyBookingLimitError(Exception):
     pass
 
 
+class PastBookingError(ValueError):
+    pass
+
+
 class PaymentSessionError(Exception):
     pass
 
@@ -75,6 +79,15 @@ def get_booking_window_hours() -> tuple[int, int]:
     return settings.BOOKING_OPEN_HOUR, settings.BOOKING_CLOSE_HOUR
 
 
+def get_current_business_datetime(*, now: Optional[datetime] = None) -> datetime:
+    current_time = now or datetime.now(timezone.utc)
+    return current_time.astimezone(get_business_timezone())
+
+
+def is_booking_date_before_today(target_date: date, *, now: Optional[datetime] = None) -> bool:
+    return target_date < get_current_business_datetime(now=now).date()
+
+
 def ensure_aware_datetime(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("Booking times must include a timezone offset")
@@ -85,6 +98,12 @@ def normalize_booking_start(value: datetime) -> datetime:
     aware_value = ensure_aware_datetime(value)
     utc_value = aware_value.astimezone(timezone.utc)
     return utc_value.replace(second=0, microsecond=0)
+
+
+def ensure_booking_start_not_in_past(start_time: datetime, *, now: Optional[datetime] = None) -> None:
+    local_start = ensure_aware_datetime(start_time).astimezone(get_business_timezone())
+    if local_start <= get_current_business_datetime(now=now):
+        raise PastBookingError("Bookings cannot be created for past dates or times")
 
 
 def validate_booking_window(start_time: datetime, end_time: datetime) -> None:
@@ -354,6 +373,39 @@ def get_booking_for_user(db: Session, booking_id: str, user: User) -> Optional[B
     return query.first()
 
 
+def update_booking_contact(db: Session, booking: Booking, user: User, payload) -> Booking:
+    previous = {
+        "full_name": booking.user_full_name_snapshot,
+        "email": booking.user_email_snapshot,
+        "phone": booking.user_phone_snapshot,
+        "note": booking.note,
+    }
+    next_values = {
+        "full_name": payload.full_name,
+        "email": payload.email,
+        "phone": payload.phone,
+        "note": payload.note,
+    }
+    booking.user_full_name_snapshot = payload.full_name
+    booking.user_email_snapshot = payload.email
+    booking.user_phone_snapshot = payload.phone
+    booking.note = payload.note
+    create_audit_log(
+        db,
+        actor_id=user.id,
+        booking_id=booking.id,
+        action="booking_contact_updated",
+        details={
+            "changed_fields": [
+                field for field, old_value in previous.items() if old_value != next_values[field]
+            ],
+        },
+    )
+    db.commit()
+    db.refresh(booking)
+    return booking
+
+
 def ensure_single_booking_per_day(
     db: Session,
     user: User,
@@ -443,6 +495,7 @@ def _create_booking_record(
     room = get_room_or_404(db, room_id)
     room.staff_roles = normalize_staff_roles(room.staff_roles)
     normalized_start = normalize_booking_start(start_time)
+    ensure_booking_start_not_in_past(normalized_start)
     ensure_room_duration_allowed(room, duration_minutes)
     if enforce_daily_limit:
         ensure_single_booking_per_day(db, user, normalized_start)
@@ -553,6 +606,7 @@ def create_reservation_hold(db: Session, room_id, start_time: datetime, duration
     room = get_room_or_404(db, room_id)
     ensure_room_duration_allowed(room, duration_minutes)
     normalized_start = normalize_booking_start(start_time)
+    ensure_booking_start_not_in_past(normalized_start)
     end_time = normalized_start + timedelta(minutes=duration_minutes)
     validate_booking_window(normalized_start, end_time)
     slot_starts = build_slot_starts(normalized_start, duration_minutes)
@@ -573,6 +627,16 @@ def get_room_availability(db: Session, room_id: str, target_date: date) -> dict:
     open_hour, close_hour = get_booking_window_hours()
     utc_start, utc_end = get_day_bounds(target_date)
     room_max_duration_minutes = get_room_max_booking_duration_minutes(room)
+    current_time = datetime.now(timezone.utc)
+
+    if is_booking_date_before_today(target_date, now=current_time):
+        return {
+            "room_id": room.id,
+            "date": target_date,
+            "timezone": settings.BUSINESS_TIMEZONE,
+            "available_start_times": [],
+            "max_duration_minutes_by_start": {},
+        }
 
     booked_slot_rows = (
         db.query(BookingSlot.slot_start)
@@ -595,6 +659,8 @@ def get_room_availability(db: Session, room_id: str, target_date: date) -> dict:
     for index, slot_start in enumerate(slot_starts):
         local_start = slot_start.astimezone(business_timezone)
         if local_start.hour < open_hour or local_start.minute != 0:
+            continue
+        if slot_start <= current_time:
             continue
         if slot_start in booked_slots:
             continue
@@ -788,6 +854,7 @@ def reschedule_booking(
     normalized_start = normalize_booking_start(payload.start_time)
     if normalized_start == booking.start_time:
         raise ValueError("Choose a different start time to reschedule")
+    ensure_booking_start_not_in_past(normalized_start)
 
     ensure_single_booking_per_day(
         db,

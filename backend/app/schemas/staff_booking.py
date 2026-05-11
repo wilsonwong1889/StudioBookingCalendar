@@ -13,6 +13,7 @@ class StaffBookingCreate(BaseModel):
     service_type: Optional[str] = Field(default=None, max_length=80)
     start_time: datetime
     duration_minutes: int
+    promo_code: Optional[str] = Field(default=None, max_length=64)
     note: Optional[str] = Field(default=None, max_length=500, alias="notes")
 
     @field_validator("start_time")
@@ -61,6 +62,9 @@ class StaffBookingOut(BaseModel):
     cancelled_at: Optional[datetime] = None
     cancellation_reason: Optional[str] = None
     note: Optional[str] = None
+    user_email: Optional[str] = None
+    user_full_name: Optional[str] = None
+    user_phone: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
     staff_profile: Optional[StaffProfileOut] = None

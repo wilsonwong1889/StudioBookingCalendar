@@ -658,9 +658,8 @@ export function renderAuthView(state) {
   }
 
   if (elements.headerSecondaryLink) {
-    const usesUtilityShell = Boolean(document.querySelector(".home-top-utility"));
-    elements.headerSecondaryLink.href = usesUtilityShell || state.currentUser ? "/rooms" : "/account?mode=signup";
-    elements.headerSecondaryLink.textContent = usesUtilityShell ? "Book a room" : state.currentUser ? "Book Now" : "Create account";
+    elements.headerSecondaryLink.href = "/rooms";
+    elements.headerSecondaryLink.textContent = "Book Now";
     elements.headerSecondaryLink.classList.remove("hidden");
   }
 

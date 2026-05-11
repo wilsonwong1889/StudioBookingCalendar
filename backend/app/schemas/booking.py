@@ -79,6 +79,9 @@ class BookingOut(BaseModel):
     cancelled_at: Optional[datetime] = None
     cancellation_reason: Optional[str] = None
     note: Optional[str] = None
+    user_email: Optional[str] = None
+    user_full_name: Optional[str] = None
+    user_phone: Optional[str] = None
     staff_assignments: List[StaffOption] = Field(default_factory=list)
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -127,6 +130,21 @@ class ReservationOut(BaseModel):
 
 class BookingCancel(BaseModel):
     reason: Optional[str] = None
+
+
+class BookingContactUpdate(BaseModel):
+    full_name: Optional[str] = Field(default=None, max_length=120)
+    email: Optional[str] = Field(default=None, max_length=255)
+    phone: Optional[str] = Field(default=None, max_length=40)
+    note: Optional[str] = Field(default=None, max_length=500)
+
+    @field_validator("full_name", "email", "phone", "note", mode="before")
+    @classmethod
+    def normalize_optional_text(cls, value):
+        if value is None:
+            return None
+        cleaned = str(value).strip()
+        return cleaned or None
 
 
 class BookingRescheduleIn(BaseModel):

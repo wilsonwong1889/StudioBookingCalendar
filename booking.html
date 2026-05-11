@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Checkout | StudioBookingSoftware</title>
-    <link rel="stylesheet" href="/assets/styles/app.css?v=20260508d" />
+    <link rel="stylesheet" href="/assets/styles/app.css?v=20260511a" />
   </head>
   <body data-page="booking">
     <div class="site-frame">
@@ -30,7 +30,7 @@
             <a class="home-social-link" href="/contact" aria-label="Studio help">▶</a>
             <span class="home-utility-divider" aria-hidden="true"></span>
             <a id="header-account-link" class="ghost-button ghost-link" href="/account">Log in</a>
-            <a id="header-secondary-link" class="primary-button home-header-book-button" href="/rooms">Book a room</a>
+            <a id="header-secondary-link" class="primary-button home-header-book-button" href="/rooms">Book Now</a>
             <div id="header-user-menu-shell" class="header-user-menu-shell hidden">
               <button
                 id="header-user-trigger"
@@ -54,7 +54,7 @@
       </div>
       <header class="site-header site-header-simple site-header-public">
         <a class="brand-mark brand-mark-home" href="/" aria-label="StudioBook home">
-          <span class="brand-mark-icon" aria-hidden="true">♪</span>
+          <span class="brand-mark-icon" aria-hidden="true">SB</span>
           <span class="brand-mark-label">StudioBook</span>
         </a>
         <nav class="site-nav" aria-label="Primary">
@@ -74,7 +74,7 @@
               <p class="eyebrow">Checkout</p>
               <h1 id="booking-empty-title">Resume your booking checkout</h1>
               <p id="booking-empty-copy" class="hero-copy">
-                Start from Rooms or My Bookings to open the active checkout with the correct booking details.
+                Open an active booking to review and confirm checkout.
               </p>
               <div class="hero-actions">
                 <a id="booking-empty-primary-link" class="primary-button hero-primary" href="/rooms">Browse studios</a>
@@ -82,10 +82,9 @@
               </div>
             </div>
             <aside class="page-hero-summary">
-              <p class="panel-kicker">Checkout path</p>
-              <div class="summary-line"><span>Browse</span><strong>Choose a room from the landing flow or the rooms catalog</strong></div>
-              <div class="summary-line"><span>Review</span><strong>Confirm the date, time, duration, and guest details</strong></div>
-              <div class="summary-line"><span>Pay</span><strong>Finish Stripe checkout to lock the booking and keep the receipt attached</strong></div>
+              <p class="panel-kicker">Checkout</p>
+              <div class="summary-line"><span>Review</span><strong>Date, time, duration, and contact details</strong></div>
+              <div class="summary-line"><span>Confirm</span><strong>Pay now or confirm the booking state shown here</strong></div>
             </aside>
           </div>
         </section>
@@ -96,7 +95,7 @@
               <p id="booking-detail-kicker" class="panel-kicker booking-checkout-kicker">Secure checkout</p>
               <h1 id="booking-detail-title">Complete your booking</h1>
               <p id="booking-detail-window" class="panel-copy booking-checkout-window">
-                Review your reservation and confirm payment to lock in your slot.
+                Review the details, then confirm the booking.
               </p>
             </div>
             <a class="ghost-button ghost-link booking-checkout-back" href="/bookings">Back to bookings</a>
@@ -124,7 +123,7 @@
                   <span class="booking-checkout-step">Step 2 of 2</span>
                 </div>
                 <p id="booking-payment-deadline" class="panel-copy hidden"></p>
-                <p id="booking-payment-copy" class="panel-copy">Load the payment session to continue checkout.</p>
+                <p id="booking-payment-copy" class="panel-copy">Prepare payment to confirm this booking.</p>
                 <div id="booking-payment-element" class="hidden"></div>
                 <div class="booking-payment-demo-note">
                   Stripe securely handles the payment fields. Card numbers and CVV are never stored in this app.
@@ -276,6 +275,6 @@
     </div>
 
     <script src="https://js.stripe.com/v3/"></script>
-    <script type="module" src="/assets/js/main.js?v=20260508d"></script>
+    <script type="module" src="/assets/js/main.js?v=20260511a"></script>
   </body>
 </html>
