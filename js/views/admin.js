@@ -588,7 +588,8 @@ function renderAdminRoles(currentState) {
                 </div>
               </div>
               <div class="room-meta">
-                <span class="pill">${isCurrentUser ? "Signed in" : "Admin"}</span>
+                <span class="pill">${escapeHtml(getAccountRoleLabel(account))}</span>
+                ${isCurrentUser ? '<span class="pill">Signed in</span>' : ""}
                 <button class="ghost-button" type="button" data-admin-action="select-role-account" data-user-id="${escapeAttribute(account.id)}">
                   Review
                 </button>
@@ -997,6 +998,26 @@ function renderAccountField(label, value, { mono = false, valueHtml = null } = {
   `;
 }
 
+function getAccountRole(account) {
+  return account?.role || (account?.is_admin ? "Admin" : "Customer");
+}
+
+function getAccountRoleLabel(account) {
+  const role = getAccountRole(account);
+  if (role === "AdminManager") {
+    return "Admin Manager";
+  }
+  return role === "Admin" ? "Admin" : "Customer";
+}
+
+function isAdminManagerAccount(account) {
+  return getAccountRole(account) === "AdminManager";
+}
+
+function renderAccountRolePill(account) {
+  return `<span class="pill">${escapeHtml(getAccountRoleLabel(account))}</span>`;
+}
+
 function renderAdminAccountListItem(account, isSelected) {
   return `
     <button class="admin-account-list-item${isSelected ? " is-selected" : ""}" type="button" data-admin-action="select-account" data-user-id="${escapeAttribute(account.id)}">
@@ -1005,7 +1026,7 @@ function renderAdminAccountListItem(account, isSelected) {
         <span>${escapeHtml(account.email)}</span>
       </div>
       <div class="room-meta">
-        <span class="pill">${account.is_admin ? "Admin" : "Customer"}</span>
+        ${renderAccountRolePill(account)}
         <span class="pill">${escapeHtml(account.booking_count)} booking${account.booking_count === 1 ? "" : "s"}</span>
       </div>
       <p>${escapeHtml(account.phone ? formatPhone(account.phone) : "No phone on file")}</p>
@@ -1016,6 +1037,8 @@ function renderAdminAccountListItem(account, isSelected) {
 
 function renderAdminAccountDetail(account, currentUser) {
   const isCurrentUser = String(account.id) === String(currentUser?.id || "");
+  const canManageRoles = isAdminManagerAccount(currentUser);
+  const currentRole = getAccountRole(account);
   const deleteControl = isCurrentUser
     ? `
         <button class="ghost-button" type="button" disabled>Signed in on this account</button>
@@ -1035,7 +1058,7 @@ function renderAdminAccountDetail(account, currentUser) {
           <p>${escapeHtml(account.email)}</p>
         </div>
         <div class="room-meta">
-          <span class="pill">${account.is_admin ? "Admin" : "Customer"}</span>
+          ${renderAccountRolePill(account)}
           <span class="pill">${account.opt_in_email ? "Email opt-in" : "Email opt-out"}</span>
           <span class="pill">${account.opt_in_sms ? "SMS opt-in" : "SMS opt-out"}</span>
         </div>
@@ -1068,6 +1091,32 @@ function renderAdminAccountDetail(account, currentUser) {
         <div class="admin-detail-grid">
           ${renderAccountField("Billing address", null, { valueHtml: formatAddress(account.billing_address) })}
         </div>
+      </section>
+
+      <section class="admin-account-section">
+        <h4>Role access</h4>
+        <p class="field-help">Admin Managers can change account roles. Admins can use the admin tools, but cannot grant or remove roles.</p>
+        ${
+          canManageRoles
+            ? `
+              <div class="profile-grid profile-grid-tight">
+                <label>
+                  <span>Role</span>
+                  <select data-admin-role-select data-user-id="${escapeAttribute(account.id)}">
+                    <option value="Customer" ${currentRole === "Customer" ? "selected" : ""}>Customer</option>
+                    <option value="Admin" ${currentRole === "Admin" ? "selected" : ""}>Admin</option>
+                    <option value="AdminManager" ${currentRole === "AdminManager" ? "selected" : ""}>Admin Manager</option>
+                  </select>
+                </label>
+              </div>
+              <div class="hero-actions">
+                <button class="ghost-button" type="button" data-admin-action="update-user-role" data-user-id="${escapeAttribute(account.id)}" data-user-email="${escapeAttribute(account.email)}">
+                  Update role
+                </button>
+              </div>
+            `
+            : `<div class="admin-detail-grid">${renderAccountField("Role", getAccountRoleLabel(account))}</div>`
+        }
       </section>
 
       <section class="admin-account-section">
@@ -1954,6 +2003,49 @@ export function initAdminView(actions) {
   });
 
   elements.adminAccountDetail?.addEventListener("click", async (event) => {
+    const roleButton = event.target.closest("[data-admin-action='update-user-role']");
+    if (roleButton) {
+      const roleSelect = elements.adminAccountDetail.querySelector(
+        `[data-admin-role-select][data-user-id="${CSS.escape(roleButton.dataset.userId)}"]`,
+      );
+      const nextRole = roleSelect?.value;
+      if (!nextRole) {
+        setState({ message: "Choose a role before updating access." });
+        return;
+      }
+      const accountEmail = roleButton.dataset.userEmail || "this account";
+      const confirmed = window.confirm(`Update ${accountEmail} to ${roleSelect.options[roleSelect.selectedIndex].text}?`);
+      if (!confirmed) {
+        return;
+      }
+      const adminPassword = window.prompt("Enter your Admin Manager password to change this role.");
+      if (!adminPassword) {
+        setState({ message: "Role update cancelled." });
+        return;
+      }
+      try {
+        setState({ message: "Updating role..." });
+        const updatedAccount = await api.adminUpdateUserRole(roleButton.dataset.userId, {
+          role: nextRole,
+          admin_password: adminPassword,
+        });
+        const currentState = actions.getState();
+        if (String(updatedAccount.id) === String(currentState.currentUser?.id || "")) {
+          setState({
+            currentUser: {
+              ...currentState.currentUser,
+              ...updatedAccount,
+            },
+            message: "Role updated.",
+          });
+        }
+        await actions.refreshAll("Role updated.");
+      } catch (error) {
+        setState({ message: error.message });
+      }
+      return;
+    }
+
     const button = event.target.closest("[data-admin-action='delete-user-account']");
     if (!button) {
       return;

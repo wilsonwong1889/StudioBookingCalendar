@@ -17,6 +17,7 @@ from app.models.booking import Booking
 from app.models.staff_booking import StaffBooking
 from app.models.staff_profile import StaffProfile
 from app.models.user import User
+from app.roles import user_has_admin_access
 from app.schemas.staff_booking import (
     GuestStaffBookingCreate,
     GuestStaffBookingCreateOut,
@@ -356,7 +357,7 @@ def list_staff_bookings_for_admin(
 def get_staff_booking_for_user(db: Session, staff_booking_id: UUID | str, user: User) -> Optional[StaffBooking]:
     expire_stale_pending_staff_bookings(db)
     query = db.query(StaffBooking).filter(StaffBooking.id == staff_booking_id)
-    if not user.is_admin:
+    if not user_has_admin_access(user):
         query = query.filter(StaffBooking.user_id == user.id)
     booking = query.first()
     if not booking:
@@ -504,7 +505,7 @@ def create_staff_booking(db: Session, user: User, payload: StaffBookingCreate) -
         duration_minutes=payload.duration_minutes,
         promo_code=payload.promo_code,
         note=payload.note,
-        enforce_daily_limit=not user.is_admin,
+        enforce_daily_limit=not user_has_admin_access(user),
     )
 
 

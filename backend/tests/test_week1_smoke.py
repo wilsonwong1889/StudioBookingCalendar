@@ -34,6 +34,7 @@ class AppSmokeTest(unittest.TestCase):
 
         os.environ["DATABASE_URL"] = cls.test_database_url
         os.environ["SECRET_KEY"] = os.environ.get("SECRET_KEY", "week1-test-secret")
+        os.environ["PAYMENT_BACKEND"] = "stub"
 
         for module_name in list(sys.modules):
             if module_name == "app" or module_name.startswith("app."):
@@ -150,6 +151,8 @@ class AppSmokeTest(unittest.TestCase):
                 email="seed-admin@example.com",
                 password="SeedAdmin123!",
                 full_name="Seed Admin",
+                phone="403-393-8857",
+                role="AdminManager",
             )
             rooms = type(self).ensure_rooms(
                 db,
@@ -165,6 +168,8 @@ class AppSmokeTest(unittest.TestCase):
             )
             admin_email = admin.email
             admin_is_admin = admin.is_admin
+            admin_phone = admin.phone
+            admin_role = admin.role
             room_name = rooms[0].name
             room_count = len(rooms)
             default_seeded_rooms = type(self).ensure_rooms(db)
@@ -175,6 +180,8 @@ class AppSmokeTest(unittest.TestCase):
 
         self.assertEqual(admin_email, "seed-admin@example.com")
         self.assertTrue(admin_is_admin)
+        self.assertEqual(admin_phone, "403-393-8857")
+        self.assertEqual(admin_role, "AdminManager")
         self.assertEqual(room_count, 1)
         self.assertEqual(room_name, "Seed Room")
         self.assertEqual(default_seeded_rooms, [])
@@ -194,10 +201,11 @@ class AppSmokeTest(unittest.TestCase):
 
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertIn("StudioBookingSoftware", response.text)
+        self.assertIn("BIPOC Creative Innovation Studio", response.text)
         self.assertIn("2525 36 St N, Lethbridge, AB T1H 5L1", response.text)
-        self.assertIn("1-888-555-STUDIO", response.text)
-        self.assertIn("hello@studiobook.app", response.text)
+        self.assertIn("403-393-8857", response.text)
+        self.assertIn("ujuperpetua05@gmail.com", response.text)
+        self.assertIn("Monday to Saturday 12:00 PM &ndash; 8:00 PM", response.text)
         self.assertIn("home-booking-search", response.text)
         self.assertIn("Book now", response.text)
         self.assertNotIn("home-stats-band", response.text)
@@ -1917,6 +1925,7 @@ class AppSmokeTest(unittest.TestCase):
         with self.SessionLocal() as db:
             admin_user = db.query(self.User).filter(self.User.id == admin_id).first()
             admin_user.is_admin = True
+            admin_user.role = "AdminManager"
             db.commit()
 
         response = self.client.post(
@@ -2373,7 +2382,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(statuses, ["conflict", "success"])
 
     def test_41_admin_launch_readiness_access_workflows_and_ui_contract(self) -> None:
-        def create_user(email: str, full_name: str, phone: str, *, is_admin: bool = False):
+        def create_user(email: str, full_name: str, phone: str, *, is_admin: bool = False, role: str = "Admin"):
             response = self.client.post(
                 "/api/auth/signup",
                 json={
@@ -2389,6 +2398,7 @@ class AppSmokeTest(unittest.TestCase):
                 with self.SessionLocal() as db:
                     user = db.query(self.User).filter(self.User.id == user_id).first()
                     user.is_admin = True
+                    user.role = role
                     db.commit()
 
             response = self.client.post(
@@ -2403,9 +2413,16 @@ class AppSmokeTest(unittest.TestCase):
             "Launch Admin",
             "5551000000",
             is_admin=True,
+            role="AdminManager",
+        )
+        regular_admin_headers, _ = create_user(
+            "launch-regular-admin@example.com",
+            "Launch Regular Admin",
+            "5551000003",
+            is_admin=True,
         )
         user_headers, _ = create_user("launch-user@example.com", "Launch User", "5551000001")
-        outsider_headers, _ = create_user("launch-outsider@example.com", "Launch Outsider", "5551000002")
+        outsider_headers, outsider_id = create_user("launch-outsider@example.com", "Launch Outsider", "5551000002")
 
         for path in (
             "/api/admin/bookings",
@@ -2573,7 +2590,47 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         users = response.json()
         self.assertTrue(any(user["id"] == admin_id and user["is_admin"] for user in users))
+        self.assertTrue(any(user["id"] == admin_id and user["role"] == "AdminManager" for user in users))
         self.assertTrue(any(user["email"] == "launch-user@example.com" for user in users))
+
+        response = self.client.request(
+            "DELETE",
+            f"/api/admin/users/{outsider_id}",
+            headers=regular_admin_headers,
+            json={"admin_password": "Password123!"},
+        )
+        self.assertEqual(response.status_code, 403, response.text)
+
+        response = self.client.request(
+            "DELETE",
+            f"/api/admin/users/{admin_id}",
+            headers=regular_admin_headers,
+            json={"admin_password": "Password123!"},
+        )
+        self.assertEqual(response.status_code, 403, response.text)
+
+        response = self.client.put(
+            f"/api/admin/users/{outsider_id}/role",
+            headers=regular_admin_headers,
+            json={"role": "Admin", "admin_password": "Password123!"},
+        )
+        self.assertEqual(response.status_code, 403, response.text)
+
+        response = self.client.put(
+            f"/api/admin/users/{outsider_id}/role",
+            headers=admin_headers,
+            json={"role": "Admin", "admin_password": "WrongPassword123!"},
+        )
+        self.assertEqual(response.status_code, 400, response.text)
+
+        response = self.client.put(
+            f"/api/admin/users/{outsider_id}/role",
+            headers=admin_headers,
+            json={"role": "Admin", "admin_password": "Password123!"},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["role"], "Admin")
+        self.assertTrue(response.json()["is_admin"])
 
         response = self.client.delete(f"/api/admin/staff/{staff_id}", headers=admin_headers)
         self.assertEqual(response.status_code, 204, response.text)
@@ -2590,7 +2647,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn("admin-panel-staff", admin_page.text)
         self.assertIn("admin-panel-roles", admin_page.text)
         self.assertIn('data-admin-create-room="true"', admin_page.text)
-        self.assertIn('<span class="brand-mark-icon" aria-hidden="true">SB</span>', admin_page.text)
+        self.assertIn('<span class="brand-mark-icon" aria-hidden="true">BIPOC</span>', admin_page.text)
         self.assertIn("/assets/styles/app.css?v=", admin_page.text)
         self.assertNotIn("[object Object]", admin_page.text)
         self.assertNotIn("TODO", admin_page.text)
@@ -2605,6 +2662,8 @@ class AppSmokeTest(unittest.TestCase):
         self.assertNotIn("currentState.adminAnalytics?.net_revenue_cents ??", admin_js.text)
         self.assertIn("Mark paid", admin_js.text)
         self.assertIn("Refund", admin_js.text)
+        self.assertIn("const updatedAccount = await api.adminUpdateUserRole", admin_js.text)
+        self.assertIn("...updatedAccount", admin_js.text)
         self.assertIn("Process a ${amountLabel} refund? This changes payment records.", admin_js.text)
         self.assertIn("window.confirm(\"Skip Stripe and mark this booking free?\")", admin_js.text)
         self.assertIn("window.confirm(\"Mark this booking paid manually?\")", admin_js.text)

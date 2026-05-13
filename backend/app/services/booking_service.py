@@ -18,6 +18,7 @@ from app.models.booking import AuditLog, Booking, BookingSlot, NotificationLog, 
 from app.models.room import Room
 from app.models.staff_profile import StaffProfile
 from app.models.user import User
+from app.roles import user_has_admin_access
 from app.schemas.booking import (
     BOOKING_DURATION_STEP_MINUTES,
     BookingCreate,
@@ -368,7 +369,7 @@ def list_booking_feed_for_user(db: Session, user: User) -> list[dict]:
 def get_booking_for_user(db: Session, booking_id: str, user: User) -> Optional[Booking]:
     expire_stale_pending_bookings(db)
     query = db.query(Booking).filter(Booking.id == booking_id)
-    if not user.is_admin:
+    if not user_has_admin_access(user):
         query = query.filter(Booking.user_id == user.id)
     return query.first()
 
@@ -443,7 +444,7 @@ def create_booking(db: Session, user: User, payload: BookingCreate) -> Booking:
         promo_code=payload.promo_code,
         note=payload.note,
         selected_staff_ids=payload.staff_assignments,
-        enforce_daily_limit=not user.is_admin,
+        enforce_daily_limit=not user_has_admin_access(user),
     )
 
 
@@ -839,7 +840,7 @@ def reschedule_booking(
     actor: User,
     payload: BookingRescheduleIn,
 ) -> Booking:
-    if booking.user_id != actor.id and not actor.is_admin:
+    if booking.user_id != actor.id and not user_has_admin_access(actor):
         raise ValueError("Booking not found")
     if booking.status not in {"PendingPayment", "Paid"}:
         raise ValueError("Only pending or paid bookings can be rescheduled")
@@ -991,7 +992,7 @@ def process_refund(db: Session, booking_id: str, admin: User, payload: RefundCre
 
 
 def get_booking_review_for_user(db: Session, booking: Booking, user: User) -> Optional[dict]:
-    if booking.user_id != user.id and not user.is_admin:
+    if booking.user_id != user.id and not user_has_admin_access(user):
         raise ValueError("Booking not found")
 
     review = db.query(Review).filter(Review.booking_id == booking.id).first()
@@ -1018,7 +1019,7 @@ def create_or_update_booking_review(
     user: User,
     payload: ReviewCreate,
 ) -> dict:
-    if booking.user_id != user.id and not user.is_admin:
+    if booking.user_id != user.id and not user_has_admin_access(user):
         raise ValueError("Booking not found")
     if booking.status in {"PendingPayment", "Cancelled", "Refunded"}:
         raise ValueError("Only completed sessions can be reviewed")
@@ -1194,7 +1195,7 @@ def get_booking_payment_session(db: Session, booking: Booking, user: User) -> di
     if expire_pending_booking(db, booking):
         db.commit()
         db.refresh(booking)
-    if booking.user_id != user.id and not user.is_admin:
+    if booking.user_id != user.id and not user_has_admin_access(user):
         raise PaymentSessionError("Booking not found")
     if booking.status != "PendingPayment":
         raise PaymentSessionError("Payment is only available for pending bookings")

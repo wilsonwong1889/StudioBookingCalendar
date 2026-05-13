@@ -373,6 +373,12 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  adminUpdateUserRole(userId, payload) {
+    return request(`/api/admin/users/${userId}/role`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
   adminUpdateRoom(roomId, payload) {
     return request(`/api/admin/rooms/${roomId}`, {
       method: "PUT",

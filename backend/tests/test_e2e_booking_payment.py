@@ -29,6 +29,7 @@ class BookingPaymentE2ETest(unittest.TestCase):
 
         os.environ["DATABASE_URL"] = cls.test_database_url
         os.environ["SECRET_KEY"] = os.environ.get("SECRET_KEY", "e2e-test-secret")
+        os.environ["PAYMENT_BACKEND"] = "stub"
 
         for module_name in list(sys.modules):
             if module_name == "app" or module_name.startswith("app."):

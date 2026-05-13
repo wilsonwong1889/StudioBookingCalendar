@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFil
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
+from app.roles import user_has_admin_access
 from app.schemas.user import UserDeleteConfirm, UserOut, UserPasswordUpdate, UserUpdate
 from app.core.dependencies import get_current_user
 from app.core.security import hash_password, verify_password
@@ -109,7 +110,7 @@ def delete_profile(
 ):
     if not verify_password(payload.password, current_user.password_hash):
         raise HTTPException(status_code=400, detail="Password is incorrect")
-    if current_user.is_admin and not can_delete_admin_account(db, current_user):
+    if user_has_admin_access(current_user) and not can_delete_admin_account(db, current_user):
         raise HTTPException(status_code=400, detail="At least one admin account must remain")
 
     create_audit_log(

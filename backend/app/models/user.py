@@ -2,6 +2,7 @@ import uuid
 from sqlalchemy import Column, String, Boolean, DateTime, Date, func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.database import Base
+from app.roles import USER_ROLE_CUSTOMER
 
 class User(Base):
     __tablename__ = "users"
@@ -15,6 +16,7 @@ class User(Base):
     birthday = Column(Date)
     billing_address = Column(JSONB)
     stripe_customer_id = Column(String)
+    role = Column(String, nullable=False, default=USER_ROLE_CUSTOMER)
     opt_in_email = Column(Boolean, default=True)
     opt_in_sms = Column(Boolean, default=False)
     two_factor_enabled = Column(Boolean, default=False)

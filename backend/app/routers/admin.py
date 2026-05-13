@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.core.dependencies import get_admin_user
+from app.core.dependencies import get_admin_manager_user, get_admin_user
 from app.core.rate_limit import rate_limit_dependency
 from app.database import get_db
 from app.models.room import Room
@@ -29,10 +29,16 @@ from app.schemas.admin import AdminSuiteDashMetaOut, AdminSuiteDashStatusOut
 from app.schemas.promo_code import PromoCodeCreate, PromoCodeOut, PromoCodeUpdate
 from app.schemas.staff import StaffPhotoUploadOut, StaffProfileCreate, StaffProfileOut, StaffProfileUpdate
 from app.schemas.staff_booking import StaffBookingOut
-from app.schemas.user import AdminUserAccountOut
-from app.schemas.user import AdminUserDeleteConfirm
+from app.schemas.user import AdminUserAccountOut, AdminUserDeleteConfirm, AdminUserRoleUpdate
 from app.core.security import verify_password
-from app.services.account_service import can_delete_admin_account, delete_user_account, list_accounts_for_admin
+from app.services.account_service import (
+    apply_user_role,
+    can_delete_admin_account,
+    count_admin_managers,
+    delete_user_account,
+    list_accounts_for_admin,
+    serialize_admin_account,
+)
 from app.services.booking_service import (
     check_in_booking,
     create_manual_booking,
@@ -135,7 +141,7 @@ def admin_delete_user(
     user_id: str,
     payload: AdminUserDeleteConfirm,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_admin_user),
+    admin: User = Depends(get_admin_manager_user),
     _: None = Depends(admin_rate_limit),
 ):
     if not verify_password(payload.admin_password, admin.password_hash):
@@ -157,6 +163,47 @@ def admin_delete_user(
     )
     delete_user_account(db, user)
     db.commit()
+
+
+@router.put("/users/{user_id}/role", response_model=AdminUserAccountOut)
+def admin_update_user_role(
+    user_id: str,
+    payload: AdminUserRoleUpdate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_admin_manager_user),
+    _: None = Depends(admin_rate_limit),
+):
+    if not verify_password(payload.admin_password, admin.password_hash):
+        raise HTTPException(status_code=400, detail="Admin Manager password is incorrect")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    previous_role = user.role
+    next_role = payload.role
+    if user.id == admin.id and previous_role == "AdminManager" and next_role != "AdminManager":
+        if count_admin_managers(db, exclude_user_id=user.id) <= 0:
+            raise HTTPException(status_code=400, detail="At least one admin manager account must remain")
+    if previous_role == "AdminManager" and next_role != "AdminManager":
+        if count_admin_managers(db, exclude_user_id=user.id) <= 0:
+            raise HTTPException(status_code=400, detail="At least one admin manager account must remain")
+
+    applied_role = apply_user_role(user, next_role)
+    create_audit_log(
+        db,
+        actor_id=admin.id,
+        booking_id=None,
+        action="user_role_updated_by_admin_manager",
+        details={
+            "target_user_id": str(user.id),
+            "target_user_email": user.email,
+            "previous_role": previous_role,
+            "new_role": applied_role,
+        },
+    )
+    db.commit()
+    db.refresh(user)
+    return serialize_admin_account(user)
 
 
 @router.get("/activity", response_model=List[AdminActivityItemOut])

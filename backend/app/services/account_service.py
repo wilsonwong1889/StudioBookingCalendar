@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models.booking import Booking
 from app.models.user import User
+from app.roles import USER_ROLE_ADMIN, USER_ROLE_ADMIN_MANAGER, is_admin_manager_role, normalize_user_role
 
 
 def list_accounts_for_admin(db: Session) -> list[dict]:
@@ -33,11 +34,19 @@ def list_accounts_for_admin(db: Session) -> list[dict]:
         .all()
     )
 
-    return [serialize_admin_account(user, booking_stats_by_user_id.get(str(user.id))) for user in users]
+    return sorted(
+        [serialize_admin_account(user, booking_stats_by_user_id.get(str(user.id))) for user in users],
+        key=lambda account: (
+            0 if account["role"] == "AdminManager" else 1 if account["is_admin"] else 2,
+            account["created_at"],
+            account["email"],
+        ),
+    )
 
 
 def serialize_admin_account(user: User, booking_stats: Optional[dict] = None) -> dict:
     stats = booking_stats or {}
+    role = normalize_user_role(getattr(user, "role", None), is_admin=user.is_admin)
     return {
         "id": user.id,
         "email": user.email,
@@ -51,6 +60,7 @@ def serialize_admin_account(user: User, booking_stats: Optional[dict] = None) ->
         "two_factor_enabled": user.two_factor_enabled,
         "two_factor_method": user.two_factor_method,
         "is_admin": user.is_admin,
+        "role": role,
         "booking_count": stats.get("booking_count", 0) or 0,
         "last_booking_at": stats.get("last_booking_at"),
         "created_at": user.created_at,
@@ -66,7 +76,30 @@ def can_delete_admin_account(db: Session, user: User) -> bool:
         .filter(User.is_admin.is_(True), User.id != user.id)
         .count()
     )
-    return remaining_admins > 0
+    if remaining_admins <= 0:
+        return False
+    if not is_admin_manager_role(getattr(user, "role", None)):
+        return True
+    remaining_managers = (
+        db.query(User)
+        .filter(User.role == "AdminManager", User.id != user.id)
+        .count()
+    )
+    return remaining_managers > 0
+
+
+def count_admin_managers(db: Session, *, exclude_user_id=None) -> int:
+    query = db.query(User).filter(User.role == "AdminManager")
+    if exclude_user_id is not None:
+        query = query.filter(User.id != exclude_user_id)
+    return query.count()
+
+
+def apply_user_role(user: User, role: str) -> str:
+    normalized_role = normalize_user_role(role, is_admin=user.is_admin)
+    user.role = normalized_role
+    user.is_admin = normalized_role in {USER_ROLE_ADMIN, USER_ROLE_ADMIN_MANAGER}
+    return normalized_role
 
 
 def delete_user_account(db: Session, user: User) -> None:
