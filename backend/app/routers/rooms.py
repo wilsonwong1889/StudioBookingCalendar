@@ -8,6 +8,7 @@ from app.schemas.review import RoomReviewFeedOut
 from app.schemas.room import RoomCreate, RoomOut, RoomUpdate
 from app.core.dependencies import get_admin_user, get_optional_current_user
 from app.models.user import User
+from app.roles import user_has_admin_access
 from app.services.booking_service import create_audit_log, list_room_reviews
 
 router = APIRouter(prefix="/api/rooms", tags=["Rooms"])
@@ -20,7 +21,7 @@ def list_rooms(
 ):
     query = db.query(Room)
     if include_inactive:
-        if not current_user or not current_user.is_admin:
+        if not current_user or not user_has_admin_access(current_user):
             raise HTTPException(status_code=403, detail="Admin access required")
         return query.order_by(Room.created_at.desc()).all()
     return query.filter(Room.active.is_(True)).order_by(Room.created_at.desc()).all()
@@ -32,7 +33,7 @@ def get_room(
     current_user: Optional[User] = Depends(get_optional_current_user)
 ):
     room = db.query(Room).filter(Room.id == room_id).first()
-    if not room or (not room.active and not (current_user and current_user.is_admin)):
+    if not room or (not room.active and not (current_user and user_has_admin_access(current_user))):
         raise HTTPException(status_code=404, detail="Room not found")
     return room
 

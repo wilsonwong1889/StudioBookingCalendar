@@ -48,7 +48,7 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(
-    title="StudioBookingSoftware",
+    title="BIPOC Creative Innovation Studio",
     version="0.1.0",
     description="Room booking platform for studios",
     lifespan=lifespan,
@@ -120,7 +120,7 @@ def public_config():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "StudioBookingSoftware"}
+    return {"status": "ok", "service": "BIPOC Creative Innovation Studio"}
 
 
 @app.get("/ready", include_in_schema=False)

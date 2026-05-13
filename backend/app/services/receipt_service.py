@@ -46,7 +46,7 @@ def _build_receipt_lines(booking: Booking, room: Room | None) -> list[str]:
     note = booking.note or "No booking notes added."
     payment_reference = booking.payment_intent_id or "No payment reference"
     lines = [
-        "StudioBookingSoftware",
+        "BIPOC Creative Innovation Studio",
         "Booking receipt",
         "",
         f"Booking code: {booking.booking_code}",
@@ -76,7 +76,7 @@ def _build_receipt_lines(booking: Booking, room: Room | None) -> list[str]:
         lines.append(f"Staff: {', '.join(staff_names)}")
     lines.append(f"Notes: {note}")
     lines.append("")
-    lines.append("Thank you for booking with StudioBookingSoftware.")
+    lines.append("Thank you for booking with BIPOC Creative Innovation Studio.")
     return _wrap_lines(lines)
 
 

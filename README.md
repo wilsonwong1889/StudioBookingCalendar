@@ -1,4 +1,4 @@
-# StudioBookingSoftware
+# BIPOC Creative Innovation Studio
 
 Studio booking MVP built with FastAPI, PostgreSQL, Redis, Celery, Alembic, and a lightweight multi-page HTML frontend served by the backend.
 
@@ -79,19 +79,27 @@ These env vars control the seeded admin:
 - `SEED_ADMIN_EMAIL`
 - `SEED_ADMIN_PASSWORD`
 - `SEED_ADMIN_FULL_NAME`
+- `SEED_ADMIN_PHONE`
+- `SEED_ADMIN_ROLE`
+- `SEED_ADMIN_ROTATE_PASSWORD`
 
-Default seed values from [backend/.env.example](/Users/wilson/Desktop/StudioBookingSoftware/backend/.env.example):
-- email: `admin@example.com`
-- password: `change-me-admin-password`
-- full name: `Studio Admin`
+Seed values from [backend/.env.example](/Users/wilson/Desktop/StudioBookingSoftware/backend/.env.example):
+- email: `adminstudiobipoc@gmail.com`
+- password: must be set in `SEED_ADMIN_PASSWORD` before seeding
+- full name: `BIPOC Foundation Admin`
+- phone: blank by default
+- role: `AdminManager`
+- password rotation for an existing admin is off unless `SEED_ADMIN_ROTATE_PASSWORD=true`
 
 ## Admin Login
 
 If you use the default seed settings:
-- email: `admin@example.com`
-- password: `change-me-admin-password`
+- email: `adminstudiobipoc@gmail.com`
+- password: the value configured in `SEED_ADMIN_PASSWORD`
 
 If you changed seed env vars, use those values instead.
+
+Startup validates that at least one active `AdminManager` account exists after migrations and optional seeding.
 
 ## Stripe Webhooks
 

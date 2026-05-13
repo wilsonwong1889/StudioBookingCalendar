@@ -53,7 +53,7 @@ class StableFrontendContractTest(unittest.TestCase):
             self.assertNotIn(
                 stale_copyright,
                 content,
-                f"{html_file.name} should use the StudioBook footer copyright, not stale media arts collective copy.",
+                f"{html_file.name} should use the BIPOC Creative Innovation Studio footer copyright, not stale media arts collective copy.",
             )
 
     def test_checkout_page_keeps_stripe_checkout_contract(self) -> None:

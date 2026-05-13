@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Sequence
 
 from sqlalchemy.orm import Session
@@ -7,6 +9,7 @@ from app.models.promo_code import PromoCode
 from app.models.room import Room
 from app.models.staff_profile import StaffProfile
 from app.models.user import User
+from app.roles import USER_ROLE_ADMIN_MANAGER, is_admin_role, normalize_user_role
 from app.schemas.promo_code import normalize_promo_code
 
 
@@ -31,16 +34,23 @@ def ensure_admin_user(
     *,
     email: str,
     password: str,
-    full_name: str = "Studio Admin",
+    full_name: str = "BIPOC Foundation Admin",
+    phone: str | None = None,
+    role: str = USER_ROLE_ADMIN_MANAGER,
+    rotate_password: bool = True,
 ) -> User:
+    normalized_phone = phone.strip() if phone else None
+    normalized_role = normalize_user_role(role, is_admin=True)
     admin = db.query(User).filter(User.email == email).first()
     if admin:
-        if password:
+        if password and rotate_password:
             admin.password_hash = hash_password(password)
-        if not admin.is_admin:
-            admin.is_admin = True
+        admin.is_admin = is_admin_role(normalized_role)
+        admin.role = normalized_role
         if full_name:
             admin.full_name = full_name
+        if normalized_phone:
+            admin.phone = normalized_phone
         db.commit()
         db.refresh(admin)
         return admin
@@ -49,7 +59,9 @@ def ensure_admin_user(
         email=email,
         password_hash=hash_password(password),
         full_name=full_name,
-        is_admin=True,
+        phone=normalized_phone,
+        role=normalized_role,
+        is_admin=is_admin_role(normalized_role),
     )
     db.add(admin)
     db.commit()

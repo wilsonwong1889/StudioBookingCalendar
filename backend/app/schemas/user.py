@@ -1,7 +1,9 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from uuid import UUID
 from typing import Optional
 from datetime import date, datetime
+
+from app.roles import normalize_user_role
 
 
 class BillingAddress(BaseModel):
@@ -32,6 +34,7 @@ class UserOut(BaseModel):
     two_factor_enabled: bool = False
     two_factor_method: Optional[str] = None
     is_admin: bool
+    role: str = "Customer"
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -51,6 +54,7 @@ class AdminUserAccountOut(BaseModel):
     two_factor_enabled: bool = False
     two_factor_method: Optional[str] = None
     is_admin: bool
+    role: str = "Customer"
     booking_count: int = 0
     last_booking_at: Optional[datetime] = None
     created_at: datetime
@@ -81,6 +85,28 @@ class UserDeleteConfirm(BaseModel):
 
 class AdminUserDeleteConfirm(BaseModel):
     admin_password: str = Field(min_length=1, max_length=128)
+
+
+class AdminUserRoleUpdate(BaseModel):
+    role: str
+    admin_password: str = Field(min_length=1, max_length=128)
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, value):
+        normalized_input = str(value or "").strip().replace(" ", "").replace("_", "").lower()
+        allowed_inputs = {
+            "customer",
+            "admin",
+            "adminmanager",
+            "manager",
+            "techadmin",
+            "superadmin",
+        }
+        if normalized_input not in allowed_inputs:
+            raise ValueError("Unsupported user role")
+        normalized = normalize_user_role(value)
+        return normalized
 
 class Token(BaseModel):
     access_token: Optional[str] = None

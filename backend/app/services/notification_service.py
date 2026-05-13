@@ -174,12 +174,12 @@ def account_created_email(*, to_email: str, full_name: Optional[str]) -> dict:
         to_email=to_email,
         subject="Your studio account is ready",
         plain_text_content=(
-            f"Welcome to StudioBookingSoftware, {greeting}.\n"
+            f"Welcome to BIPOC Creative Innovation Studio, {greeting}.\n"
             "Your account has been created successfully.\n"
             "You can now browse rooms, create bookings, and manage your profile.\n"
         ),
         html_content=(
-            f"<p>Welcome to StudioBookingSoftware, <strong>{greeting}</strong>.</p>"
+            f"<p>Welcome to BIPOC Creative Innovation Studio, <strong>{greeting}</strong>.</p>"
             "<p>Your account has been created successfully.</p>"
             "<p>You can now browse rooms, create bookings, and manage your profile.</p>"
         ),
@@ -190,7 +190,7 @@ def login_verification_email(*, to_email: str, full_name: Optional[str], code: s
     greeting = full_name or to_email
     return send_email(
         to_email=to_email,
-        subject="Your StudioBookingSoftware login code",
+        subject="Your BIPOC Creative Innovation Studio login code",
         plain_text_content=(
             f"Hi {greeting},\n"
             f"Your login verification code is {code}.\n"
@@ -208,7 +208,7 @@ def password_reset_email(*, to_email: str, full_name: Optional[str], reset_url: 
     greeting = full_name or to_email
     return send_email(
         to_email=to_email,
-        subject="Reset your StudioBookingSoftware password",
+        subject="Reset your BIPOC Creative Innovation Studio password",
         plain_text_content=(
             f"Hi {greeting},\n"
             "We received a request to reset your password.\n"
@@ -288,7 +288,7 @@ def booking_confirmation_sms(*, to_number: str, booking_code: str, start_time: s
 def account_created_sms(*, to_number: str) -> dict:
     return send_sms(
         to_number=to_number,
-        body="Your StudioBookingSoftware account is ready. You can now book rooms and manage your profile.",
+        body="Your BIPOC Creative Innovation Studio account is ready. You can now book rooms and manage your profile.",
     )
 
 
@@ -296,7 +296,7 @@ def login_verification_sms(*, to_number: str, code: str) -> dict:
     return send_sms(
         to_number=to_number,
         body=(
-            f"Your StudioBookingSoftware login code is {code}. "
+            f"Your BIPOC Creative Innovation Studio login code is {code}. "
             f"It expires in {settings.TWO_FACTOR_CODE_EXPIRE_MINUTES} minutes."
         ),
     )

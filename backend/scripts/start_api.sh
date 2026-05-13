@@ -9,4 +9,6 @@ if [ "${AUTO_SEED_DATA:-true}" = "true" ]; then
   python scripts/seed_week2.py
 fi
 
+python scripts/validate_admin_manager.py
+
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000
