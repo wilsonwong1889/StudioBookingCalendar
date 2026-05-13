@@ -7651,10 +7651,22 @@ body[data-page] .site-header.site-header-public .nav-link.is-active::after {
 }
 
 body[data-page] .studio-footer,
-body[data-page] .studio-footer.studio-footer-compact {
+body[data-page] .studio-footer.studio-footer-compact,
+body[data-page] .site-acknowledgement {
   width: min(calc(100% - 56px), 1680px);
-  margin: 32px auto 0;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+body[data-page] .studio-footer,
+body[data-page] .studio-footer.studio-footer-compact {
+  margin-top: 32px;
   padding: 34px 28px 18px;
+}
+
+body[data-page] .site-acknowledgement {
+  margin-top: 0;
+  padding: 22px 28px 28px;
 }
 
 @media (min-width: 1081px) {
@@ -7729,7 +7741,8 @@ body[data-page] .studio-footer.studio-footer-compact {
   }
 
   body[data-page] .studio-footer,
-  body[data-page] .studio-footer.studio-footer-compact {
+  body[data-page] .studio-footer.studio-footer-compact,
+  body[data-page] .site-acknowledgement {
     width: calc(100% - 28px);
   }
 }
