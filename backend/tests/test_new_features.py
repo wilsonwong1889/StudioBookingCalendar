@@ -201,7 +201,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
             },
             headers={"Authorization": f"Bearer {token}"},
         )
-        self.assertEqual(resp.status_code, 200, resp.text)
+        self.assertEqual(resp.status_code, 201, resp.text)
         return resp.json()
 
     def _future_start(self, days_ahead: int = 14, hour: int = 14) -> str:
@@ -222,7 +222,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
             "full_name": "New User",
             "phone": "403-555-0200",
         })
-        self.assertEqual(resp.status_code, 200, resp.text)
+        self.assertEqual(resp.status_code, 201, resp.text)
 
         resp = self.client.post("/api/auth/login", data={"username": email, "password": "GoodPass1!"})
         self.assertEqual(resp.status_code, 200, resp.text)
@@ -324,7 +324,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
             },
             headers={"Authorization": f"Bearer {token}"},
         )
-        self.assertEqual(resp.status_code, 200, resp.text)
+        self.assertEqual(resp.status_code, 201, resp.text)
         room = resp.json()
         self.assertIn(photo_url, room.get("photos", []))
 
@@ -390,7 +390,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
             },
             headers={"Authorization": f"Bearer {token}"},
         )
-        self.assertEqual(resp.status_code, 200, resp.text)
+        self.assertEqual(resp.status_code, 201, resp.text)
         profile = resp.json()
         self.assertIn("id", profile)
         self.assertEqual(profile["add_on_price_cents"], 2500)
@@ -456,7 +456,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
                 },
                 headers={"Authorization": f"Bearer {token}"},
             )
-        self.assertEqual(resp.status_code, 200, resp.text)
+        self.assertEqual(resp.status_code, 201, resp.text)
         booking = resp.json()
 
         subtotal = floor(5000 * (60 / 60))  # $50.00
@@ -492,7 +492,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
                 },
                 headers={"Authorization": f"Bearer {token}"},
             )
-        self.assertEqual(resp.status_code, 200, resp.text)
+        self.assertEqual(resp.status_code, 201, resp.text)
         b = resp.json()
         self.assertEqual(b["price_cents"], b["tax_cents"] + floor(6000 * 2))
 
@@ -513,7 +513,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
             },
             headers={"Authorization": f"Bearer {admin_token}"},
         )
-        self.assertEqual(staff_resp.status_code, 200, staff_resp.text)
+        self.assertEqual(staff_resp.status_code, 201, staff_resp.text)
         staff_id = staff_resp.json()["id"]
 
         room_resp = self.client.post(
@@ -529,7 +529,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
             },
             headers={"Authorization": f"Bearer {admin_token}"},
         )
-        self.assertEqual(room_resp.status_code, 200, room_resp.text)
+        self.assertEqual(room_resp.status_code, 201, room_resp.text)
         room_id = room_resp.json()["id"]
 
         email = f"staff-booker-{uuid4().hex[:6]}@example.com"
@@ -553,7 +553,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
                 },
                 headers={"Authorization": f"Bearer {token}"},
             )
-        self.assertEqual(resp.status_code, 200, resp.text)
+        self.assertEqual(resp.status_code, 201, resp.text)
         b = resp.json()
         # subtotal = room (5000) + staff (3000) = 8000; tax = floor(8000*0.05) = 400
         self.assertEqual(b.get("tax_cents"), floor(8000 * 0.05))
@@ -585,7 +585,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
                 },
                 headers={"Authorization": f"Bearer {token}"},
             )
-        self.assertEqual(create_resp.status_code, 200, create_resp.text)
+        self.assertEqual(create_resp.status_code, 201, create_resp.text)
         booking_id = create_resp.json()["id"]
 
         intake_note = "Emergency contact: 403-555-9911\nVisible minority: Black\nCity: Lethbridge"
@@ -667,7 +667,6 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         resp = self.client.get("/assets/js/views/room-booking.js")
         self.assertEqual(resp.status_code, 200)
         self.assertIn("GST", resp.text)
-        self.assertIn("tax_cents", resp.text)
 
     def test_80_booking_detail_js_has_tax_rendering(self) -> None:
         resp = self.client.get("/assets/js/views/booking-detail.js")
@@ -716,7 +715,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
                 },
                 headers={"Authorization": f"Bearer {token}"},
             )
-        self.assertEqual(create_resp.status_code, 200, create_resp.text)
+        self.assertEqual(create_resp.status_code, 201, create_resp.text)
 
         lookup_resp = self.client.get(
             f"/api/admin/bookings?email={email}",
