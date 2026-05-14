@@ -204,7 +204,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn("BIPOC Creative Innovation Studio", response.text)
         self.assertIn("2525 36 St N, Lethbridge, AB T1H 5L1", response.text)
         self.assertIn("403-393-8857", response.text)
-        self.assertIn("ujuperpetua05@gmail.com", response.text)
+        self.assertIn("lethsmakeithappen@bipocfoundation.org", response.text)
         self.assertIn("Monday to Saturday 12:00 PM &ndash; 8:00 PM", response.text)
         self.assertIn("home-booking-search", response.text)
         self.assertIn("Book now", response.text)
