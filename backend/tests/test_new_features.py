@@ -641,10 +641,11 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         self.assertIn("home-carousel-dots", resp.text)
         self.assertIn("home-book-now-button", resp.text)
 
-    def test_78_staff_page_has_carousel(self) -> None:
+    def test_78_staff_page_has_catalog(self) -> None:
         resp = self.client.get("/staff")
-        self.assertIn("home-carousel-button-prev", resp.text)
-        self.assertIn("home-carousel-button-next", resp.text)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("staff-catalog-shell", resp.text)
+        self.assertIn("staff-team-grid", resp.text)
 
     def test_79_rooms_js_has_gst_rendering(self) -> None:
         resp = self.client.get("/assets/js/views/room-booking.js")
