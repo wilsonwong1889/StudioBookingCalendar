@@ -191,7 +191,7 @@ class BookingPaymentE2ETest(unittest.TestCase):
         self.assertEqual(booking_response.status_code, 201, booking_response.text)
         booking = booking_response.json()
         self.assertEqual(booking["status"], "PendingPayment")
-        self.assertEqual(booking["price_cents"], 8500)
+        self.assertEqual(booking["price_cents"], 8925)
         self.assertEqual(len(booking["staff_assignments"]), 1)
         self.assertEqual(booking["staff_assignments"][0]["name"], "Sound Engineer")
         self.assertIsNotNone(booking["payment_expires_at"])

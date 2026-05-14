@@ -142,12 +142,11 @@ class NewFeaturesSmokeTest(unittest.TestCase):
 
         from fastapi.testclient import TestClient
         cls.client = TestClient(app)
+        cls._cached_admin_token: str = ""
 
-        resp = cls.client.post("/api/auth/login", json={
-            "email": "admin@newfeatures.test",
-            "password": "AdminPass1!",
-        })
-        cls._cached_admin_token: str = resp.json()["access_token"]
+    def setUp(self) -> None:
+        from app.core import rate_limit
+        rate_limit._requests.clear()
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -180,6 +179,13 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         return resp.json()["access_token"]
 
     def _admin_token(self) -> str:
+        if not type(self)._cached_admin_token:
+            resp = self.client.post("/api/auth/login", json={
+                "email": "admin@newfeatures.test",
+                "password": "AdminPass1!",
+            })
+            self.assertEqual(resp.status_code, 200, resp.text)
+            type(self)._cached_admin_token = resp.json()["access_token"]
         return type(self)._cached_admin_token
 
     def _create_room(self, token: str, name: str = "Test Room", rate_cents: int = 5000) -> dict:
