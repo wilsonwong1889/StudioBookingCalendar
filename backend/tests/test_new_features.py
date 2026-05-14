@@ -525,7 +525,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
 
         email = f"staff-booker-{uuid4().hex[:6]}@example.com"
         token = self._register_and_login(email)
-        start = self._future_start(days_ahead=22, hour=10)
+        start = self._future_start(days_ahead=22, hour=14)
 
         resp = self.client.post(
             "/api/bookings",
