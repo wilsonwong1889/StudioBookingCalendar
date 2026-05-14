@@ -634,17 +634,17 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         self.assertIn("lethsmakeithappen@bipocfoundation.org", resp.text)
         self.assertIn("lethscoordinator@bipocfoundation.org", resp.text)
 
-    def test_77_rooms_page_has_carousel_controls(self) -> None:
+    def test_77_rooms_page_has_catalog(self) -> None:
         resp = self.client.get("/rooms")
-        self.assertIn("home-carousel-button-prev", resp.text)
-        self.assertIn("home-carousel-button-next", resp.text)
-        self.assertIn("home-carousel-dots", resp.text)
-        self.assertIn("home-book-now-button", resp.text)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("rooms-catalog-shell", resp.text)
+        self.assertIn("rooms-grid", resp.text)
 
-    def test_78_staff_page_has_carousel(self) -> None:
+    def test_78_staff_page_has_catalog(self) -> None:
         resp = self.client.get("/staff")
-        self.assertIn("home-carousel-button-prev", resp.text)
-        self.assertIn("home-carousel-button-next", resp.text)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("staff-catalog-shell", resp.text)
+        self.assertIn("staff-team-grid", resp.text)
 
     def test_79_rooms_js_has_gst_rendering(self) -> None:
         resp = self.client.get("/assets/js/views/room-booking.js")
