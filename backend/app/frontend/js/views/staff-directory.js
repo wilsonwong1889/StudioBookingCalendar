@@ -1180,6 +1180,54 @@ function renderStaffCard(profile) {
   `;
 }
 
+function initCarousel() {
+  const AUTOPLAY_INTERVAL_MS = 6000;
+  const carousel = document.querySelector("[data-home-carousel]");
+  if (!carousel || carousel.dataset.initialized === "true") {
+    return;
+  }
+  const slides = Array.from(carousel.querySelectorAll("[data-home-slide]"));
+  const dotsContainer = carousel.querySelector(".home-carousel-dots");
+  if (dotsContainer) {
+    dotsContainer.innerHTML = slides
+      .map(
+        (_, index) =>
+          `<button class="home-carousel-dot${index === 0 ? " is-active" : ""}" type="button" data-home-dot aria-current="${index === 0 ? "true" : "false"}"></button>`,
+      )
+      .join("");
+  }
+  const dots = Array.from(carousel.querySelectorAll("[data-home-dot]"));
+  const previousButton = carousel.querySelector("[data-home-prev]");
+  const nextButton = carousel.querySelector("[data-home-next]");
+  if (!slides.length) return;
+  carousel.dataset.initialized = "true";
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let activeIndex = Math.max(0, slides.findIndex((s) => s.classList.contains("is-active")));
+  let autoPlayTimer = null;
+  const clearAutoPlay = () => { if (autoPlayTimer) { window.clearInterval(autoPlayTimer); autoPlayTimer = null; } };
+  const normalizeIndex = (i, total) => (!total ? 0 : (i + total) % total);
+  const render = (nextIndex, { restartAutoPlay = true } = {}) => {
+    activeIndex = normalizeIndex(nextIndex, slides.length);
+    slides.forEach((slide, i) => { slide.classList.toggle("is-active", i === activeIndex); slide.setAttribute("aria-hidden", String(i !== activeIndex)); });
+    dots.forEach((dot, i) => { dot.classList.toggle("is-active", i === activeIndex); dot.setAttribute("aria-current", i === activeIndex ? "true" : "false"); });
+    if (restartAutoPlay) {
+      clearAutoPlay();
+      if (!prefersReducedMotion.matches) {
+        autoPlayTimer = window.setInterval(() => render(activeIndex + 1, { restartAutoPlay: false }), AUTOPLAY_INTERVAL_MS);
+      }
+    }
+  };
+  previousButton?.addEventListener("click", () => render(activeIndex - 1));
+  nextButton?.addEventListener("click", () => render(activeIndex + 1));
+  dots.forEach((dot, i) => dot.addEventListener("click", () => render(i)));
+  carousel.addEventListener("mouseenter", clearAutoPlay);
+  carousel.addEventListener("mouseleave", () => render(activeIndex));
+  carousel.addEventListener("focusin", clearAutoPlay);
+  carousel.addEventListener("focusout", (e) => { if (!carousel.contains(e.relatedTarget)) render(activeIndex); });
+  document.addEventListener("visibilitychange", () => { document.hidden ? clearAutoPlay() : render(activeIndex); });
+  render(activeIndex);
+}
+
 export function initStaffDirectoryView() {
   if (viewBound) {
     return;
@@ -1187,6 +1235,7 @@ export function initStaffDirectoryView() {
 
   viewBound = true;
 
+  initCarousel();
   elements.staffTeamGrid?.addEventListener("click", handleTeamGridClick);
   getStaffSearchInput()?.addEventListener("input", (event) => {
     staffSearchQuery = event.target.value || "";

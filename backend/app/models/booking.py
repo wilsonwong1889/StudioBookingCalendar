@@ -29,6 +29,7 @@ class Booking(Base):
     original_price_cents = Column(Integer)
     discount_cents = Column(Integer, nullable=False, default=0)
     promo_code = Column(String)
+    tax_cents = Column(Integer, nullable=False, default=0)
     price_cents = Column(Integer, nullable=False)
     currency = Column(String, default=settings.DEFAULT_CURRENCY)
     status = Column(String, nullable=False, default="PendingPayment")

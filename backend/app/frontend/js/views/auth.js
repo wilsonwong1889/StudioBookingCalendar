@@ -306,14 +306,40 @@ function applyLoginError(message) {
   const lowered = normalizedMessage.toLowerCase();
 
   if (lowered.includes("valid email")) {
-    setLoginFieldFeedback("email", "Enter a real email address to continue.");
-  } else if (lowered.includes("couldn't find an account")) {
-    setLoginFieldFeedback("email", "We could not find an account with that email.");
+    setLoginFieldFeedback("email", "Enter a valid email address to continue.");
+    showAuthFeedback("Check your email address and try again.", "error");
+  } else if (lowered.includes("couldn't find an account") || lowered.includes("not found")) {
+    setLoginFieldFeedback("email", "No account found with that email. Check for typos or sign up.");
+    showAuthFeedback("We couldn't find an account with that email address.", "error");
   } else if (lowered.includes("wrong password")) {
-    setLoginFieldFeedback("password", "That password did not match the account.");
+    setLoginFieldFeedback("password", "Incorrect password. Try again or use Forgot password.");
+    showAuthFeedback("The password you entered is incorrect.", "error");
+  } else {
+    showAuthFeedback(normalizedMessage, "error");
   }
+}
 
-  showAuthFeedback(normalizedMessage, "error");
+function clearSignupFieldFeedback() {
+  if (elements.signupEmailFeedback) {
+    elements.signupEmailFeedback.textContent = "";
+    elements.signupEmailFeedback.classList.add("hidden");
+  }
+}
+
+function applySignupError(message) {
+  clearSignupFieldFeedback();
+  const normalizedMessage = String(message || "Sign up failed.");
+  const lowered = normalizedMessage.toLowerCase();
+
+  if (lowered.includes("already registered") || lowered.includes("already in use") || lowered.includes("email")) {
+    if (elements.signupEmailFeedback) {
+      elements.signupEmailFeedback.textContent = "An account with this email already exists. Try signing in instead.";
+      elements.signupEmailFeedback.classList.remove("hidden");
+    }
+    showAuthFeedback("That email is already registered. Sign in or reset your password.", "error");
+  } else {
+    showAuthFeedback(normalizedMessage, "error");
+  }
 }
 
 export function initAuthView(actions) {
@@ -446,7 +472,7 @@ export function initAuthView(actions) {
         await actions.refreshSession("Account created.");
         activateTab("login");
       } catch (error) {
-        showAuthFeedback(error.message, "error");
+        applySignupError(error.message);
         setState({ message: error.message });
       }
     });

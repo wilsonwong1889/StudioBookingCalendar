@@ -66,6 +66,7 @@ class BookingOut(BaseModel):
     original_price_cents: Optional[int] = None
     discount_cents: int = 0
     promo_code: Optional[str] = None
+    tax_cents: int = 0
     price_cents: int
     currency: str
     status: str
@@ -279,6 +280,7 @@ class AdminBookingLookupOut(BaseModel):
     original_price_cents: Optional[int] = None
     discount_cents: int = 0
     promo_code: Optional[str] = None
+    tax_cents: int = 0
     price_cents: int
     currency: str
     status: str

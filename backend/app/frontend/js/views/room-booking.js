@@ -39,6 +39,7 @@ function getReserveGuestPhoneInput() {
   return document.getElementById("reserve-guest-phone");
 }
 
+
 function getReserveStepList() {
   return document.getElementById("reserve-step-list");
 }
@@ -786,7 +787,12 @@ function renderSummary(currentState) {
           ? `<div class="reserve-price-line"><span>Promo ${escapeHtml(activePromo.code)}</span><strong>-${formatCurrency(activePromo.discount_cents)}</strong></div>`
           : ""
       }
-      <div class="reserve-price-total"><span>Total</span><strong>${formatCurrency(activePromo ? activePromo.final_amount_cents : estimatedTotal)}</strong></div>
+      ${(() => {
+        const subtotal = activePromo ? activePromo.final_amount_cents : estimatedTotal;
+        const gst = Math.floor(subtotal * 0.05);
+        return `<div class="reserve-price-line"><span>GST (5%)</span><strong>${formatCurrency(gst)}</strong></div>
+      <div class="reserve-price-total"><span>Total</span><strong>${formatCurrency(subtotal + gst)}</strong></div>`;
+      })()}
       <div class="reserve-helper-copy reserve-helper-copy-strong">Pick an available time to continue.</div>
     `;
     return;
@@ -805,11 +811,17 @@ function renderSummary(currentState) {
     ${
       activePromo
         ? `<div class="reserve-price-line"><span>Promo ${escapeHtml(activePromo.code)}</span><strong>-${formatCurrency(activePromo.discount_cents)}</strong></div>`
+
         : ""
     }
     ${renderSelectedStaffBreakdown(room)
       .replaceAll('class="summary-line"', 'class="reserve-price-line reserve-price-line-staff"')}
-    <div class="reserve-price-total"><span>Total</span><strong>${formatCurrency(activePromo ? activePromo.final_amount_cents : estimatedTotal)}</strong></div>
+    ${(() => {
+      const subtotal = activePromo ? activePromo.final_amount_cents : estimatedTotal;
+      const gst = Math.floor(subtotal * 0.05);
+      return `<div class="reserve-price-line"><span>GST (5%)</span><strong>${formatCurrency(gst)}</strong></div>
+    <div class="reserve-price-total"><span>Total</span><strong>${formatCurrency(subtotal + gst)}</strong></div>`;
+    })()}
     <div class="reserve-helper-copy reserve-helper-copy-strong">${escapeHtml(formatDateTime(selectedStart))}</div>
   `;
 }

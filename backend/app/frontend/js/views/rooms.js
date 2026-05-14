@@ -596,7 +596,124 @@ function clearRoomAvailabilitySearch() {
   });
 }
 
+function initCarousel() {
+  const AUTOPLAY_INTERVAL_MS = 6000;
+  const carousel = document.querySelector("[data-home-carousel]");
+  if (!carousel || carousel.dataset.initialized === "true") {
+    return;
+  }
+
+  const slides = Array.from(carousel.querySelectorAll("[data-home-slide]"));
+  const dotsContainer = carousel.querySelector(".home-carousel-dots");
+  if (dotsContainer) {
+    dotsContainer.innerHTML = slides
+      .map(
+        (_, index) =>
+          `<button class="home-carousel-dot${index === 0 ? " is-active" : ""}" type="button" data-home-dot aria-current="${
+            index === 0 ? "true" : "false"
+          }"></button>`,
+      )
+      .join("");
+  }
+  const dots = Array.from(carousel.querySelectorAll("[data-home-dot]"));
+  const previousButton = carousel.querySelector("[data-home-prev]");
+  const nextButton = carousel.querySelector("[data-home-next]");
+
+  if (!slides.length) {
+    return;
+  }
+
+  carousel.dataset.initialized = "true";
+
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let activeIndex = slides.findIndex((slide) => slide.classList.contains("is-active"));
+  let autoPlayTimer = null;
+
+  if (activeIndex < 0) {
+    activeIndex = 0;
+  }
+
+  const clearAutoPlay = () => {
+    if (autoPlayTimer) {
+      window.clearInterval(autoPlayTimer);
+      autoPlayTimer = null;
+    }
+  };
+
+  const normalizeIndex = (index, total) => {
+    if (!total) {
+      return 0;
+    }
+    return (index + total) % total;
+  };
+
+  const render = (nextIndex, { restartAutoPlay = true } = {}) => {
+    activeIndex = normalizeIndex(nextIndex, slides.length);
+
+    slides.forEach((slide, index) => {
+      const isActive = index === activeIndex;
+      slide.classList.toggle("is-active", isActive);
+      slide.setAttribute("aria-hidden", String(!isActive));
+    });
+
+    dots.forEach((dot, index) => {
+      const isActive = index === activeIndex;
+      dot.classList.toggle("is-active", isActive);
+      dot.setAttribute("aria-current", isActive ? "true" : "false");
+    });
+
+    if (restartAutoPlay) {
+      clearAutoPlay();
+      if (!prefersReducedMotion.matches) {
+        autoPlayTimer = window.setInterval(() => {
+          render(activeIndex + 1, { restartAutoPlay: false });
+        }, AUTOPLAY_INTERVAL_MS);
+      }
+    }
+  };
+
+  const moveBy = (offset) => {
+    render(activeIndex + offset);
+  };
+
+  previousButton?.addEventListener("click", () => moveBy(-1));
+  nextButton?.addEventListener("click", () => moveBy(1));
+
+  dots.forEach((dot, index) => {
+    dot.addEventListener("click", () => render(index));
+  });
+
+  const pauseAutoPlay = () => {
+    clearAutoPlay();
+  };
+
+  const resumeAutoPlay = () => {
+    render(activeIndex);
+  };
+
+  carousel.addEventListener("mouseenter", pauseAutoPlay);
+  carousel.addEventListener("mouseleave", resumeAutoPlay);
+  carousel.addEventListener("focusin", pauseAutoPlay);
+  carousel.addEventListener("focusout", (event) => {
+    if (!carousel.contains(event.relatedTarget)) {
+      resumeAutoPlay();
+    }
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      pauseAutoPlay();
+      return;
+    }
+    resumeAutoPlay();
+  });
+
+  render(activeIndex);
+}
+
 export function initRoomsView(actions) {
+  initCarousel();
+
   if (!roomsViewBound) {
     roomsViewBound = true;
     roomsSearchTextInput()?.addEventListener("input", () => {
@@ -713,27 +830,29 @@ export function initRoomsView(actions) {
         .split("\n")
         .map((value) => value.trim())
         .filter(Boolean);
-      if (roomPhotoFile) {
-        const upload = await api.adminUploadRoomPhoto(roomPhotoFile);
-        primaryPhotoUrl = upload.photo_url;
-        const roomPhotoUrlInput = getRoomPhotoUrlInput();
-        if (roomPhotoUrlInput) {
-          roomPhotoUrlInput.value = primaryPhotoUrl;
-        }
-      }
-      const photos = Array.from(new Set([primaryPhotoUrl, ...additionalPhotos].filter(Boolean)));
-
-      const payload = {
-        name: form.get("name"),
-        description: form.get("description") || null,
-        capacity: form.get("capacity") ? Number(form.get("capacity")) : null,
-        photos,
-        staff_roles: collectCreateRoomStaffPayload(),
-        hourly_rate_cents: Number(form.get("hourly_rate_cents") || 0),
-        max_booking_duration_minutes: Number(form.get("max_booking_duration_minutes") || 300),
-      };
 
       try {
+        if (roomPhotoFile) {
+          setState({ message: "Uploading photo..." });
+          const upload = await api.adminUploadRoomPhoto(roomPhotoFile);
+          primaryPhotoUrl = upload.photo_url;
+          const roomPhotoUrlInput = getRoomPhotoUrlInput();
+          if (roomPhotoUrlInput) {
+            roomPhotoUrlInput.value = primaryPhotoUrl;
+          }
+        }
+        const photos = Array.from(new Set([primaryPhotoUrl, ...additionalPhotos].filter(Boolean)));
+
+        const payload = {
+          name: form.get("name"),
+          description: form.get("description") || null,
+          capacity: form.get("capacity") ? Number(form.get("capacity")) : null,
+          photos,
+          staff_roles: collectCreateRoomStaffPayload(),
+          hourly_rate_cents: Number(form.get("hourly_rate_cents") || 0),
+          max_booking_duration_minutes: Number(form.get("max_booking_duration_minutes") || 300),
+        };
+
         const isEditingRoom = Boolean(editingRoomId);
         setState({ message: isEditingRoom ? "Saving room changes..." : "Creating room..." });
         if (isEditingRoom) {

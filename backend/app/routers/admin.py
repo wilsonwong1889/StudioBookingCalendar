@@ -1,8 +1,10 @@
+import io
 from pathlib import Path
 from typing import List, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from PIL import Image, UnidentifiedImageError
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -82,11 +84,26 @@ router = APIRouter(prefix="/api/admin", tags=["Admin"])
 admin_rate_limit = rate_limit_dependency("admin", settings.ADMIN_RATE_LIMIT_MAX_REQUESTS)
 STAFF_MEDIA_DIR = Path(__file__).resolve().parents[1] / "frontend" / "media" / "staff"
 ROOM_MEDIA_DIR = Path(__file__).resolve().parents[1] / "frontend" / "media" / "rooms"
-MAX_STAFF_PHOTO_BYTES = 5 * 1024 * 1024
+MAX_PHOTO_BYTES = 20 * 1024 * 1024
+ACCEPTED_PHOTO_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif")
 
 
-def _is_jpeg_bytes(file_bytes: bytes) -> bool:
-    return len(file_bytes) >= 4 and file_bytes.startswith(b"\xff\xd8\xff") and file_bytes.endswith(b"\xff\xd9")
+def _to_jpeg_bytes(file_bytes: bytes) -> bytes:
+    try:
+        img = Image.open(io.BytesIO(file_bytes))
+    except UnidentifiedImageError:
+        raise HTTPException(status_code=400, detail="Could not read the uploaded image. Use JPG, PNG, or WebP.")
+    if img.mode not in ("RGB", "RGBA"):
+        img = img.convert("RGB")
+    elif img.mode == "RGBA":
+        bg = Image.new("RGB", img.size, (255, 255, 255))
+        bg.paste(img, mask=img.split()[3])
+        img = bg
+    else:
+        img = img.convert("RGB")
+    out = io.BytesIO()
+    img.save(out, format="JPEG", quality=95, subsampling=0)
+    return out.getvalue()
 
 
 @router.get("/analytics/summary", response_model=AdminAnalyticsSummaryOut)
@@ -299,21 +316,20 @@ async def admin_upload_staff_photo(
     _: None = Depends(admin_rate_limit),
 ):
     filename = (photo.filename or "").lower()
-    if not filename.endswith((".jpg", ".jpeg")):
-        raise HTTPException(status_code=400, detail="Only JPG staff profile photos are supported")
+    if not any(filename.endswith(ext) for ext in ACCEPTED_PHOTO_EXTENSIONS):
+        raise HTTPException(status_code=400, detail="Upload a JPG, PNG, or WebP photo.")
 
     file_bytes = await photo.read()
     if not file_bytes:
-        raise HTTPException(status_code=400, detail="Uploaded photo is empty")
-    if len(file_bytes) > MAX_STAFF_PHOTO_BYTES:
-        raise HTTPException(status_code=400, detail="Staff profile photo must be 5 MB or smaller")
-    if not _is_jpeg_bytes(file_bytes):
-        raise HTTPException(status_code=400, detail="Uploaded file is not a valid JPG image")
+        raise HTTPException(status_code=400, detail="Uploaded photo is empty.")
+    if len(file_bytes) > MAX_PHOTO_BYTES:
+        raise HTTPException(status_code=400, detail="Photo must be 20 MB or smaller.")
 
+    jpeg_bytes = _to_jpeg_bytes(file_bytes)
     STAFF_MEDIA_DIR.mkdir(parents=True, exist_ok=True)
     saved_filename = f"{uuid4().hex}.jpg"
     saved_path = STAFF_MEDIA_DIR / saved_filename
-    saved_path.write_bytes(file_bytes)
+    saved_path.write_bytes(jpeg_bytes)
     return {"photo_url": f"/assets/media/staff/{saved_filename}"}
 
 
@@ -324,21 +340,20 @@ async def admin_upload_room_photo(
     _: None = Depends(admin_rate_limit),
 ):
     filename = (photo.filename or "").lower()
-    if not filename.endswith((".jpg", ".jpeg")):
-        raise HTTPException(status_code=400, detail="Only JPG room photos are supported")
+    if not any(filename.endswith(ext) for ext in ACCEPTED_PHOTO_EXTENSIONS):
+        raise HTTPException(status_code=400, detail="Upload a JPG, PNG, or WebP photo.")
 
     file_bytes = await photo.read()
     if not file_bytes:
-        raise HTTPException(status_code=400, detail="Uploaded photo is empty")
-    if len(file_bytes) > MAX_STAFF_PHOTO_BYTES:
-        raise HTTPException(status_code=400, detail="Room photo must be 5 MB or smaller")
-    if not _is_jpeg_bytes(file_bytes):
-        raise HTTPException(status_code=400, detail="Uploaded file is not a valid JPG image")
+        raise HTTPException(status_code=400, detail="Uploaded photo is empty.")
+    if len(file_bytes) > MAX_PHOTO_BYTES:
+        raise HTTPException(status_code=400, detail="Photo must be 20 MB or smaller.")
 
+    jpeg_bytes = _to_jpeg_bytes(file_bytes)
     ROOM_MEDIA_DIR.mkdir(parents=True, exist_ok=True)
     saved_filename = f"{uuid4().hex}.jpg"
     saved_path = ROOM_MEDIA_DIR / saved_filename
-    saved_path.write_bytes(file_bytes)
+    saved_path.write_bytes(jpeg_bytes)
     return {"photo_url": f"/assets/media/rooms/{saved_filename}"}
 
 

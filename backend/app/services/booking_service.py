@@ -130,6 +130,9 @@ def generate_booking_code(length: int = 8) -> str:
     return "".join(choice(BOOKING_CODE_ALPHABET) for _ in range(length))
 
 
+GST_RATE = 0.05
+
+
 def calculate_price_cents(hourly_rate_cents: int, duration_minutes: int) -> int:
     return floor(hourly_rate_cents * (duration_minutes / 60))
 
@@ -142,6 +145,10 @@ def calculate_booking_total_cents(
     return calculate_price_cents(hourly_rate_cents, duration_minutes) + staff_add_on_total_cents(
         staff_assignments
     )
+
+
+def calculate_tax_cents(subtotal_cents: int) -> int:
+    return floor(subtotal_cents * GST_RATE)
 
 
 def get_room_max_booking_duration_minutes(room: Room) -> int:
@@ -342,6 +349,7 @@ def build_booking_feed_item(db: Session, booking: Booking) -> dict:
         "start_time": booking.start_time,
         "end_time": booking.end_time,
         "duration_minutes": booking.duration_minutes,
+        "tax_cents": booking.tax_cents,
         "price_cents": booking.price_cents,
         "currency": booking.currency,
         "payment_intent_id": booking.payment_intent_id,
@@ -515,6 +523,9 @@ def _create_booking_record(
         staff_assignments,
     )
     promo_result = apply_promo_code_to_amount(db, promo_code, original_price_cents)
+    subtotal_after_discount = promo_result["final_amount_cents"]
+    tax_cents = calculate_tax_cents(subtotal_after_discount)
+    total_cents = subtotal_after_discount + tax_cents
 
     if reservation_token and not validate_hold(slot_keys, reservation_token):
         raise ValueError("Reservation hold is invalid or expired")
@@ -528,7 +539,8 @@ def _create_booking_record(
         original_price_cents=original_price_cents,
         discount_cents=promo_result["discount_cents"],
         promo_code=promo_result["promo_code"].code if promo_result["promo_code"] else None,
-        price_cents=promo_result["final_amount_cents"],
+        tax_cents=tax_cents,
+        price_cents=total_cents,
         currency=settings.DEFAULT_CURRENCY,
         status=status,
         booking_code=generate_booking_code(),
@@ -1436,6 +1448,7 @@ def serialize_admin_booking(
         "original_price_cents": booking.original_price_cents,
         "discount_cents": booking.discount_cents,
         "promo_code": booking.promo_code,
+        "tax_cents": booking.tax_cents,
         "price_cents": booking.price_cents,
         "currency": booking.currency,
         "status": booking.status,
