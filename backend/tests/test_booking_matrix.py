@@ -1684,31 +1684,34 @@ _add_reservation_hold_tests()
 _add_booking_service_helper_tests()
 
 
-def test_162_create_guest_booking_returns_token_and_snapshots_guest_details(self) -> None:
-    with self.SessionLocal() as db:
-        room = self._create_room(db, hourly_rate_cents=5000)
-        payload = self.GuestBookingCreate(
-            room_id=room.id,
-            start_time=self._aware_time(day=3, hour=11),
-            duration_minutes=60,
-            guest_name="Guest Booker",
-            guest_phone="4035550102",
-            staff_assignments=[],
-        )
+def _add_guest_booking_tests() -> None:
+    def test_162_create_guest_booking_returns_token_and_snapshots_guest_details(self) -> None:
+        with self.SessionLocal() as db:
+            room = self._create_room(db, hourly_rate_cents=5000)
+            payload = self.GuestBookingCreate(
+                room_id=room.id,
+                start_time=self._aware_time(day=3, hour=11),
+                duration_minutes=60,
+                guest_name="Guest Booker",
+                guest_phone="4035550102",
+                staff_assignments=[],
+            )
 
-        result = self.create_guest_booking(db, payload)
-        booking = db.query(self.Booking).filter(self.Booking.id == result.booking.id).first()
+            result = self.create_guest_booking(db, payload)
+            booking = db.query(self.Booking).filter(self.Booking.id == result.booking.id).first()
 
-        self.assertTrue(result.access_token)
-        self.assertEqual(result.booking.status, "PendingPayment")
-        self.assertIsNotNone(booking)
-        self.assertEqual(booking.user_full_name_snapshot, "Guest Booker")
-        self.assertEqual(booking.user_phone_snapshot, "4035550102")
-        self.assertTrue(booking.user_email_snapshot.startswith("guest+"))
+            self.assertTrue(result.access_token)
+            self.assertEqual(result.booking.status, "PendingPayment")
+            self.assertIsNotNone(booking)
+            self.assertEqual(booking.user_full_name_snapshot, "Guest Booker")
+            self.assertEqual(booking.user_phone_snapshot, "4035550102")
+            self.assertTrue(booking.user_email_snapshot.startswith("guest+"))
+
+    setattr(
+        BookingServiceMatrixTest,
+        "test_162_create_guest_booking_returns_token_and_snapshots_guest_details",
+        test_162_create_guest_booking_returns_token_and_snapshots_guest_details,
+    )
 
 
-setattr(
-    BookingServiceMatrixTest,
-    "test_162_create_guest_booking_returns_token_and_snapshots_guest_details",
-    test_162_create_guest_booking_returns_token_and_snapshots_guest_details,
-)
+_add_guest_booking_tests()
