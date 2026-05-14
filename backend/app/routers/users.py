@@ -1,10 +1,11 @@
-import io
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
-from PIL import Image, UnidentifiedImageError
 from sqlalchemy.orm import Session
+from app.core.image_utils import ACCEPTED_PHOTO_EXTENSIONS as ACCEPTED_AVATAR_EXTENSIONS
+from app.core.image_utils import MAX_PHOTO_BYTES as MAX_AVATAR_BYTES
+from app.core.image_utils import to_jpeg_bytes as _to_jpeg_bytes
 from app.database import get_db
 from app.models.user import User
 from app.roles import user_has_admin_access
@@ -16,24 +17,6 @@ from app.services.booking_service import create_audit_log
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 AVATAR_MEDIA_DIR = Path(__file__).resolve().parents[1] / "frontend" / "media" / "avatars"
-MAX_AVATAR_BYTES = 20 * 1024 * 1024
-ACCEPTED_AVATAR_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif")
-
-
-def _to_jpeg_bytes(file_bytes: bytes) -> bytes:
-    try:
-        img = Image.open(io.BytesIO(file_bytes))
-    except UnidentifiedImageError:
-        raise HTTPException(status_code=400, detail="Could not read the uploaded image. Use JPG, PNG, or WebP.")
-    if img.mode == "RGBA":
-        bg = Image.new("RGB", img.size, (255, 255, 255))
-        bg.paste(img, mask=img.split()[3])
-        img = bg
-    else:
-        img = img.convert("RGB")
-    out = io.BytesIO()
-    img.save(out, format="JPEG", quality=95, subsampling=0)
-    return out.getvalue()
 
 
 def _validate_two_factor_settings(current_user: User, payload: UserUpdate) -> None:

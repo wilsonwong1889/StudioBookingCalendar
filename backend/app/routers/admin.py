@@ -1,10 +1,8 @@
-import io
 from pathlib import Path
 from typing import List, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from PIL import Image, UnidentifiedImageError
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -32,6 +30,7 @@ from app.schemas.promo_code import PromoCodeCreate, PromoCodeOut, PromoCodeUpdat
 from app.schemas.staff import StaffPhotoUploadOut, StaffProfileCreate, StaffProfileOut, StaffProfileUpdate
 from app.schemas.staff_booking import StaffBookingOut
 from app.schemas.user import AdminUserAccountOut, AdminUserDeleteConfirm, AdminUserRoleUpdate
+from app.core.image_utils import ACCEPTED_PHOTO_EXTENSIONS, MAX_PHOTO_BYTES, to_jpeg_bytes
 from app.core.security import verify_password
 from app.services.account_service import (
     apply_user_role,
@@ -84,26 +83,6 @@ router = APIRouter(prefix="/api/admin", tags=["Admin"])
 admin_rate_limit = rate_limit_dependency("admin", settings.ADMIN_RATE_LIMIT_MAX_REQUESTS)
 STAFF_MEDIA_DIR = Path(__file__).resolve().parents[1] / "frontend" / "media" / "staff"
 ROOM_MEDIA_DIR = Path(__file__).resolve().parents[1] / "frontend" / "media" / "rooms"
-MAX_PHOTO_BYTES = 20 * 1024 * 1024
-ACCEPTED_PHOTO_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif")
-
-
-def _to_jpeg_bytes(file_bytes: bytes) -> bytes:
-    try:
-        img = Image.open(io.BytesIO(file_bytes))
-    except UnidentifiedImageError:
-        raise HTTPException(status_code=400, detail="Could not read the uploaded image. Use JPG, PNG, or WebP.")
-    if img.mode not in ("RGB", "RGBA"):
-        img = img.convert("RGB")
-    elif img.mode == "RGBA":
-        bg = Image.new("RGB", img.size, (255, 255, 255))
-        bg.paste(img, mask=img.split()[3])
-        img = bg
-    else:
-        img = img.convert("RGB")
-    out = io.BytesIO()
-    img.save(out, format="JPEG", quality=95, subsampling=0)
-    return out.getvalue()
 
 
 @router.get("/analytics/summary", response_model=AdminAnalyticsSummaryOut)
@@ -325,7 +304,7 @@ async def admin_upload_staff_photo(
     if len(file_bytes) > MAX_PHOTO_BYTES:
         raise HTTPException(status_code=400, detail="Photo must be 20 MB or smaller.")
 
-    jpeg_bytes = _to_jpeg_bytes(file_bytes)
+    jpeg_bytes = to_jpeg_bytes(file_bytes)
     STAFF_MEDIA_DIR.mkdir(parents=True, exist_ok=True)
     saved_filename = f"{uuid4().hex}.jpg"
     saved_path = STAFF_MEDIA_DIR / saved_filename
@@ -349,7 +328,7 @@ async def admin_upload_room_photo(
     if len(file_bytes) > MAX_PHOTO_BYTES:
         raise HTTPException(status_code=400, detail="Photo must be 20 MB or smaller.")
 
-    jpeg_bytes = _to_jpeg_bytes(file_bytes)
+    jpeg_bytes = to_jpeg_bytes(file_bytes)
     ROOM_MEDIA_DIR.mkdir(parents=True, exist_ok=True)
     saved_filename = f"{uuid4().hex}.jpg"
     saved_path = ROOM_MEDIA_DIR / saved_filename
