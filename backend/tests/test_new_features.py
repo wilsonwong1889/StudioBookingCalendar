@@ -133,7 +133,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         with SessionLocal() as db:
             cls.ensure_admin_user(
                 db,
-                email="admin@newfeatures.test",
+                email="admin@newfeatures.example.com",
                 password="AdminPass1!",
                 full_name="Feature Admin",
                 phone="403-000-0001",
@@ -174,14 +174,14 @@ class NewFeaturesSmokeTest(unittest.TestCase):
             "full_name": "Test User",
             "phone": "403-555-0100",
         })
-        resp = self.client.post("/api/auth/login", json={"email": email, "password": password})
+        resp = self.client.post("/api/auth/login", data={"username": email, "password": password})
         self.assertEqual(resp.status_code, 200, resp.text)
         return resp.json()["access_token"]
 
     def _admin_token(self) -> str:
         if not type(self)._cached_admin_token:
-            resp = self.client.post("/api/auth/login", json={
-                "email": "admin@newfeatures.test",
+            resp = self.client.post("/api/auth/login", data={
+                "username": "admin@newfeatures.example.com",
                 "password": "AdminPass1!",
             })
             self.assertEqual(resp.status_code, 200, resp.text)
@@ -215,7 +215,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
     # ── Account creation ─────────────────────────────────────────────────────
 
     def test_01_signup_creates_account_and_login_works(self) -> None:
-        email = f"signup-{uuid4().hex[:6]}@test.test"
+        email = f"signup-{uuid4().hex[:6]}@example.com"
         resp = self.client.post("/api/auth/signup", json={
             "email": email,
             "password": "GoodPass1!",
@@ -224,27 +224,27 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         })
         self.assertEqual(resp.status_code, 200, resp.text)
 
-        resp = self.client.post("/api/auth/login", json={"email": email, "password": "GoodPass1!"})
+        resp = self.client.post("/api/auth/login", data={"username": email, "password": "GoodPass1!"})
         self.assertEqual(resp.status_code, 200, resp.text)
         self.assertIn("access_token", resp.json())
 
     def test_02_login_wrong_password_returns_401(self) -> None:
-        email = f"badpass-{uuid4().hex[:6]}@test.test"
+        email = f"badpass-{uuid4().hex[:6]}@example.com"
         self.client.post("/api/auth/signup", json={
             "email": email, "password": "RightPass1!", "full_name": "Bad Pass User",
         })
-        resp = self.client.post("/api/auth/login", json={"email": email, "password": "WrongPass99!"})
+        resp = self.client.post("/api/auth/login", data={"username": email, "password": "WrongPass99!"})
         self.assertEqual(resp.status_code, 401, resp.text)
         self.assertIn("wrong password", resp.json().get("detail", "").lower())
 
-    def test_03_login_unknown_email_returns_401(self) -> None:
-        resp = self.client.post("/api/auth/login", json={
-            "email": "nobody-at-all@nowhere.test", "password": "AnyPass1!",
+    def test_03_login_unknown_email_returns_404(self) -> None:
+        resp = self.client.post("/api/auth/login", data={
+            "username": "nobody-at-all@example.com", "password": "AnyPass1!",
         })
-        self.assertEqual(resp.status_code, 401, resp.text)
+        self.assertEqual(resp.status_code, 404, resp.text)
 
     def test_04_duplicate_signup_returns_error(self) -> None:
-        email = f"dup-{uuid4().hex[:6]}@test.test"
+        email = f"dup-{uuid4().hex[:6]}@example.com"
         self.client.post("/api/auth/signup", json={
             "email": email, "password": "First1Pass!", "full_name": "First",
         })
@@ -256,7 +256,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
     # ── User profile — About You fields ──────────────────────────────────────
 
     def test_10_profile_about_you_fields_save_and_load(self) -> None:
-        email = f"aboutyou-{uuid4().hex[:6]}@test.test"
+        email = f"aboutyou-{uuid4().hex[:6]}@example.com"
         token = self._register_and_login(email)
         headers = {"Authorization": f"Bearer {token}"}
 
@@ -275,7 +275,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         self.assertEqual(data["city"], "Lethbridge")
 
     def test_11_profile_about_you_fields_are_optional(self) -> None:
-        email = f"aboutyou-opt-{uuid4().hex[:6]}@test.test"
+        email = f"aboutyou-opt-{uuid4().hex[:6]}@example.com"
         token = self._register_and_login(email)
         headers = {"Authorization": f"Bearer {token}"}
 
@@ -287,7 +287,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         self.assertIsNone(data.get("city"))
 
     def test_12_profile_about_you_visible_minority_prefer_not_to_say(self) -> None:
-        email = f"minority-{uuid4().hex[:6]}@test.test"
+        email = f"minority-{uuid4().hex[:6]}@example.com"
         token = self._register_and_login(email)
         headers = {"Authorization": f"Bearer {token}"}
 
@@ -364,7 +364,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         self.assertIn(resp.status_code, (400, 422), resp.text)
 
     def test_25_room_photo_upload_requires_admin(self) -> None:
-        email = f"regular-{uuid4().hex[:6]}@test.test"
+        email = f"regular-{uuid4().hex[:6]}@example.com"
         token = self._register_and_login(email)
         png = _minimal_png_bytes()
         resp = self.client.post(
@@ -436,7 +436,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         room = self._create_room(admin_token, name=f"GST Room {uuid4().hex[:4]}", rate_cents=5000)
         room_id = room["id"]
 
-        email = f"gst-booker-{uuid4().hex[:6]}@test.test"
+        email = f"gst-booker-{uuid4().hex[:6]}@example.com"
         token = self._register_and_login(email)
 
         start = self._future_start(days_ahead=20, hour=14)
@@ -472,7 +472,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         admin_token = self._admin_token()
         room = self._create_room(admin_token, name=f"Tax Check Room {uuid4().hex[:4]}", rate_cents=6000)
 
-        email = f"tax-check-{uuid4().hex[:6]}@test.test"
+        email = f"tax-check-{uuid4().hex[:6]}@example.com"
         token = self._register_and_login(email)
 
         start = self._future_start(days_ahead=21, hour=15)
@@ -532,7 +532,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         self.assertEqual(room_resp.status_code, 200, room_resp.text)
         room_id = room_resp.json()["id"]
 
-        email = f"staff-booker-{uuid4().hex[:6]}@test.test"
+        email = f"staff-booker-{uuid4().hex[:6]}@example.com"
         token = self._register_and_login(email)
         start = self._future_start(days_ahead=22, hour=10)
 
@@ -565,7 +565,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         admin_token = self._admin_token()
         room = self._create_room(admin_token, name=f"Intake Room {uuid4().hex[:4]}")
 
-        email = f"intake-{uuid4().hex[:6]}@test.test"
+        email = f"intake-{uuid4().hex[:6]}@example.com"
         token = self._register_and_login(email)
         start = self._future_start(days_ahead=23, hour=13)
 
@@ -696,7 +696,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         admin_token = self._admin_token()
         room = self._create_room(admin_token, name=f"Admin Tax Room {uuid4().hex[:4]}")
 
-        email = f"admin-tax-{uuid4().hex[:6]}@test.test"
+        email = f"admin-tax-{uuid4().hex[:6]}@example.com"
         token = self._register_and_login(email)
         start = self._future_start(days_ahead=25, hour=16)
 
