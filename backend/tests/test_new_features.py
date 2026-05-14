@@ -18,7 +18,6 @@ import unittest
 import zlib
 from datetime import datetime, timedelta, timezone
 from math import floor
-from unittest.mock import MagicMock, patch
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
@@ -440,22 +439,18 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         token = self._register_and_login(email)
 
         start = self._future_start(days_ahead=20, hour=14)
-        with patch("app.services.booking_service.stripe") as mock_stripe:
-            mock_stripe.PaymentIntent.create.return_value = MagicMock(
-                id="pi_test_gst", client_secret="secret_gst"
-            )
-            resp = self.client.post(
-                "/api/bookings",
-                json={
-                    "room_id": room_id,
-                    "start_time": start,
-                    "duration_minutes": 60,
-                    "name": "GST Test User",
-                    "email": email,
-                    "phone": "403-555-0300",
-                },
-                headers={"Authorization": f"Bearer {token}"},
-            )
+        resp = self.client.post(
+            "/api/bookings",
+            json={
+                "room_id": room_id,
+                "start_time": start,
+                "duration_minutes": 60,
+                "name": "GST Test User",
+                "email": email,
+                "phone": "403-555-0300",
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
         self.assertEqual(resp.status_code, 201, resp.text)
         booking = resp.json()
 
@@ -476,22 +471,18 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         token = self._register_and_login(email)
 
         start = self._future_start(days_ahead=21, hour=15)
-        with patch("app.services.booking_service.stripe") as mock_stripe:
-            mock_stripe.PaymentIntent.create.return_value = MagicMock(
-                id="pi_test_tax", client_secret="secret_tax"
-            )
-            resp = self.client.post(
-                "/api/bookings",
-                json={
-                    "room_id": room["id"],
-                    "start_time": start,
-                    "duration_minutes": 120,
-                    "name": "Tax Check User",
-                    "email": email,
-                    "phone": "403-555-0301",
-                },
-                headers={"Authorization": f"Bearer {token}"},
-            )
+        resp = self.client.post(
+            "/api/bookings",
+            json={
+                "room_id": room["id"],
+                "start_time": start,
+                "duration_minutes": 120,
+                "name": "Tax Check User",
+                "email": email,
+                "phone": "403-555-0301",
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
         self.assertEqual(resp.status_code, 201, resp.text)
         b = resp.json()
         self.assertEqual(b["price_cents"], b["tax_cents"] + floor(6000 * 2))
@@ -536,23 +527,19 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         token = self._register_and_login(email)
         start = self._future_start(days_ahead=22, hour=10)
 
-        with patch("app.services.booking_service.stripe") as mock_stripe:
-            mock_stripe.PaymentIntent.create.return_value = MagicMock(
-                id="pi_staff", client_secret="secret_staff"
-            )
-            resp = self.client.post(
-                "/api/bookings",
-                json={
-                    "room_id": room_id,
-                    "start_time": start,
-                    "duration_minutes": 60,
-                    "name": "Staff Booker",
-                    "email": email,
-                    "phone": "403-555-0400",
-                    "staff_selection": [{"id": staff_id}],
-                },
-                headers={"Authorization": f"Bearer {token}"},
-            )
+        resp = self.client.post(
+            "/api/bookings",
+            json={
+                "room_id": room_id,
+                "start_time": start,
+                "duration_minutes": 60,
+                "name": "Staff Booker",
+                "email": email,
+                "phone": "403-555-0400",
+                "staff_selection": [{"id": staff_id}],
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
         self.assertEqual(resp.status_code, 201, resp.text)
         b = resp.json()
         # subtotal = room (5000) + staff (3000) = 8000; tax = floor(8000*0.05) = 400
@@ -569,22 +556,18 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         token = self._register_and_login(email)
         start = self._future_start(days_ahead=23, hour=13)
 
-        with patch("app.services.booking_service.stripe") as mock_stripe:
-            mock_stripe.PaymentIntent.create.return_value = MagicMock(
-                id="pi_intake", client_secret="secret_intake"
-            )
-            create_resp = self.client.post(
-                "/api/bookings",
-                json={
-                    "room_id": room["id"],
-                    "start_time": start,
-                    "duration_minutes": 60,
-                    "name": "Intake User",
-                    "email": email,
-                    "phone": "403-555-0500",
-                },
-                headers={"Authorization": f"Bearer {token}"},
-            )
+        create_resp = self.client.post(
+            "/api/bookings",
+            json={
+                "room_id": room["id"],
+                "start_time": start,
+                "duration_minutes": 60,
+                "name": "Intake User",
+                "email": email,
+                "phone": "403-555-0500",
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
         self.assertEqual(create_resp.status_code, 201, create_resp.text)
         booking_id = create_resp.json()["id"]
 
@@ -699,22 +682,18 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         token = self._register_and_login(email)
         start = self._future_start(days_ahead=25, hour=16)
 
-        with patch("app.services.booking_service.stripe") as mock_stripe:
-            mock_stripe.PaymentIntent.create.return_value = MagicMock(
-                id="pi_admin_tax", client_secret="secret_admin_tax"
-            )
-            create_resp = self.client.post(
-                "/api/bookings",
-                json={
-                    "room_id": room["id"],
-                    "start_time": start,
-                    "duration_minutes": 60,
-                    "name": "Admin Tax User",
-                    "email": email,
-                    "phone": "403-555-0600",
-                },
-                headers={"Authorization": f"Bearer {token}"},
-            )
+        create_resp = self.client.post(
+            "/api/bookings",
+            json={
+                "room_id": room["id"],
+                "start_time": start,
+                "duration_minutes": 60,
+                "name": "Admin Tax User",
+                "email": email,
+                "phone": "403-555-0600",
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
         self.assertEqual(create_resp.status_code, 201, create_resp.text)
 
         lookup_resp = self.client.get(
