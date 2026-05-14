@@ -29,6 +29,9 @@ class UserOut(BaseModel):
     phone: Optional[str]
     birthday: Optional[date] = None
     billing_address: Optional[BillingAddress] = None
+    emergency_contact: Optional[str] = None
+    visible_minority: Optional[str] = None
+    city: Optional[str] = None
     opt_in_email: bool
     opt_in_sms: bool
     two_factor_enabled: bool = False
@@ -49,6 +52,9 @@ class AdminUserAccountOut(BaseModel):
     phone: Optional[str]
     birthday: Optional[date] = None
     billing_address: Optional[BillingAddress] = None
+    emergency_contact: Optional[str] = None
+    visible_minority: Optional[str] = None
+    city: Optional[str] = None
     opt_in_email: bool
     opt_in_sms: bool
     two_factor_enabled: bool = False
@@ -70,6 +76,9 @@ class UserUpdate(BaseModel):
     opt_in_email: Optional[bool] = None
     opt_in_sms: Optional[bool] = None
     billing_address: Optional[BillingAddress] = None
+    emergency_contact: Optional[str] = None
+    visible_minority: Optional[str] = None
+    city: Optional[str] = None
     two_factor_enabled: Optional[bool] = None
     two_factor_method: Optional[str] = None
 

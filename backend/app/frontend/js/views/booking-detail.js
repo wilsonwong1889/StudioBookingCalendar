@@ -471,6 +471,26 @@ function updateContactDraftFromForm() {
   return values;
 }
 
+async function saveBookingIntakeToNote() {
+  const booking = state.selectedBooking;
+  if (!booking) return;
+  const emergency = document.getElementById("booking-emergency-contact")?.value?.trim();
+  const minority = document.getElementById("booking-visible-minority")?.value;
+  const city = document.getElementById("booking-city")?.value?.trim();
+  const intakeLines = [];
+  if (emergency) intakeLines.push(`Emergency contact: ${emergency}`);
+  if (minority) intakeLines.push(`Visible minority: ${minority}`);
+  if (city) intakeLines.push(`City: ${city}`);
+  if (!intakeLines.length) return;
+  const existingNote = (booking.note || "").replace(/^(Emergency contact:|Visible minority:|City:)[^\n]*\n?/gm, "").trim();
+  const combined = [...intakeLines, ...(existingNote ? [existingNote] : [])].join("\n").slice(0, 500);
+  const kind = getBookingKind(booking);
+  const updated = kind === "staff"
+    ? await api.updateStaffBookingContact(booking.id, { note: combined })
+    : await api.updateBookingContact(booking.id, { note: combined });
+  setState({ selectedBooking: { ...booking, ...updated } });
+}
+
 async function saveBookingContactDetails({ silent = false } = {}) {
   const booking = state.selectedBooking;
   if (!booking || contactSaveInFlight) {
@@ -912,13 +932,18 @@ function renderStaffAssignments(booking) {
 function renderCheckoutPricingRows(booking, kind, staffTotal) {
   const originalTotal = Number(booking.original_price_cents ?? booking.price_cents ?? 0);
   const discountCents = Number(booking.discount_cents || 0);
+  const taxCents = Number(booking.tax_cents || 0);
   const finalTotal = Number(booking.price_cents || 0);
+  const gstLine = taxCents > 0
+    ? `<div class="booking-summary-price-line"><span>GST (5%)</span><strong>${formatCurrency(taxCents, booking.currency)}</strong></div>`
+    : "";
 
   if (discountCents > 0) {
     return `
       <div class="booking-summary-price-line"><span>${kind === "staff" ? "Staff session" : "Session subtotal"}</span><strong>${formatCurrency(originalTotal, booking.currency)}</strong></div>
       <div class="booking-summary-price-line"><span>Promo ${escapeHtml(booking.promo_code || "")}</span><strong class="booking-summary-price-free">-${formatCurrency(discountCents, booking.currency)}</strong></div>
       <div class="booking-summary-price-line"><span>Service fee</span><strong class="booking-summary-price-free">Free</strong></div>
+      ${gstLine}
       <div class="booking-summary-total"><span>Total</span><strong>${formatCurrency(finalTotal, booking.currency)}</strong></div>
     `;
   }
@@ -927,11 +952,12 @@ function renderCheckoutPricingRows(booking, kind, staffTotal) {
     return `
       <div class="booking-summary-price-line"><span>Staff session</span><strong>${formatCurrency(finalTotal, booking.currency)}</strong></div>
       <div class="booking-summary-price-line"><span>Service fee</span><strong class="booking-summary-price-free">Free</strong></div>
+      ${gstLine}
       <div class="booking-summary-total"><span>Total</span><strong>${formatCurrency(finalTotal, booking.currency)}</strong></div>
     `;
   }
 
-  const roomSubtotal = Math.max(0, finalTotal - staffTotal);
+  const roomSubtotal = Math.max(0, finalTotal - staffTotal - taxCents);
   return `
     <div class="booking-summary-price-line"><span>${formatCurrency(roomSubtotal, booking.currency)} room session</span><strong>${formatCurrency(roomSubtotal, booking.currency)}</strong></div>
     ${
@@ -940,6 +966,7 @@ function renderCheckoutPricingRows(booking, kind, staffTotal) {
         : ""
     }
     <div class="booking-summary-price-line"><span>Service fee</span><strong class="booking-summary-price-free">Free</strong></div>
+    ${gstLine}
     <div class="booking-summary-total"><span>Total</span><strong>${formatCurrency(finalTotal, booking.currency)}</strong></div>
   `;
 }
@@ -1092,6 +1119,7 @@ export function initBookingDetailView(actions) {
         if (!stripeClient || !stripeElements || !activePaymentSession) {
           throw new Error("Load the payment session first");
         }
+        await saveBookingIntakeToNote();
         await saveBookingContactDetails({ silent: true });
         setState({ message: "Confirming payment..." });
         const successUrl = buildPaymentSuccessUrl(activePaymentSession.booking_id, getBookingKind(state.selectedBooking));

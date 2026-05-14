@@ -3,6 +3,9 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from sqlalchemy.orm import Session
+from app.core.image_utils import ACCEPTED_PHOTO_EXTENSIONS as ACCEPTED_AVATAR_EXTENSIONS
+from app.core.image_utils import MAX_PHOTO_BYTES as MAX_AVATAR_BYTES
+from app.core.image_utils import to_jpeg_bytes as _to_jpeg_bytes
 from app.database import get_db
 from app.models.user import User
 from app.roles import user_has_admin_access
@@ -14,11 +17,6 @@ from app.services.booking_service import create_audit_log
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 AVATAR_MEDIA_DIR = Path(__file__).resolve().parents[1] / "frontend" / "media" / "avatars"
-MAX_AVATAR_BYTES = 5 * 1024 * 1024
-
-
-def _is_jpeg_bytes(file_bytes: bytes) -> bool:
-    return len(file_bytes) >= 4 and file_bytes.startswith(b"\xff\xd8\xff") and file_bytes.endswith(b"\xff\xd9")
 
 
 def _validate_two_factor_settings(current_user: User, payload: UserUpdate) -> None:
@@ -69,21 +67,20 @@ async def upload_profile_avatar(
     current_user: User = Depends(get_current_user),
 ):
     filename = (photo.filename or "").lower()
-    if not filename.endswith((".jpg", ".jpeg")):
-        raise HTTPException(status_code=400, detail="Only JPG avatar images are supported")
+    if not any(filename.endswith(ext) for ext in ACCEPTED_AVATAR_EXTENSIONS):
+        raise HTTPException(status_code=400, detail="Upload a JPG, PNG, or WebP photo.")
 
     file_bytes = await photo.read()
     if not file_bytes:
-        raise HTTPException(status_code=400, detail="Uploaded avatar is empty")
+        raise HTTPException(status_code=400, detail="Uploaded avatar is empty.")
     if len(file_bytes) > MAX_AVATAR_BYTES:
-        raise HTTPException(status_code=400, detail="Avatar image must be 5 MB or smaller")
-    if not _is_jpeg_bytes(file_bytes):
-        raise HTTPException(status_code=400, detail="Uploaded avatar is not a valid JPG image")
+        raise HTTPException(status_code=400, detail="Avatar image must be 20 MB or smaller.")
 
+    jpeg_bytes = _to_jpeg_bytes(file_bytes)
     AVATAR_MEDIA_DIR.mkdir(parents=True, exist_ok=True)
     saved_filename = f"{uuid4().hex}.jpg"
     saved_path = AVATAR_MEDIA_DIR / saved_filename
-    saved_path.write_bytes(file_bytes)
+    saved_path.write_bytes(jpeg_bytes)
     return {"avatar_url": f"/assets/media/avatars/{saved_filename}"}
 
 

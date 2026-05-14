@@ -19,9 +19,9 @@
               <span class="home-contact-label">Phone</span>
               <span>403-393-8857</span>
             </a>
-            <a class="home-contact-item" href="mailto:ujuperpetua05@gmail.com">
+            <a class="home-contact-item" href="mailto:lethsmakeithappen@bipocfoundation.org">
               <span class="home-contact-label">Email</span>
-              <span>ujuperpetua05@gmail.com</span>
+              <span>lethsmakeithappen@bipocfoundation.org</span>
             </a>
             <div class="home-contact-item home-contact-hours">
               <span class="home-contact-label">Hours</span>
@@ -193,6 +193,7 @@
             <label>
               <span>Email</span>
               <input type="email" name="email" autocomplete="email" required />
+              <span id="signup-email-feedback" class="field-help auth-field-feedback hidden"></span>
             </label>
             <label>
               <span>Password</span>
@@ -253,7 +254,7 @@
                   </p>
                   <label>
                     <span>Avatar image</span>
-                    <input id="profile-avatar-file" type="file" accept=".jpg,.jpeg,image/jpeg" />
+                    <input id="profile-avatar-file" type="file" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp" />
                   </label>
                   <input type="hidden" name="avatar_url" />
                 </div>
@@ -310,6 +311,42 @@
                   <input type="text" name="billing_country" autocomplete="country-name" />
                 </label>
               </div>
+            </fieldset>
+
+            <fieldset class="profile-fieldset profile-span-2">
+              <legend>About you</legend>
+              <div class="profile-grid">
+                <label class="profile-span-2">
+                  <span>Emergency contact</span>
+                  <input type="tel" name="emergency_contact" placeholder="e.g. 403-555-0123" autocomplete="tel" />
+                </label>
+                <label class="profile-span-2">
+                  <span>Are you a visible minority?</span>
+                  <select name="visible_minority">
+                    <option value="">Select an option</option>
+                    <option value="Black">Black</option>
+                    <option value="Chinese">Chinese</option>
+                    <option value="Filipino">Filipino</option>
+                    <option value="Indigenous (First Nations, Métis, or Inuit)">Indigenous (First Nations, Métis, or Inuit)</option>
+                    <option value="Japanese">Japanese</option>
+                    <option value="Korean">Korean</option>
+                    <option value="Latin American">Latin American</option>
+                    <option value="South Asian">South Asian</option>
+                    <option value="Southeast Asian">Southeast Asian</option>
+                    <option value="West Asian">West Asian</option>
+                    <option value="Arab">Arab</option>
+                    <option value="Multiple visible minority groups">Multiple visible minority groups</option>
+                    <option value="Other visible minority group">Other visible minority group</option>
+                    <option value="Not a visible minority">Not a visible minority</option>
+                    <option value="Prefer not to say">Prefer not to say</option>
+                  </select>
+                </label>
+                <label>
+                  <span>City</span>
+                  <input type="text" name="city" placeholder="e.g. Lethbridge" autocomplete="address-level2" />
+                </label>
+              </div>
+              <p class="form-note">This information helps us serve the community better. All fields are optional.</p>
             </fieldset>
 
             <fieldset class="profile-fieldset profile-span-2">

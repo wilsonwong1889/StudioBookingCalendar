@@ -24,6 +24,7 @@ export const elements = {
   resetPasswordMatchFeedback: document.getElementById("reset-password-match-feedback"),
   resetPasswordBackButton: document.getElementById("reset-password-back-button"),
   signupForm: document.getElementById("signup-form"),
+  signupEmailFeedback: document.getElementById("signup-email-feedback"),
   signupPasswordMatchFeedback: document.getElementById("signup-password-match-feedback"),
   googleLoginButton: document.getElementById("google-login-button"),
   googleSignupButton: document.getElementById("google-signup-button"),

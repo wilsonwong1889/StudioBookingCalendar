@@ -2222,6 +2222,19 @@ body[data-page="home"] .site-acknowledgement {
 }
 
 .rooms-catalog-shell {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  overflow: visible;
+}
+
+body[data-page="staff"] .rooms-catalog-shell,
+body[data-page="rooms"] .rooms-catalog-shell {
+  width: 100%;
+}
+
+body[data-page="staff"] .rooms-catalog-shell > div:not(.rooms-catalog-header),
+body[data-page="rooms"] .rooms-catalog-shell > div:not(.rooms-catalog-header) {
   width: min(1200px, 100%);
   margin: 0 auto;
   padding: 10px 4px 0;
@@ -4590,9 +4603,10 @@ textarea.booking-contact-value:focus {
 }
 
 .studio-footer {
-  width: min(calc(100% - 40px), 1800px);
-  margin: 26px auto 0;
-  padding: 34px 0 18px;
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  margin-top: 26px;
+  padding: 34px 28px 18px;
   border-top: 1px solid rgba(24, 33, 39, 0.08);
 }
 
@@ -6918,6 +6932,8 @@ body[data-page="booking"] .site-acknowledgement {
 }
 
 .site-acknowledgement {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
   margin-top: 0;
   padding: 22px 28px 28px;
   background: var(--brand-red);
@@ -7365,77 +7381,134 @@ body:not([data-page="home"]):not([data-page="rooms"]):not([data-page="bookings"]
   margin: 44px auto;
 }
 
-body[data-page="rooms"] .rooms-page-grid-modern,
 body[data-page="bookings"] .booking-page-grid {
   display: block;
   width: 100%;
   margin: 0;
 }
 
-body[data-page="rooms"] .rooms-catalog-shell {
+/* Rooms page carousel — identical to home page */
+body[data-page="rooms"] .home-hero-shell {
   width: 100%;
+  max-width: none;
   margin: 0;
-  padding: 0;
+  padding: 0 0 24px;
+  min-height: auto;
+  background: transparent;
+  overflow: visible;
 }
 
-body[data-page="rooms"] .rooms-catalog-header {
-  position: relative;
+body[data-page="rooms"] .home-carousel {
+  gap: 0;
+  margin: 0;
+}
+
+body[data-page="rooms"] .home-carousel-slides-container {
+  height: min(86vh, 780px);
+  min-height: 640px;
+  border-radius: 0;
+}
+
+body[data-page="rooms"] .home-hero-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+body[data-page="rooms"] .home-carousel-controls {
+  position: absolute;
+  inset: 0;
   display: grid;
-  align-content: end;
-  min-height: clamp(420px, 56vh, 620px);
-  margin: 0;
-  padding: clamp(82px, 11vw, 150px) max(28px, calc((100% - 1220px) / 2 + 28px)) 132px;
-  background:
-    linear-gradient(180deg, rgba(0, 38, 62, 0.08) 0%, rgba(0, 38, 62, 0.24) 100%),
-    linear-gradient(90deg, rgba(0, 38, 62, 0.42) 0%, rgba(0, 38, 62, 0.08) 48%, rgba(0, 38, 62, 0.2) 100%),
-    url("/assets/media/studio-hero-premium.png") center 46% / cover;
-  box-shadow: inset 18px 0 0 var(--brand-red);
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  padding: 0 28px 122px;
+  pointer-events: none;
 }
 
-body[data-page="rooms"] .rooms-catalog-header h1 {
-  max-width: 10ch;
+body[data-page="rooms"] .home-carousel-button {
+  pointer-events: auto;
+  width: 64px;
+  min-width: 64px;
+  height: 86px;
+  border-radius: 0;
+  background: transparent;
   color: #ffffff;
-  text-shadow: 0 6px 24px rgba(0, 38, 62, 0.28);
-}
-
-body[data-page="rooms"] .rooms-title-ink,
-body[data-page="rooms"] .rooms-title-accent {
-  color: #ffffff;
-}
-
-body[data-page="rooms"] .rooms-catalog-header p {
-  max-width: 34rem;
-  color: rgba(255, 255, 255, 0.86);
-  text-shadow: 0 4px 18px rgba(0, 38, 62, 0.3);
-}
-
-body[data-page="rooms"] .rooms-catalog-toolbar {
-  position: relative;
-  z-index: 2;
-  width: min(calc(100% - 96px), 1120px);
-  margin: -64px auto 26px;
-  padding: 16px;
-  border: 2px solid var(--brand-blue);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.97);
-  box-shadow: 0 20px 42px rgba(0, 38, 62, 0.24);
-}
-
-body[data-page="rooms"] .rooms-search-input-shell,
-body[data-page="rooms"] .rooms-filter-toggle {
-  min-height: 58px;
-  border-radius: 6px;
+  font-size: 5rem;
+  font-weight: 300;
+  line-height: 1;
+  text-shadow: 0 3px 16px rgba(0, 38, 62, 0.42);
   box-shadow: none;
 }
 
-body[data-page="rooms"] .rooms-category-bar,
-body[data-page="rooms"] .rooms-results-row,
-body[data-page="rooms"] .rooms-filter-panel,
-body[data-page="rooms"] .rooms-search-summary,
-body[data-page="rooms"] .rooms-grid-catalog {
-  width: min(calc(100% - 56px), 1220px);
-  margin-left: auto;
-  margin-right: auto;
+body[data-page="rooms"] .home-carousel-button:hover,
+body[data-page="rooms"] .home-carousel-button:focus-visible {
+  background: transparent;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+body[data-page="rooms"] .home-carousel-progress {
+  align-self: end;
+  justify-self: center;
+  margin-bottom: 24px;
+  pointer-events: auto;
+}
+
+body[data-page="rooms"] .home-carousel-dot {
+  width: 9px;
+  height: 9px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+body[data-page="rooms"] .home-carousel-dot.is-active {
+  background: #ffffff;
+}
+
+body[data-page="rooms"] .home-booking-search {
+  position: absolute;
+  left: 50%;
+  bottom: 34px;
+  display: flex;
+  justify-content: center;
+  width: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+body[data-page="rooms"] .home-book-now-button {
+  min-width: 180px;
+  min-height: 54px;
+  padding: 16px 34px;
+  border-radius: 6px;
+  font-weight: 800;
+  box-shadow: 0 18px 36px rgba(0, 38, 62, 0.22);
+}
+
+body[data-page="rooms"] .home-hero-image {
+  filter: saturate(0.96) brightness(1.04) contrast(1.01);
+}
+
+body[data-page="rooms"] .home-hero-overlay-primary {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.06) 45%, rgba(255, 255, 255, 0.16) 100%);
+}
+
+/* Rooms catalog section below the carousel */
+body[data-page="rooms"] .rooms-catalog-shell {
+  width: min(calc(100% - 40px), 1800px);
+  margin: 0 auto;
+  padding: 34px 0 48px;
+}
+
+body[data-page="rooms"] .rooms-catalog-header {
+  margin-bottom: 24px;
 }
 
 body[data-page="rooms"] .rooms-grid-catalog {
@@ -7484,7 +7557,11 @@ body[data-page="bookings"] .booking-history-shell-primary {
 @media (max-width: 1080px) {
   body[data-page="rooms"] .rooms-catalog-toolbar {
     grid-template-columns: 1fr;
-    width: min(calc(100% - 40px), 760px);
+  }
+
+  body[data-page="rooms"] .home-booking-search {
+    bottom: 28px;
+    width: auto;
   }
 }
 
@@ -7499,15 +7576,14 @@ body[data-page="bookings"] .booking-history-shell-primary {
     width: calc(100% - 28px);
   }
 
-  body[data-page="rooms"] .rooms-catalog-header,
+  body[data-page="rooms"] .rooms-catalog-shell {
+    width: calc(100% - 28px);
+    padding: 24px 0 32px;
+  }
+
   body[data-page="bookings"] .booking-history-intro {
     min-height: 420px;
     padding: 72px 28px 118px;
-  }
-
-  body[data-page="rooms"] .rooms-catalog-toolbar {
-    width: calc(100% - 28px);
-    margin-top: -72px;
   }
 
   body[data-page="bookings"] .booking-history-shell-primary {
@@ -7867,92 +7943,45 @@ body[data-page="home"] .home-soft-badge {
 }
 
 /* Plan 3 page polish: keep catalog pages and remaining panels on the same system. */
-body[data-page="staff"] .staff-page-grid-modern {
-  display: block;
+/* Staff page carousel — identical to home/rooms */
+body[data-page="staff"] .home-hero-shell {
   width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0 0 24px;
+  min-height: auto;
+  background: transparent;
+  overflow: visible;
+}
+
+body[data-page="staff"] .home-carousel {
+  gap: 0;
   margin: 0;
 }
 
-body[data-page="staff"] .staff-catalog-shell {
-  width: 100%;
-  margin: 0;
-  padding: 0;
-}
-
-body[data-page="staff"] .rooms-catalog-header {
-  position: relative;
-  display: grid;
-  align-content: end;
-  min-height: clamp(420px, 56vh, 620px);
-  margin: 0;
-  padding: clamp(82px, 11vw, 150px) max(28px, calc((100% - 1220px) / 2 + 28px)) 132px;
-  overflow: hidden;
-  background: var(--brand-blue);
-  box-shadow: none;
-}
-
-body[data-page="staff"] .staff-page-carousel,
-body[data-page="staff"] .staff-carousel-slides-container {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  margin: 0;
+body[data-page="staff"] .home-carousel-slides-container {
+  height: min(86vh, 780px);
+  min-height: 640px;
   border-radius: 0;
 }
 
-body[data-page="staff"] .staff-page-carousel {
-  z-index: 0;
-}
-
-body[data-page="staff"] .staff-carousel-slides-container {
-  background: var(--brand-blue);
-}
-
-body[data-page="staff"] .home-hero-image {
-  object-position: center 48%;
-  filter: saturate(1.02) brightness(1.03) contrast(1.02);
-  transform: scale(1.015);
-}
-
-body[data-page="staff"] .home-hero-overlay-primary {
-  z-index: 2;
-  background:
-    linear-gradient(180deg, rgba(0, 38, 62, 0.08) 0%, rgba(0, 38, 62, 0.2) 100%),
-    linear-gradient(90deg, rgba(0, 38, 62, 0.58) 0%, rgba(0, 38, 62, 0.1) 54%, rgba(0, 38, 62, 0.22) 100%);
-}
-
-body[data-page="staff"] .staff-carousel-copy {
-  position: relative;
-  z-index: 3;
-  display: grid;
-  gap: 12px;
-  max-width: 720px;
-}
-
-body[data-page="staff"] .staff-carousel-stage {
+body[data-page="staff"] .home-hero-stage {
   position: absolute;
   inset: 0;
   z-index: 4;
   pointer-events: none;
 }
 
-body[data-page="staff"] .staff-carousel-controls {
+body[data-page="staff"] .home-carousel-controls {
   position: absolute;
   inset: 0;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
+  gap: 18px;
   width: 100%;
-  padding: 0 28px 70px;
+  padding: 0 28px 122px;
   pointer-events: none;
-}
-
-body[data-page="staff"] .home-carousel-progress {
-  align-self: end;
-  justify-self: center;
-  pointer-events: auto;
 }
 
 body[data-page="staff"] .home-carousel-button {
@@ -7977,6 +8006,13 @@ body[data-page="staff"] .home-carousel-button:focus-visible {
   transform: translateY(-1px);
 }
 
+body[data-page="staff"] .home-carousel-progress {
+  align-self: end;
+  justify-self: center;
+  margin-bottom: 24px;
+  pointer-events: auto;
+}
+
 body[data-page="staff"] .home-carousel-dot {
   width: 9px;
   height: 9px;
@@ -7987,28 +8023,56 @@ body[data-page="staff"] .home-carousel-dot.is-active {
   background: #ffffff;
 }
 
-body[data-page="staff"] .rooms-catalog-header h1 {
-  max-width: 10ch;
-  color: #ffffff;
-  text-shadow: 0 6px 24px rgba(0, 38, 62, 0.28);
+body[data-page="staff"] .home-booking-search {
+  position: absolute;
+  left: 50%;
+  bottom: 34px;
+  display: flex;
+  justify-content: center;
+  width: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: translateX(-50%);
+  pointer-events: auto;
 }
 
-body[data-page="staff"] .rooms-title-ink,
-body[data-page="staff"] .rooms-title-accent {
-  color: #ffffff;
+body[data-page="staff"] .home-book-now-button {
+  min-width: 180px;
+  min-height: 54px;
+  padding: 16px 34px;
+  border-radius: 6px;
+  font-weight: 800;
+  box-shadow: 0 18px 36px rgba(0, 38, 62, 0.22);
 }
 
-body[data-page="staff"] .rooms-catalog-header p {
-  max-width: 34rem;
-  color: rgba(255, 255, 255, 0.86);
-  text-shadow: 0 4px 18px rgba(0, 38, 62, 0.3);
+body[data-page="staff"] .home-hero-image {
+  object-position: center 48%;
+  filter: saturate(1.02) brightness(1.03) contrast(1.02);
+}
+
+body[data-page="staff"] .home-hero-overlay-primary {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.06) 45%, rgba(255, 255, 255, 0.16) 100%);
+}
+
+/* Staff catalog section below the carousel */
+body[data-page="staff"] .staff-catalog-shell {
+  width: min(calc(100% - 40px), 1800px);
+  margin: 0 auto;
+  padding: 34px 0 48px;
+}
+
+body[data-page="staff"] .staff-catalog-header {
+  margin-bottom: 24px;
 }
 
 body[data-page="staff"] .rooms-catalog-toolbar {
   position: relative;
   z-index: 2;
-  width: min(calc(100% - 96px), 1120px);
-  margin: -64px auto 26px;
+  width: 100%;
+  margin: 0 0 26px;
   padding: 16px;
   border: 2px solid var(--brand-blue);
   border-radius: var(--card-radius);
@@ -8021,6 +8085,13 @@ body[data-page="staff"] .rooms-filter-toggle {
   min-height: 58px;
   border-radius: var(--control-radius);
   box-shadow: none;
+}
+
+body[data-page="staff"] .rooms-catalog-toolbar input:focus,
+body[data-page="staff"] .rooms-catalog-toolbar select:focus,
+body[data-page="staff"] .rooms-catalog-toolbar textarea:focus {
+  outline: none;
+  border-color: var(--brand-blue);
 }
 
 body[data-page="staff"] .rooms-category-bar,
@@ -8060,6 +8131,13 @@ body[data-page="staff"] .staff-booking-shell {
   margin-top: 1rem;
 }
 
+@media (max-width: 1080px) {
+  body[data-page="staff"] .home-booking-search {
+    bottom: 28px;
+    width: auto;
+  }
+}
+
 @media (max-width: 720px) {
   body[data-page="staff"] .rooms-category-bar,
   body[data-page="staff"] .rooms-results-row,
@@ -8069,13 +8147,9 @@ body[data-page="staff"] .staff-booking-shell {
     width: calc(100% - 28px);
   }
 
-  body[data-page="staff"] .rooms-catalog-header {
-    min-height: 420px;
-    padding: 72px 28px 118px;
-  }
-
-  body[data-page="staff"] .staff-carousel-controls {
-    padding: 0 14px 62px;
+  body[data-page="staff"] .staff-catalog-shell {
+    width: calc(100% - 28px);
+    padding: 24px 0 32px;
   }
 
   body[data-page="staff"] .home-carousel-button {
@@ -8083,11 +8157,6 @@ body[data-page="staff"] .staff-booking-shell {
     min-width: 46px;
     height: 72px;
     font-size: 3.8rem;
-  }
-
-  body[data-page="staff"] .rooms-catalog-toolbar {
-    width: calc(100% - 28px);
-    margin-top: -72px;
   }
 }
 
