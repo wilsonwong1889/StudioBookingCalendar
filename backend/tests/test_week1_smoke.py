@@ -1,4 +1,5 @@
 import os
+import struct
 import sys
 import unittest
 import hashlib
@@ -6,6 +7,7 @@ import hmac
 import json
 import re
 import time
+import zlib
 from contextlib import nullcontext
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
@@ -16,6 +18,19 @@ from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import create_engine, text
+
+
+def _minimal_png_bytes(width: int = 4, height: int = 4) -> bytes:
+    """Build a valid minimal RGB PNG in-memory without Pillow."""
+    def pack_chunk(tag: bytes, data: bytes) -> bytes:
+        crc = zlib.crc32(tag + data) & 0xFFFFFFFF
+        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", crc)
+
+    sig = b"\x89PNG\r\n\x1a\n"
+    ihdr_data = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    raw_rows = b"".join(b"\x00" + b"\xff\x80\x40" * width for _ in range(height))
+    idat = pack_chunk(b"IDAT", zlib.compress(raw_rows))
+    return sig + pack_chunk(b"IHDR", ihdr_data) + idat + pack_chunk(b"IEND", b"")
 
 
 class AppSmokeTest(unittest.TestCase):
@@ -522,7 +537,7 @@ class AppSmokeTest(unittest.TestCase):
         response = self.client.post(
             "/api/admin/rooms/photo",
             headers=admin_headers,
-            files={"photo": ("room.jpg", b"\xff\xd8\xffroom-photo\xff\xd9", "image/jpeg")},
+            files={"photo": ("room.png", _minimal_png_bytes(), "image/png")},
         )
         self.assertEqual(response.status_code, 200, response.text)
         room_photo_url = response.json()["photo_url"]
@@ -867,7 +882,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(response.status_code, 201, response.text)
         booking = response.json()
         self.assertEqual(booking["status"], "PendingPayment")
-        self.assertEqual(booking["price_cents"], 5000)
+        self.assertEqual(booking["price_cents"], 5250)
         self.assertTrue(booking["payment_intent_id"].startswith("pi_"))
         self.assertTrue(booking["payment_client_secret"])
         if settings.PAYMENT_BACKEND == "stub":
@@ -959,7 +974,7 @@ class AppSmokeTest(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 201, response.text)
         self.assertEqual(response.json()["duration_minutes"], 120)
-        self.assertEqual(response.json()["price_cents"], 10000)
+        self.assertEqual(response.json()["price_cents"], 10500)
 
         response = self.client.post(
             "/api/bookings",
@@ -1023,7 +1038,7 @@ class AppSmokeTest(unittest.TestCase):
         payload = response.json()
         self.assertTrue(payload["access_token"])
         self.assertEqual(payload["booking"]["status"], "PendingPayment")
-        self.assertEqual(payload["booking"]["price_cents"], 4500)
+        self.assertEqual(payload["booking"]["price_cents"], 4725)
 
         guest_headers = {"Authorization": f"Bearer {payload['access_token']}"}
         response = self.client.get(f"/api/bookings/{payload['booking']['id']}", headers=guest_headers)
@@ -1475,7 +1490,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(response.status_code, 201, response.text)
         booking = response.json()
         self.assertEqual(booking["status"], "PendingPayment")
-        self.assertEqual(booking["price_cents"], 5050)
+        self.assertEqual(booking["price_cents"], 5302)
 
         response = self.client.post(
             f"/api/admin/bookings/{booking['id']}/waive-payment",
@@ -1815,7 +1830,7 @@ class AppSmokeTest(unittest.TestCase):
         )
         self.assertEqual(room_summary["total_bookings"], 3)
         self.assertGreaterEqual(room_summary["paid_bookings"], 2)
-        self.assertEqual(room_summary["revenue_cents"], 15000)
+        self.assertEqual(room_summary["revenue_cents"], 15750)
 
         response = self.client.get("/api/admin/activity?limit=10", headers=admin_headers)
         self.assertEqual(response.status_code, 200, response.text)
@@ -2582,7 +2597,7 @@ class AppSmokeTest(unittest.TestCase):
         analytics = response.json()
         self.assertEqual(analytics["total_bookings"], 2)
         self.assertEqual(analytics["paid_bookings"], 1)
-        self.assertEqual(analytics["net_revenue_cents"], 5000)
+        self.assertEqual(analytics["net_revenue_cents"], 5250)
         self.assertEqual(analytics["refunded_revenue_cents"], 0)
         self.assertGreaterEqual(analytics["active_rooms"], 1)
 

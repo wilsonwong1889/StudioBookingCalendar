@@ -458,7 +458,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
                 staff_assignments=["sound-engineer"],
             )
 
-            self.assertEqual(booking.price_cents, 8500)
+            self.assertEqual(booking.price_cents, 8925)
             self.assertEqual(booking.staff_assignments[0]["name"], "Sound Engineer")
             self.assertEqual(booking.staff_assignments[0]["photo_url"], "/assets/media/staff/sound.jpg")
             self.assertEqual(booking.user_full_name_snapshot, "Sound Client")
@@ -1113,7 +1113,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
 
             self.assertEqual(booking.original_price_cents, 5000)
             self.assertEqual(booking.discount_cents, 500)
-            self.assertEqual(booking.price_cents, 4500)
+            self.assertEqual(booking.price_cents, 4725)
             self.assertEqual(booking.promo_code, "FOUNDATION10")
 
     def test_140_webhook_success_is_idempotent_for_paid_booking(self) -> None:

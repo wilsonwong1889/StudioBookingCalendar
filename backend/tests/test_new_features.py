@@ -41,7 +41,10 @@ def _minimal_png_bytes(width: int = 4, height: int = 4) -> bytes:
 
 
 def _minimal_jpeg_bytes() -> bytes:
-    return b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xd9"
+    from PIL import Image as _PILImage
+    buf = io.BytesIO()
+    _PILImage.new("RGB", (2, 2), color=(64, 128, 64)).save(buf, format="JPEG")
+    return buf.getvalue()
 
 
 class GSTUnitTest(unittest.TestCase):
@@ -140,6 +143,12 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         from fastapi.testclient import TestClient
         cls.client = TestClient(app)
 
+        resp = cls.client.post("/api/auth/login", json={
+            "email": "admin@newfeatures.test",
+            "password": "AdminPass1!",
+        })
+        cls._cached_admin_token: str = resp.json()["access_token"]
+
     @classmethod
     def tearDownClass(cls) -> None:
         cls.engine.dispose()
@@ -171,12 +180,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         return resp.json()["access_token"]
 
     def _admin_token(self) -> str:
-        resp = self.client.post("/api/auth/login", json={
-            "email": "admin@newfeatures.test",
-            "password": "AdminPass1!",
-        })
-        self.assertEqual(resp.status_code, 200, resp.text)
-        return resp.json()["access_token"]
+        return type(self)._cached_admin_token
 
     def _create_room(self, token: str, name: str = "Test Room", rate_cents: int = 5000) -> dict:
         resp = self.client.post(
