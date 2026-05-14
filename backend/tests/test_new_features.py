@@ -536,7 +536,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
                 "name": "Staff Booker",
                 "email": email,
                 "phone": "403-555-0400",
-                "staff_selection": [{"id": staff_id}],
+                "staff_assignments": [staff_id],
             },
             headers={"Authorization": f"Bearer {token}"},
         )
