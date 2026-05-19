@@ -3,16 +3,146 @@ from __future__ import annotations
 import base64
 import json
 import smtplib
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from typing import Optional
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+from zoneinfo import ZoneInfo
 
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+from sendgrid.helpers.mail import (
+    Attachment,
+    Disposition,
+    FileContent,
+    FileName,
+    FileType,
+    Mail,
+)
 
 from app.config import settings
 
+BUSINESS_TIMEZONE = ZoneInfo("America/Edmonton")
+STUDIO_NAME = "BIPOC Foundation Digital Media & Creative Innovation Hub"
+STUDIO_ADDRESS = "2525 36 St N, Lethbridge, AB T1H 5L1"
+STUDIO_PHONE = "403-393-8857"
+STUDIO_EMAIL = "lethsmakeithappen@bipocfoundation.org"
+STUDIO_HOURS = "Wednesday – Saturday, 12:00 PM – 8:00 PM"
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _fmt_local(dt: datetime) -> str:
+    local = dt.astimezone(BUSINESS_TIMEZONE)
+    return local.strftime("%A, %B %-d, %Y at %-I:%M %p MDT")
+
+
+def _fmt_local_date(dt: datetime) -> str:
+    return dt.astimezone(BUSINESS_TIMEZONE).strftime("%A, %B %-d, %Y")
+
+
+def _fmt_money(cents: int) -> str:
+    return f"CAD ${cents / 100:.2f}"
+
+
+def _html_wrap(body_html: str) -> str:
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2f5;">
+    <tr><td align="center" style="padding:40px 16px;">
+      <table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:#00263E;padding:24px 32px;">
+            <p style="margin:0;color:#ffffff;font-size:17px;font-weight:700;letter-spacing:-0.02em;">BIPOC Foundation</p>
+            <p style="margin:4px 0 0;color:rgba(255,255,255,0.65);font-size:12px;">Digital Media &amp; Creative Innovation Hub</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px 32px 24px;">
+            {body_html}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:20px 32px;border-top:1px solid #eef0f3;background:#fafbfc;">
+            <p style="margin:0;color:#888;font-size:12px;line-height:1.6;">{STUDIO_ADDRESS} &nbsp;·&nbsp; {STUDIO_PHONE}</p>
+            <p style="margin:2px 0 0;color:#888;font-size:12px;">{STUDIO_HOURS}</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+
+def _button(label: str, url: str) -> str:
+    return (
+        f'<a href="{url}" style="display:inline-block;margin-top:20px;padding:12px 24px;'
+        f'background:#C8102E;color:#ffffff;text-decoration:none;border-radius:6px;'
+        f'font-weight:600;font-size:14px;">{label}</a>'
+    )
+
+
+def _detail_row(label: str, value: str) -> str:
+    return (
+        f'<tr>'
+        f'<td style="padding:8px 0;color:#555;font-size:14px;width:140px;vertical-align:top;">{label}</td>'
+        f'<td style="padding:8px 0;color:#111;font-size:14px;font-weight:600;vertical-align:top;">{value}</td>'
+        f'</tr>'
+    )
+
+
+def _details_table(rows_html: str) -> str:
+    return (
+        f'<table cellpadding="0" cellspacing="0" style="width:100%;margin-top:20px;'
+        f'border:1px solid #eef0f3;border-radius:8px;overflow:hidden;">'
+        f'<tbody style="padding:0 16px;">'
+        + rows_html +
+        f'</tbody></table>'
+    )
+
+
+# ── ICS generation ────────────────────────────────────────────────────────────
+
+def generate_ics(
+    *,
+    title: str,
+    description: str,
+    location: str,
+    start_dt: datetime,
+    end_dt: datetime,
+    uid: str,
+) -> bytes:
+    def fmt(dt: datetime) -> str:
+        return dt.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+    now = fmt(datetime.now(timezone.utc))
+    # Fold long lines at 75 chars per RFC 5545
+    desc = description.replace("\n", "\\n")
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//BIPOC Foundation Hub//Studio Booking//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:REQUEST",
+        "BEGIN:VEVENT",
+        f"UID:{uid}",
+        f"DTSTAMP:{now}",
+        f"DTSTART:{fmt(start_dt)}",
+        f"DTEND:{fmt(end_dt)}",
+        f"SUMMARY:{title}",
+        f"DESCRIPTION:{desc}",
+        f"LOCATION:{location}",
+        "STATUS:CONFIRMED",
+        "END:VEVENT",
+        "END:VCALENDAR",
+    ]
+    return "\r\n".join(lines).encode("utf-8")
+
+
+# ── Core send functions ───────────────────────────────────────────────────────
 
 def send_email(
     *,
@@ -20,13 +150,10 @@ def send_email(
     subject: str,
     plain_text_content: str,
     html_content: Optional[str] = None,
+    ics_bytes: Optional[bytes] = None,
 ) -> dict:
     if settings.EMAIL_BACKEND == "disabled":
-        return {
-            "backend": "disabled",
-            "status_code": 204,
-            "message": "Email delivery disabled",
-        }
+        return {"backend": "disabled", "status_code": 204, "message": "Email delivery disabled"}
 
     if settings.EMAIL_BACKEND == "sendgrid":
         if not settings.SENDGRID_API_KEY or "placeholder" in settings.SENDGRID_API_KEY.lower():
@@ -40,17 +167,19 @@ def send_email(
         )
         if settings.EMAIL_REPLY_TO:
             message.reply_to = settings.EMAIL_REPLY_TO
+        if ics_bytes:
+            message.add_attachment(Attachment(
+                FileContent(base64.b64encode(ics_bytes).decode()),
+                FileName("studio-booking.ics"),
+                FileType("text/calendar"),
+                Disposition("attachment"),
+            ))
         client = SendGridAPIClient(settings.SENDGRID_API_KEY)
         response = client.send(message)
         return {"backend": "sendgrid", "status_code": response.status_code}
 
     if settings.EMAIL_BACKEND == "smtp":
-        if (
-            not settings.SMTP_HOST
-            or not settings.SMTP_PORT
-            or not settings.SMTP_USERNAME
-            or not settings.SMTP_PASSWORD
-        ):
+        if not settings.SMTP_HOST or not settings.SMTP_USERNAME or not settings.SMTP_PASSWORD:
             raise ValueError("SMTP email settings are not configured")
         message = EmailMessage()
         message["From"] = settings.EMAIL_FROM
@@ -61,12 +190,14 @@ def send_email(
         message.set_content(plain_text_content)
         if html_content:
             message.add_alternative(html_content, subtype="html")
-
-        with smtplib.SMTP(
-            settings.SMTP_HOST,
-            settings.SMTP_PORT,
-            timeout=settings.SMTP_TIMEOUT_SECONDS,
-        ) as client:
+        if ics_bytes:
+            message.add_attachment(
+                ics_bytes,
+                maintype="text",
+                subtype="calendar",
+                filename="studio-booking.ics",
+            )
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT_SECONDS) as client:
             client.ehlo()
             if settings.SMTP_USE_TLS:
                 client.starttls()
@@ -75,25 +206,24 @@ def send_email(
             result = client.send_message(message)
         return {"backend": "smtp", "status_code": 250, "result": result}
 
+    # console / fallback
     return {
         "backend": "console",
         "status_code": 202,
-        "message": json.dumps(
-            {
-                "to": to_email,
-                "subject": subject,
-                "body": plain_text_content,
-                "html": html_content,
-            }
-        ),
+        "message": json.dumps({
+            "to": to_email,
+            "subject": subject,
+            "body": plain_text_content,
+            "has_ics": ics_bytes is not None,
+        }),
     }
 
 
 def normalize_phone_number(phone_number: str) -> str:
-    trimmed = "".join(character for character in phone_number if character.isdigit() or character == "+")
+    trimmed = "".join(c for c in phone_number if c.isdigit() or c == "+")
     if trimmed.startswith("+"):
         return trimmed
-    digits_only = "".join(character for character in trimmed if character.isdigit())
+    digits_only = "".join(c for c in trimmed if c.isdigit())
     if len(digits_only) == 10:
         return f"+1{digits_only}"
     if len(digits_only) == 11 and digits_only.startswith("1"):
@@ -105,250 +235,489 @@ def send_sms(*, to_number: str, body: str) -> dict:
     normalized_number = normalize_phone_number(to_number)
 
     if settings.SMS_BACKEND == "twilio":
-        if (
-            not settings.TWILIO_ACCOUNT_SID
-            or not settings.TWILIO_AUTH_TOKEN
-            or not settings.TWILIO_FROM_NUMBER
-        ):
+        if not settings.TWILIO_ACCOUNT_SID or not settings.TWILIO_AUTH_TOKEN or not settings.TWILIO_FROM_NUMBER:
             raise ValueError("Twilio SMS settings are not configured")
-        payload = urlencode(
-            {
-                "To": normalized_number,
-                "From": settings.TWILIO_FROM_NUMBER,
-                "Body": body,
-            }
-        ).encode("utf-8")
+        payload = urlencode({
+            "To": normalized_number,
+            "From": settings.TWILIO_FROM_NUMBER,
+            "Body": body,
+        }).encode("utf-8")
         request = Request(
-            url=(
-                "https://api.twilio.com/2010-04-01/Accounts/"
-                f"{settings.TWILIO_ACCOUNT_SID}/Messages.json"
-            ),
+            url=f"https://api.twilio.com/2010-04-01/Accounts/{settings.TWILIO_ACCOUNT_SID}/Messages.json",
             data=payload,
             headers={
-                "Authorization": "Basic "
-                + base64.b64encode(
-                    f"{settings.TWILIO_ACCOUNT_SID}:{settings.TWILIO_AUTH_TOKEN}".encode("utf-8")
-                ).decode("utf-8"),
+                "Authorization": "Basic " + base64.b64encode(
+                    f"{settings.TWILIO_ACCOUNT_SID}:{settings.TWILIO_AUTH_TOKEN}".encode()
+                ).decode(),
                 "Content-Type": "application/x-www-form-urlencoded",
             },
             method="POST",
         )
         with urlopen(request) as response:
-            return {
-                "backend": "twilio",
-                "status_code": response.status,
-            }
+            return {"backend": "twilio", "status_code": response.status}
 
     return {
         "backend": "console",
         "status_code": 202,
-        "message": json.dumps(
-            {
-                "to": normalized_number,
-                "body": body,
-            }
-        ),
+        "message": json.dumps({"to": normalized_number, "body": body}),
     }
 
 
-def booking_confirmation_email(*, to_email: str, booking_code: str, start_time: str) -> dict:
-    return send_email(
-        to_email=to_email,
-        subject="Booking confirmed",
-        plain_text_content=(
-            f"Your booking is confirmed.\n"
-            f"Booking code: {booking_code}\n"
-            f"Start time: {start_time}\n"
-        ),
-        html_content=(
-            "<p>Your booking is confirmed.</p>"
-            f"<p><strong>Booking code:</strong> {booking_code}<br />"
-            f"<strong>Start time:</strong> {start_time}</p>"
-        ),
-    )
-
+# ── Account emails ────────────────────────────────────────────────────────────
 
 def account_created_email(*, to_email: str, full_name: Optional[str]) -> dict:
     greeting = full_name or to_email
+    body = _html_wrap(
+        f'<h2 style="margin:0 0 8px;color:#00263E;font-size:22px;">Welcome, {greeting}!</h2>'
+        f'<p style="margin:0 0 16px;color:#444;font-size:15px;line-height:1.6;">'
+        f'Your account at the {STUDIO_NAME} is ready. '
+        f'You can now browse studios, make bookings, and manage your profile.</p>'
+        + _button("Browse Studios", f"{settings.APP_BASE_URL.rstrip('/')}/rooms")
+    )
     return send_email(
         to_email=to_email,
-        subject="Your studio account is ready",
+        subject=f"Welcome to BIPOC Foundation Hub — your account is ready",
         plain_text_content=(
-            f"Welcome to BIPOC Creative Innovation Studio, {greeting}.\n"
-            "Your account has been created successfully.\n"
-            "You can now browse rooms, create bookings, and manage your profile.\n"
+            f"Welcome, {greeting}!\n\n"
+            f"Your account at the {STUDIO_NAME} is ready.\n"
+            f"Browse studios and book at: {settings.APP_BASE_URL.rstrip('/')}/rooms\n"
         ),
-        html_content=(
-            f"<p>Welcome to BIPOC Creative Innovation Studio, <strong>{greeting}</strong>.</p>"
-            "<p>Your account has been created successfully.</p>"
-            "<p>You can now browse rooms, create bookings, and manage your profile.</p>"
-        ),
+        html_content=body,
     )
 
 
 def login_verification_email(*, to_email: str, full_name: Optional[str], code: str) -> dict:
     greeting = full_name or to_email
+    body = _html_wrap(
+        f'<h2 style="margin:0 0 8px;color:#00263E;font-size:22px;">Your login code</h2>'
+        f'<p style="margin:0 0 20px;color:#444;font-size:15px;">Hi {greeting},</p>'
+        f'<div style="background:#f0f2f5;border-radius:8px;padding:20px 24px;text-align:center;margin:0 0 20px;">'
+        f'<span style="font-size:36px;font-weight:700;letter-spacing:0.15em;color:#00263E;">{code}</span>'
+        f'</div>'
+        f'<p style="margin:0;color:#888;font-size:13px;">This code expires in {settings.TWO_FACTOR_CODE_EXPIRE_MINUTES} minutes. '
+        f"If you didn't request this, you can safely ignore it.</p>"
+    )
     return send_email(
         to_email=to_email,
-        subject="Your BIPOC Creative Innovation Studio login code",
+        subject=f"Your BIPOC Foundation Hub login code: {code}",
         plain_text_content=(
-            f"Hi {greeting},\n"
-            f"Your login verification code is {code}.\n"
-            f"This code expires in {settings.TWO_FACTOR_CODE_EXPIRE_MINUTES} minutes.\n"
+            f"Hi {greeting},\n\n"
+            f"Your login code is: {code}\n"
+            f"Expires in {settings.TWO_FACTOR_CODE_EXPIRE_MINUTES} minutes.\n"
         ),
-        html_content=(
-            f"<p>Hi <strong>{greeting}</strong>,</p>"
-            f"<p>Your login verification code is <strong>{code}</strong>.</p>"
-            f"<p>This code expires in {settings.TWO_FACTOR_CODE_EXPIRE_MINUTES} minutes.</p>"
-        ),
+        html_content=body,
     )
 
 
 def password_reset_email(*, to_email: str, full_name: Optional[str], reset_url: str) -> dict:
     greeting = full_name or to_email
+    body = _html_wrap(
+        f'<h2 style="margin:0 0 8px;color:#00263E;font-size:22px;">Reset your password</h2>'
+        f'<p style="margin:0 0 16px;color:#444;font-size:15px;">Hi {greeting},</p>'
+        f'<p style="margin:0 0 20px;color:#444;font-size:15px;line-height:1.6;">'
+        f'We received a request to reset your password. Click the button below — '
+        f'this link expires in <strong>{settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES} minutes</strong>.</p>'
+        + _button("Reset My Password", reset_url) +
+        f'<p style="margin:24px 0 0;color:#888;font-size:13px;">'
+        f"If you didn't request a password reset, you can safely ignore this email.</p>"
+    )
     return send_email(
         to_email=to_email,
-        subject="Reset your BIPOC Creative Innovation Studio password",
+        subject="Reset your BIPOC Foundation Hub password",
         plain_text_content=(
-            f"Hi {greeting},\n"
-            "We received a request to reset your password.\n"
-            f"Use this secure link within {settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES} minutes:\n"
-            f"{reset_url}\n"
-            "If you did not request this change, you can ignore this email.\n"
+            f"Hi {greeting},\n\n"
+            f"Reset your password using this link (expires in {settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES} minutes):\n"
+            f"{reset_url}\n\n"
+            f"If you didn't request this, ignore this email.\n"
         ),
-        html_content=(
-            f"<p>Hi <strong>{greeting}</strong>,</p>"
-            "<p>We received a request to reset your password.</p>"
-            f"<p>Use this secure link within <strong>{settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES} minutes</strong>:</p>"
-            f'<p><a href="{reset_url}">{reset_url}</a></p>'
-            "<p>If you did not request this change, you can ignore this email.</p>"
-        ),
+        html_content=body,
     )
 
 
-def booking_created_email(*, to_email: str, booking_code: str, start_time: str, status: str) -> dict:
+# ── Booking emails (client) ───────────────────────────────────────────────────
+
+def booking_created_email(
+    *,
+    to_email: str,
+    booking_code: str,
+    start_time: str,
+    status: str,
+    full_name: Optional[str] = None,
+    room_name: Optional[str] = None,
+    duration_minutes: Optional[int] = None,
+    price_cents: Optional[int] = None,
+    start_dt: Optional[datetime] = None,
+    end_dt: Optional[datetime] = None,
+) -> dict:
+    greeting = full_name or to_email
+    local_time = _fmt_local(start_dt) if start_dt else start_time
+    rows = _detail_row("Booking code", booking_code)
+    if room_name:
+        rows += _detail_row("Studio", room_name)
+    rows += _detail_row("Date & time", local_time)
+    if duration_minutes:
+        rows += _detail_row("Duration", f"{duration_minutes} minutes")
+    if price_cents is not None:
+        rows += _detail_row("Amount due", _fmt_money(price_cents))
+    rows += _detail_row("Status", "Awaiting payment")
+
+    body = _html_wrap(
+        f'<h2 style="margin:0 0 8px;color:#00263E;font-size:22px;">Booking received</h2>'
+        f'<p style="margin:0 0 4px;color:#444;font-size:15px;">Hi {greeting},</p>'
+        f'<p style="margin:0 0 16px;color:#444;font-size:15px;line-height:1.6;">'
+        f'Your studio booking has been created and is waiting for payment.</p>'
+        + _details_table(rows) +
+        _button("Complete Payment", f"{settings.APP_BASE_URL.rstrip('/')}/bookings") +
+        f'<p style="margin:20px 0 0;color:#888;font-size:13px;">'
+        f'Questions? Reply to this email or call {STUDIO_PHONE}.</p>'
+    )
+
+    ics = None
+    if start_dt and end_dt:
+        ics = generate_ics(
+            title=f"Studio Booking — {room_name or 'BIPOC Foundation Hub'}",
+            description=f"Booking code: {booking_code}\nStatus: Awaiting payment\n{STUDIO_ADDRESS}",
+            location=STUDIO_ADDRESS,
+            start_dt=start_dt,
+            end_dt=end_dt,
+            uid=f"{booking_code}@bipocfoundation.org",
+        )
+
     return send_email(
         to_email=to_email,
-        subject="Booking received",
+        subject=f"Booking received — {local_time}",
         plain_text_content=(
-            f"Your booking has been created.\n"
+            f"Hi {greeting},\n\n"
+            f"Your studio booking has been created and is waiting for payment.\n\n"
             f"Booking code: {booking_code}\n"
-            f"Start time: {start_time}\n"
-            f"Current status: {status}\n"
+            f"Studio: {room_name or 'BIPOC Foundation Hub'}\n"
+            f"Date & time: {local_time}\n"
+            + (f"Duration: {duration_minutes} minutes\n" if duration_minutes else "")
+            + (f"Amount due: {_fmt_money(price_cents)}\n" if price_cents is not None else "")
+            + f"\nComplete payment at: {settings.APP_BASE_URL.rstrip('/')}/bookings\n"
         ),
-        html_content=(
-            "<p>Your booking has been created.</p>"
-            f"<p><strong>Booking code:</strong> {booking_code}<br />"
-            f"<strong>Start time:</strong> {start_time}<br />"
-            f"<strong>Current status:</strong> {status}</p>"
-        ),
+        html_content=body,
+        ics_bytes=ics,
     )
 
 
-def booking_cancellation_email(*, to_email: str, booking_code: str, reason: Optional[str]) -> dict:
+def booking_confirmation_email(
+    *,
+    to_email: str,
+    booking_code: str,
+    start_time: str,
+    full_name: Optional[str] = None,
+    room_name: Optional[str] = None,
+    duration_minutes: Optional[int] = None,
+    price_cents: Optional[int] = None,
+    start_dt: Optional[datetime] = None,
+    end_dt: Optional[datetime] = None,
+) -> dict:
+    greeting = full_name or to_email
+    local_time = _fmt_local(start_dt) if start_dt else start_time
+    rows = _detail_row("Booking code", booking_code)
+    if room_name:
+        rows += _detail_row("Studio", room_name)
+    rows += _detail_row("Date & time", local_time)
+    if duration_minutes:
+        rows += _detail_row("Duration", f"{duration_minutes} minutes")
+    if price_cents is not None:
+        rows += _detail_row("Total paid", _fmt_money(price_cents))
+    rows += _detail_row("Location", STUDIO_ADDRESS)
+
+    body = _html_wrap(
+        f'<h2 style="margin:0 0 8px;color:#00263E;font-size:22px;">You\'re booked! ✓</h2>'
+        f'<p style="margin:0 0 4px;color:#444;font-size:15px;">Hi {greeting},</p>'
+        f'<p style="margin:0 0 16px;color:#444;font-size:15px;line-height:1.6;">'
+        f'Your booking is confirmed. We\'ve attached a calendar invite to add to your calendar.</p>'
+        + _details_table(rows) +
+        _button("View My Booking", f"{settings.APP_BASE_URL.rstrip('/')}/bookings") +
+        f'<p style="margin:20px 0 0;color:#888;font-size:13px;">'
+        f'Plan to arrive 10–15 minutes early. '
+        f'Questions? Call {STUDIO_PHONE} or reply to this email.</p>'
+    )
+
+    ics = None
+    if start_dt and end_dt:
+        ics = generate_ics(
+            title=f"Studio Booking — {room_name or 'BIPOC Foundation Hub'}",
+            description=f"Booking code: {booking_code}\nLocation: {STUDIO_ADDRESS}",
+            location=STUDIO_ADDRESS,
+            start_dt=start_dt,
+            end_dt=end_dt,
+            uid=f"{booking_code}@bipocfoundation.org",
+        )
+
     return send_email(
         to_email=to_email,
-        subject="Booking cancelled",
+        subject=f"Booking confirmed — {local_time}",
         plain_text_content=(
-            f"Your booking {booking_code} was cancelled.\n"
-            f"Reason: {reason or 'No reason provided'}\n"
+            f"Hi {greeting}, your booking is confirmed!\n\n"
+            f"Booking code: {booking_code}\n"
+            f"Studio: {room_name or 'BIPOC Foundation Hub'}\n"
+            f"Date & time: {local_time}\n"
+            + (f"Duration: {duration_minutes} minutes\n" if duration_minutes else "")
+            + (f"Total paid: {_fmt_money(price_cents)}\n" if price_cents is not None else "")
+            + f"Location: {STUDIO_ADDRESS}\n\n"
+            f"Plan to arrive 10–15 minutes early.\n"
         ),
-        html_content=(
-            f"<p>Your booking <strong>{booking_code}</strong> was cancelled.</p>"
-            f"<p><strong>Reason:</strong> {reason or 'No reason provided'}</p>"
-        ),
+        html_content=body,
+        ics_bytes=ics,
     )
 
 
-def refund_processed_email(*, to_email: str, booking_code: str, amount_cents: int) -> dict:
+def booking_cancellation_email(
+    *,
+    to_email: str,
+    booking_code: str,
+    reason: Optional[str],
+    full_name: Optional[str] = None,
+    start_dt: Optional[datetime] = None,
+    room_name: Optional[str] = None,
+) -> dict:
+    greeting = full_name or to_email
+    local_time = _fmt_local(start_dt) if start_dt else None
+    rows = _detail_row("Booking code", booking_code)
+    if room_name:
+        rows += _detail_row("Studio", room_name)
+    if local_time:
+        rows += _detail_row("Original date", local_time)
+    rows += _detail_row("Reason", reason or "No reason provided")
+
+    body = _html_wrap(
+        f'<h2 style="margin:0 0 8px;color:#00263E;font-size:22px;">Booking cancelled</h2>'
+        f'<p style="margin:0 0 16px;color:#444;font-size:15px;">Hi {greeting},</p>'
+        f'<p style="margin:0 0 16px;color:#444;font-size:15px;line-height:1.6;">'
+        f'Your booking has been cancelled. See details below.</p>'
+        + _details_table(rows) +
+        _button("Book Again", f"{settings.APP_BASE_URL.rstrip('/')}/rooms") +
+        f'<p style="margin:20px 0 0;color:#888;font-size:13px;">'
+        f'Questions about the cancellation? Contact us at {STUDIO_PHONE}.</p>'
+    )
     return send_email(
         to_email=to_email,
-        subject="Refund processed",
+        subject=f"Booking cancelled — {booking_code}",
         plain_text_content=(
-            f"A refund has been processed for booking {booking_code}.\n"
-            f"Amount: CAD {amount_cents / 100:.2f}\n"
+            f"Hi {greeting},\n\n"
+            f"Your booking {booking_code} has been cancelled.\n"
+            + (f"Original date: {local_time}\n" if local_time else "")
+            + f"Reason: {reason or 'No reason provided'}\n\n"
+            f"Book again at: {settings.APP_BASE_URL.rstrip('/')}/rooms\n"
         ),
-        html_content=(
-            f"<p>A refund has been processed for booking <strong>{booking_code}</strong>.</p>"
-            f"<p><strong>Amount:</strong> CAD {amount_cents / 100:.2f}</p>"
-        ),
+        html_content=body,
     )
 
+
+def refund_processed_email(
+    *,
+    to_email: str,
+    booking_code: str,
+    amount_cents: int,
+    full_name: Optional[str] = None,
+) -> dict:
+    greeting = full_name or to_email
+    rows = (
+        _detail_row("Booking code", booking_code)
+        + _detail_row("Refund amount", _fmt_money(amount_cents))
+        + _detail_row("Timeline", "3–5 business days to your original payment method")
+    )
+    body = _html_wrap(
+        f'<h2 style="margin:0 0 8px;color:#00263E;font-size:22px;">Refund processed</h2>'
+        f'<p style="margin:0 0 16px;color:#444;font-size:15px;">Hi {greeting},</p>'
+        f'<p style="margin:0 0 16px;color:#444;font-size:15px;line-height:1.6;">'
+        f'A refund has been issued for your booking. It typically takes 3–5 business days '
+        f'to appear on your statement.</p>'
+        + _details_table(rows) +
+        f'<p style="margin:24px 0 0;color:#888;font-size:13px;">'
+        f'Questions? Contact us at {STUDIO_PHONE}.</p>'
+    )
+    return send_email(
+        to_email=to_email,
+        subject=f"Refund processed — {booking_code}",
+        plain_text_content=(
+            f"Hi {greeting},\n\n"
+            f"A refund of {_fmt_money(amount_cents)} has been processed for booking {booking_code}.\n"
+            f"Allow 3–5 business days for it to appear on your statement.\n"
+        ),
+        html_content=body,
+    )
+
+
+def booking_reminder_email(
+    *,
+    to_email: str,
+    booking_code: str,
+    start_time: str,
+    hours_before: int,
+    full_name: Optional[str] = None,
+    room_name: Optional[str] = None,
+    start_dt: Optional[datetime] = None,
+) -> dict:
+    greeting = full_name or to_email
+    local_time = _fmt_local(start_dt) if start_dt else start_time
+    label = f"{hours_before} hour" + ("s" if hours_before != 1 else "")
+    rows = _detail_row("Booking code", booking_code)
+    if room_name:
+        rows += _detail_row("Studio", room_name)
+    rows += _detail_row("Date & time", local_time)
+    rows += _detail_row("Location", STUDIO_ADDRESS)
+
+    body = _html_wrap(
+        f'<h2 style="margin:0 0 8px;color:#00263E;font-size:22px;">Reminder: {label} away</h2>'
+        f'<p style="margin:0 0 16px;color:#444;font-size:15px;">Hi {greeting},</p>'
+        f'<p style="margin:0 0 16px;color:#444;font-size:15px;line-height:1.6;">'
+        f'Your studio session starts in <strong>{label}</strong>. '
+        f'Plan to arrive 10–15 minutes early.</p>'
+        + _details_table(rows) +
+        f'<p style="margin:20px 0 0;color:#888;font-size:13px;">'
+        f'Need to make changes? Call {STUDIO_PHONE} as soon as possible.</p>'
+    )
+    return send_email(
+        to_email=to_email,
+        subject=f"Reminder: your booking starts in {label} — {booking_code}",
+        plain_text_content=(
+            f"Hi {greeting},\n\n"
+            f"Your booking {booking_code} starts in {label}.\n"
+            f"Date & time: {local_time}\n"
+            f"Location: {STUDIO_ADDRESS}\n\n"
+            f"Plan to arrive 10–15 minutes early.\n"
+        ),
+        html_content=body,
+    )
+
+
+# ── Staff notification email ──────────────────────────────────────────────────
+
+def booking_staff_notification_email(
+    *,
+    to_email: str,
+    event_type: str,
+    booking_code: str,
+    client_name: Optional[str],
+    client_email: Optional[str],
+    client_phone: Optional[str],
+    room_name: Optional[str],
+    start_dt: Optional[datetime],
+    end_dt: Optional[datetime],
+    duration_minutes: Optional[int],
+    price_cents: Optional[int],
+    staff_assignments: Optional[list],
+    note: Optional[str],
+) -> dict:
+    local_time = _fmt_local(start_dt) if start_dt else "—"
+
+    event_labels = {
+        "created": ("New booking", "A new booking has been made and is awaiting payment."),
+        "confirmed": ("Booking confirmed & paid", "A booking has been paid and confirmed."),
+        "cancelled": ("Booking cancelled", "A booking has been cancelled."),
+    }
+    title, subtitle = event_labels.get(event_type, ("Booking update", "A booking was updated."))
+
+    rows = _detail_row("Booking code", booking_code)
+    rows += _detail_row("Client", client_name or "—")
+    if client_email:
+        rows += _detail_row("Client email", client_email)
+    if client_phone:
+        rows += _detail_row("Client phone", client_phone)
+    if room_name:
+        rows += _detail_row("Studio", room_name)
+    rows += _detail_row("Date & time", local_time)
+    if duration_minutes:
+        rows += _detail_row("Duration", f"{duration_minutes} minutes")
+    if price_cents is not None:
+        rows += _detail_row("Total", _fmt_money(price_cents))
+    if staff_assignments:
+        names = ", ".join(a.get("name", "") for a in staff_assignments if a.get("name"))
+        if names:
+            rows += _detail_row("Staff assigned", names)
+    if note:
+        rows += _detail_row("Client note", note)
+
+    body = _html_wrap(
+        f'<h2 style="margin:0 0 8px;color:#00263E;font-size:22px;">{title}</h2>'
+        f'<p style="margin:0 0 16px;color:#444;font-size:15px;">{subtitle}</p>'
+        + _details_table(rows) +
+        _button("View in Admin", f"{settings.APP_BASE_URL.rstrip('/')}/admin")
+    )
+
+    ics = None
+    if event_type != "cancelled" and start_dt and end_dt:
+        ics = generate_ics(
+            title=f"[STUDIO] {client_name or 'Client'} — {room_name or 'Booking'}",
+            description=f"Booking code: {booking_code}\nClient: {client_name or '—'}\n{client_phone or ''}",
+            location=STUDIO_ADDRESS,
+            start_dt=start_dt,
+            end_dt=end_dt,
+            uid=f"staff-{booking_code}@bipocfoundation.org",
+        )
+
+    return send_email(
+        to_email=to_email,
+        subject=f"[{title}] {client_name or booking_code} — {local_time}",
+        plain_text_content=(
+            f"{title}\n{subtitle}\n\n"
+            f"Booking code: {booking_code}\n"
+            f"Client: {client_name or '—'}\n"
+            + (f"Email: {client_email}\n" if client_email else "")
+            + (f"Phone: {client_phone}\n" if client_phone else "")
+            + f"Studio: {room_name or '—'}\n"
+            f"Date & time: {local_time}\n"
+            + (f"Duration: {duration_minutes} minutes\n" if duration_minutes else "")
+            + (f"Note: {note}\n" if note else "")
+            + f"\nAdmin: {settings.APP_BASE_URL.rstrip('/')}/admin\n"
+        ),
+        html_content=body,
+        ics_bytes=ics,
+    )
+
+
+# ── SMS functions ─────────────────────────────────────────────────────────────
 
 def booking_confirmation_sms(*, to_number: str, booking_code: str, start_time: str) -> dict:
     return send_sms(
         to_number=to_number,
-        body=(
-            f"Booking confirmed. Code: {booking_code}. "
-            f"Start: {start_time}."
-        ),
+        body=f"Booking confirmed! Code: {booking_code}. {start_time}. {STUDIO_ADDRESS}.",
     )
 
 
 def account_created_sms(*, to_number: str) -> dict:
     return send_sms(
         to_number=to_number,
-        body="Your BIPOC Creative Innovation Studio account is ready. You can now book rooms and manage your profile.",
+        body=f"Welcome to BIPOC Foundation Hub. Your account is ready — book a studio at {settings.APP_BASE_URL.rstrip('/')}/rooms",
     )
 
 
 def login_verification_sms(*, to_number: str, code: str) -> dict:
     return send_sms(
         to_number=to_number,
-        body=(
-            f"Your BIPOC Creative Innovation Studio login code is {code}. "
-            f"It expires in {settings.TWO_FACTOR_CODE_EXPIRE_MINUTES} minutes."
-        ),
+        body=f"Your BIPOC Foundation Hub login code: {code}. Expires in {settings.TWO_FACTOR_CODE_EXPIRE_MINUTES} min.",
     )
 
 
 def booking_created_sms(*, to_number: str, booking_code: str, start_time: str, status: str) -> dict:
     return send_sms(
         to_number=to_number,
-        body=(
-            f"Booking created. Code: {booking_code}. "
-            f"Start: {start_time}. "
-            f"Status: {status}."
-        ),
+        body=f"Booking received! Code: {booking_code}. {start_time}. Complete payment to confirm.",
     )
 
 
 def booking_cancellation_sms(*, to_number: str, booking_code: str, reason: Optional[str]) -> dict:
     return send_sms(
         to_number=to_number,
-        body=(
-            f"Booking {booking_code} cancelled. "
-            f"Reason: {reason or 'No reason provided'}."
-        ),
+        body=f"Booking {booking_code} cancelled. {reason or 'No reason provided.'}",
     )
 
 
 def refund_processed_sms(*, to_number: str, booking_code: str, amount_cents: int) -> dict:
     return send_sms(
         to_number=to_number,
-        body=(
-            f"Refund processed for booking {booking_code}. "
-            f"Amount: CAD {amount_cents / 100:.2f}."
-        ),
-    )
-
-
-def booking_reminder_email(*, to_email: str, booking_code: str, start_time: str, hours_before: int) -> dict:
-    return send_email(
-        to_email=to_email,
-        subject=f"Booking reminder: {hours_before}h",
-        plain_text_content=(
-            f"Reminder for booking {booking_code}.\n"
-            f"Start time: {start_time}\n"
-        ),
+        body=f"Refund of {_fmt_money(amount_cents)} processed for booking {booking_code}. Allow 3–5 business days.",
     )
 
 
 def booking_reminder_sms(*, to_number: str, booking_code: str, start_time: str, hours_before: int) -> dict:
+    label = f"{hours_before}h"
     return send_sms(
         to_number=to_number,
-        body=(
-            f"Reminder: booking {booking_code} starts in {hours_before}h. "
-            f"Start: {start_time}."
-        ),
+        body=f"Reminder: your booking {booking_code} starts in {label}. {start_time}. {STUDIO_ADDRESS}.",
     )

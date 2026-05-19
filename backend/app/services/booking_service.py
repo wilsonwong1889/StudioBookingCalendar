@@ -620,10 +620,12 @@ def _create_booking_record(
     from app.tasks import (
         send_booking_created_email_task,
         send_booking_created_sms_task,
+        send_booking_staff_notification_email_task,
     )
 
     send_booking_created_email_task.delay(str(booking.id))
     send_booking_created_sms_task.delay(str(booking.id))
+    send_booking_staff_notification_email_task.delay(str(booking.id), "created")
     return booking
 
 
@@ -857,10 +859,12 @@ def cancel_booking(db: Session, booking: Booking, actor: User, reason: Optional[
     from app.tasks import (
         send_booking_cancellation_email_task,
         send_booking_cancellation_sms_task,
+        send_booking_staff_notification_email_task,
     )
 
     send_booking_cancellation_email_task.delay(str(booking.id))
     send_booking_cancellation_sms_task.delay(str(booking.id))
+    send_booking_staff_notification_email_task.delay(str(booking.id), "cancelled")
     return booking
 
 
@@ -954,10 +958,12 @@ def reschedule_booking(
     from app.tasks import (
         send_booking_confirmation_email_task,
         send_booking_confirmation_sms_task,
+        send_booking_staff_notification_email_task,
     )
 
     send_booking_confirmation_email_task.delay(str(booking.id))
     send_booking_confirmation_sms_task.delay(str(booking.id))
+    send_booking_staff_notification_email_task.delay(str(booking.id), "confirmed")
     return booking
 
 
@@ -1565,10 +1571,12 @@ def mark_booking_paid(db: Session, booking: Booking, payment_intent_id: str) -> 
     from app.tasks import (
         send_booking_confirmation_email_task,
         send_booking_confirmation_sms_task,
+        send_booking_staff_notification_email_task,
     )
 
     send_booking_confirmation_email_task.delay(str(booking.id))
     send_booking_confirmation_sms_task.delay(str(booking.id))
+    send_booking_staff_notification_email_task.delay(str(booking.id), "confirmed")
     return booking
 
 
@@ -1640,10 +1648,12 @@ def handle_payment_webhook_event(db: Session, event: dict) -> dict:
         from app.tasks import (
             send_booking_cancellation_email_task,
             send_booking_cancellation_sms_task,
+            send_booking_staff_notification_email_task,
         )
 
         send_booking_cancellation_email_task.delay(str(booking.id))
         send_booking_cancellation_sms_task.delay(str(booking.id))
+        send_booking_staff_notification_email_task.delay(str(booking.id), "cancelled")
         return {"received": True, "booking_id": str(booking.id), "status": booking.status}
 
     if event_type == "charge.refunded":
