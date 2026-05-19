@@ -947,7 +947,7 @@ class AppSmokeTest(unittest.TestCase):
             },
         )
         self.assertEqual(response.status_code, 400, response.text)
-        self.assertIn("daily limit", response.json()["detail"])
+        self.assertIn("one booking per day", response.json()["detail"])
 
         response = self.client.post(
             "/api/bookings",
