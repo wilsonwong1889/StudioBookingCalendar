@@ -571,19 +571,23 @@ class BookingServiceMatrixTest(unittest.TestCase):
             user = self._create_user(db)
             room_one = self._create_room(db, name="Morning Room")
             room_two = self._create_room(db, name="Afternoon Room")
+            # Fill the full 5-hour daily limit with one booking
             self._create_pending_booking(
                 db,
                 user=user,
                 room=room_one,
                 start_time=self._aware_time(day=2, hour=10),
+                duration_minutes=300,
             )
 
+            # Any additional booking on the same day should now be blocked
             with self.assertRaises(self.DailyBookingLimitError):
                 self._create_pending_booking(
                     db,
                     user=user,
                     room=room_two,
-                    start_time=self._aware_time(day=2, hour=12),
+                    start_time=self._aware_time(day=2, hour=15),
+                    duration_minutes=60,
                 )
 
     def test_122_admin_self_booking_bypasses_daily_limit(self) -> None:

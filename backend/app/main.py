@@ -30,6 +30,7 @@ FRONTEND_PAGES = {
     "/faq": "faq.html",
     "/info": "info.html",
     "/pricing": "pricing.html",
+    "/services": "services.html",
     "/rooms": "rooms.html",
     "/room": "room.html",
     "/reserve": "reserve.html",
@@ -38,6 +39,7 @@ FRONTEND_PAGES = {
     "/booking": "booking.html",
     "/payment-success": "payment-success.html",
     "/admin": "admin.html",
+    "/programming": "programming.html",
 }
 
 
@@ -84,7 +86,14 @@ if FRONTEND_DIR.exists():
 
     def build_frontend_handler(filename: str):
         def handler():
-            return FileResponse(FRONTEND_DIR / filename)
+            return FileResponse(
+                FRONTEND_DIR / filename,
+                headers={
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                    "Expires": "0",
+                },
+            )
 
         return handler
 
@@ -115,6 +124,19 @@ def public_config():
         "supabase_fully_ready": supabase_status["supabase_fully_ready"],
         "app_base_url": settings.APP_BASE_URL,
         "default_currency": settings.DEFAULT_CURRENCY,
+    }
+
+
+@app.get("/api/public/features", include_in_schema=False)
+def public_features():
+    return {
+        "opening_discount": settings.FEATURE_OPENING_DISCOUNT,
+        "venture_tiers": settings.FEATURE_VENTURE_TIERS,
+        "monthly_packages": settings.FEATURE_MONTHLY_PACKAGES,
+        "day_rates": settings.FEATURE_DAY_RATES,
+        "equipment_rental": settings.FEATURE_EQUIPMENT_RENTAL,
+        "special_projects": settings.FEATURE_SPECIAL_PROJECTS,
+        "engineer_profiles": settings.FEATURE_ENGINEER_PROFILES,
     }
 
 

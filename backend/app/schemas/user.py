@@ -38,6 +38,7 @@ class UserOut(BaseModel):
     two_factor_method: Optional[str] = None
     is_admin: bool
     role: str = "Customer"
+    user_category: str = "general_public"
     created_at: datetime
     updated_at: Optional[datetime] = None
 

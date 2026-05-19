@@ -1,4 +1,5 @@
 from app.models.booking import AuditLog, Booking, BookingSlot, NotificationLog, Refund, Review
+from app.models.membership import UserMembership
 from app.models.staff_booking import StaffBooking
 from app.models.room import Room
 from app.models.staff_profile import StaffProfile
@@ -15,4 +16,5 @@ __all__ = [
     "StaffBooking",
     "StaffProfile",
     "User",
+    "UserMembership",
 ]

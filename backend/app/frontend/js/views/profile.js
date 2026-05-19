@@ -511,4 +511,43 @@ export function renderProfileView(state) {
       });
     }
   }
+
+  renderMembershipSection(user);
+}
+
+const MEMBERSHIP_INFO = {
+  artist_member:         { label: "Artist Member",         roomRate: "$50/hr",  spaceRate: "$100/hr", fee: "$15/mo or $120/yr", benefits: ["Reduced studio rate", "Book 4 sessions, get the 5th free", "Community programming access"] },
+  fellowship_artist:     { label: "Fellowship Artist",     roomRate: "$50/hr",  spaceRate: "$100/hr", fee: "Free",              benefits: ["Complimentary membership", "Reduced studio rate", "Community programming access"] },
+  artist_in_residence:   { label: "Artist in Residence",   roomRate: "$50/hr",  spaceRate: "$100/hr", fee: "Free",              benefits: ["Complimentary membership", "Reduced studio rate", "Community programming access"] },
+  service_engineer:      { label: "Service Engineer",      roomRate: "$50/hr",  spaceRate: "$100/hr", fee: "Free",              benefits: ["Complimentary membership", "Reduced studio rate", "Community programming access"] },
+  bipoc_community_member:{ label: "BIPOC Community Member",roomRate: "$75/hr",  spaceRate: "$150/hr", fee: "Free",              benefits: ["Complimentary membership", "Community programming access"] },
+  venture_member:        { label: "Venture Member",        roomRate: "$50/hr",  spaceRate: "$100/hr", fee: "Contact us",        benefits: ["Monthly free hours included", "Rate applies after free hours are used"] },
+  organizational_member: { label: "Organizational Member", roomRate: "Contact", spaceRate: "Contact", fee: "Contact us",        benefits: ["Custom rates — contact the Hub to confirm"] },
+  general_public:        { label: "General Public",        roomRate: "$100/hr", spaceRate: "$200/hr", fee: "Free",              benefits: ["No membership required", "Book online instantly"] },
+};
+
+function renderMembershipSection(user) {
+  const section = document.getElementById("account-membership-section");
+  if (!section) return;
+
+  const category = user?.user_category || "general_public";
+  const info = MEMBERSHIP_INFO[category] || MEMBERSHIP_INFO.general_public;
+
+  section.classList.remove("hidden");
+
+  const tierName = document.getElementById("account-membership-tier-name");
+  const roomRate = document.getElementById("account-membership-room-rate");
+  const spaceRate = document.getElementById("account-membership-space-rate");
+  const fee = document.getElementById("account-membership-fee");
+  const benefits = document.getElementById("account-membership-benefits");
+
+  if (tierName) tierName.textContent = info.label;
+  if (roomRate) roomRate.textContent = info.roomRate;
+  if (spaceRate) spaceRate.textContent = info.spaceRate;
+  if (fee) fee.textContent = info.fee;
+  if (benefits) {
+    benefits.innerHTML = info.benefits
+      .map((b) => `<div class="account-membership-benefit"><span class="account-membership-check">✓</span>${b}</div>`)
+      .join("");
+  }
 }

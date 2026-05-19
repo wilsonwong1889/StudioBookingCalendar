@@ -233,7 +233,60 @@ export function initHomeView() {
   render(activeIndex);
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function renderHomeStaffStrip(currentState) {
+  const container = document.getElementById("home-staff-strip");
+  if (!container) return;
+
+  const profiles = (currentState.publicStaffProfiles || [])
+    .filter((p) => p.active !== false)
+    .slice(0, 3);
+
+  if (!profiles.length) {
+    container.innerHTML = "";
+    return;
+  }
+
+  container.innerHTML = profiles
+    .map((p) => {
+      const initials = escapeHtml(
+        (p.name || "?")
+          .split(" ")
+          .map((w) => w[0])
+          .join("")
+          .slice(0, 2)
+          .toUpperCase(),
+      );
+      const avatar = p.photo_url
+        ? `<img class="home-staff-card-avatar" src="${escapeHtml(p.photo_url)}" alt="${escapeHtml(p.name)}" loading="lazy" />`
+        : `<div class="home-staff-card-avatar home-staff-avatar-fallback">${initials}</div>`;
+      const services = (p.service_types || []).slice(0, 2).map(escapeHtml).join(" · ");
+      const rate = p.booking_rate_cents
+        ? `$${Math.round(p.booking_rate_cents / 100)}/hr`
+        : "";
+      return `
+        <a class="home-staff-card" href="/staff?id=${escapeHtml(p.id)}">
+          ${avatar}
+          <div class="home-staff-card-body">
+            <strong class="home-staff-card-name">${escapeHtml(p.name)}</strong>
+            ${services ? `<span class="home-staff-card-role">${services}</span>` : ""}
+            ${rate ? `<span class="home-staff-card-rate">${rate}</span>` : ""}
+          </div>
+        </a>`;
+    })
+    .join("");
+}
+
 export function renderHomeView(currentState) {
   normalizePublicBookingCtas();
   renderFeaturedRooms(currentState);
+  renderHomeStaffStrip(currentState);
 }
