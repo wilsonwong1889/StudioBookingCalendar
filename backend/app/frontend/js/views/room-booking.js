@@ -13,6 +13,40 @@ const ROOM_CATEGORY_VISUALS = {
 const MIN_DURATION_MINUTES = 60;
 const MAX_DURATION_MINUTES = 300;
 
+const MEMBER_CATEGORY_LABELS = {
+  artist_member: "Artist Member",
+  fellowship_artist: "Fellowship Artist",
+  artist_in_residence: "Artist in Residence",
+  service_engineer: "Service Engineer",
+  bipoc_community_member: "BIPOC Community Member",
+  venture_member: "Venture Member",
+  organizational_member: "Organizational Member",
+};
+
+// Mirrors pricing_service.py ROOM_HOURLY_RATES — must stay in sync
+const CATEGORY_HOURLY_RATES = {
+  artist_member: 5000,
+  fellowship_artist: 5000,
+  artist_in_residence: 5000,
+  service_engineer: 5000,
+  bipoc_community_member: 7500,
+  venture_member: 5000,
+  organizational_member: null,
+  general_public: 10000,
+};
+
+function getCategoryRate(userCategory, fallbackCents) {
+  const rate = CATEGORY_HOURLY_RATES[userCategory];
+  if (rate === null || rate === undefined) {
+    return fallbackCents || 10000;
+  }
+  return rate;
+}
+
+function getMemberCategoryLabel(category) {
+  return MEMBER_CATEGORY_LABELS[category] || null;
+}
+
 let selectedDate = null;
 let displayedMonth = null;
 let dayAvailability = null;
@@ -37,6 +71,23 @@ function getReserveGuestNameInput() {
 
 function getReserveGuestPhoneInput() {
   return document.getElementById("reserve-guest-phone");
+}
+
+function getReservePolicyCheckbox() {
+  return document.getElementById("reserve-policy-checkbox");
+}
+
+function buildSessionNote() {
+  const purpose = document.getElementById("reserve-session-purpose")?.value?.trim();
+  const attendees = document.getElementById("reserve-attendees")?.value?.trim();
+  const equipment = document.getElementById("reserve-equipment-needs")?.value?.trim();
+  const baseNote = elements.reserveNoteInput?.value?.trim();
+  const parts = [];
+  if (purpose) parts.push(`Purpose: ${purpose}`);
+  if (attendees) parts.push(`Attendees: ${attendees}`);
+  if (equipment) parts.push(`Equipment: ${equipment}`);
+  if (baseNote) parts.push(baseNote);
+  return parts.join("\n") || null;
 }
 
 
@@ -384,22 +435,6 @@ function renderStaffImage(photoUrl, label) {
 }
 
 function renderRoomVisuals(room) {
-  if (elements.reserveRoomPhotos) {
-    const photos = getReserveGallery(room);
-    elements.reserveRoomPhotos.innerHTML = photos.length
-      ? photos
-          .map(
-            (photo, index) => `
-              <figure class="${index === 0 ? "room-detail-hero-media reserve-detail-hero-media" : "room-detail-thumb-card reserve-detail-thumb-card"}">
-                <img class="detail-image" src="${escapeHtml(photo)}" alt="${escapeHtml(room.name)} image ${index + 1}" loading="${index === 0 ? "eager" : "lazy"}" />
-                ${index === 0 ? "" : `<figcaption>Image ${index + 1}</figcaption>`}
-              </figure>
-            `,
-          )
-          .join("")
-      : '<div class="empty-state">No room images were added for this room yet.</div>';
-  }
-
   if (elements.reserveRoomMeta) {
     elements.reserveRoomMeta.innerHTML = `
       <span class="pill reserve-room-pill">${escapeHtml(room.name.split(" ")[0])}</span>
@@ -445,12 +480,20 @@ function getSelectedStaffOptions(room) {
 }
 
 function calculateEstimatedTotal(room) {
-  const baseRate = (room?.hourly_rate_cents || 0) * (getSelectedDurationMinutes() / 60);
+  const hourlyRate = getCategoryRate(state.currentUser?.user_category, room?.hourly_rate_cents);
+  const baseRate = hourlyRate * (getSelectedDurationMinutes() / 60);
   const staffTotal = getSelectedStaffOptions(room).reduce(
     (total, role) => total + (role.add_on_price_cents || 0),
     0,
   );
   return baseRate + staffTotal;
+}
+
+function getDepositCents(room) {
+  const hasEngineer = getSelectedStaffOptions(room).some((role) =>
+    /engineer/i.test(role.name || ""),
+  );
+  return hasEngineer ? 2000 : 1000;
 }
 
 function renderSelectedStaffBreakdown(room) {
@@ -762,6 +805,7 @@ function renderSummary(currentState) {
     return;
   }
 
+  const currentUser = currentState.currentUser;
   const estimatedTotal = calculateEstimatedTotal(room);
   const promoSelectionKey = getReservePromoSelectionKey(room.id, getSelectedDurationMinutes(), estimatedTotal);
   const activePromo =
@@ -770,6 +814,12 @@ function renderSummary(currentState) {
     reservePromoPreview.code === getReservePromoInputValue()
       ? reservePromoPreview
       : null;
+  const categoryLabel = getMemberCategoryLabel(currentUser?.user_category);
+  const memberBadge = categoryLabel
+    ? `<div class="reserve-member-badge"><span class="reserve-member-badge-dot"></span>Booking as: ${escapeHtml(categoryLabel)}</div>`
+    : "";
+  const hourlyRate = getCategoryRate(currentUser?.user_category, room.hourly_rate_cents);
+  const rateLabel = `${formatCurrency(hourlyRate)} x ${formatDuration(getSelectedDurationMinutes())}`;
 
   if (!selectedStart) {
     elements.reserveSummaryMeta.innerHTML = `
@@ -777,10 +827,11 @@ function renderSummary(currentState) {
         <strong>${escapeHtml(room.name)}</strong>
         <span>${escapeHtml(selectedDate ? formatDateLabel(selectedDate) : "Choose a date")}</span>
       </div>
+      ${memberBadge}
       <div class="reserve-price-line"><span>Date</span><strong>${escapeHtml(selectedDate ? formatDateLabel(selectedDate) : "Not selected")}</strong></div>
       <div class="reserve-price-line"><span>Start time</span><strong>Not selected</strong></div>
       <div class="reserve-price-line"><span>Duration</span><strong>${formatDuration(getSelectedDurationMinutes())}</strong></div>
-      <div class="reserve-price-line"><span>${formatCurrency(room.hourly_rate_cents)} x ${formatDuration(getSelectedDurationMinutes())}</span><strong>${formatCurrency(estimatedTotal)}</strong></div>
+      <div class="reserve-price-line"><span>${rateLabel}</span><strong>${formatCurrency(estimatedTotal)}</strong></div>
       <div class="reserve-price-line"><span>Service fee</span><strong class="reserve-price-free">Free</strong></div>
       ${
         activePromo
@@ -790,8 +841,10 @@ function renderSummary(currentState) {
       ${(() => {
         const subtotal = activePromo ? activePromo.final_amount_cents : estimatedTotal;
         const gst = Math.floor(subtotal * 0.05);
+        const deposit = getDepositCents(room);
         return `<div class="reserve-price-line"><span>GST (5%)</span><strong>${formatCurrency(gst)}</strong></div>
-      <div class="reserve-price-total"><span>Total</span><strong>${formatCurrency(subtotal + gst)}</strong></div>`;
+      <div class="reserve-price-total"><span>Total</span><strong>${formatCurrency(subtotal + gst)}</strong></div>
+      <div class="reserve-price-line reserve-deposit-note"><span>Deposit due now</span><strong>${formatCurrency(deposit)}</strong></div>`;
       })()}
       <div class="reserve-helper-copy reserve-helper-copy-strong">Pick an available time to continue.</div>
     `;
@@ -803,15 +856,15 @@ function renderSummary(currentState) {
       <strong>${escapeHtml(room.name)}</strong>
       <span>${escapeHtml(formatDateTime(selectedStart))}</span>
     </div>
+    ${memberBadge}
     <div class="reserve-price-line"><span>Date</span><strong>${escapeHtml(formatDateLabel(selectedDate))}</strong></div>
     <div class="reserve-price-line"><span>Start time</span><strong>${escapeHtml(formatTime(selectedStart))}</strong></div>
     <div class="reserve-price-line"><span>Duration</span><strong>${formatDuration(getSelectedDurationMinutes())}</strong></div>
-    <div class="reserve-price-line"><span>${formatCurrency(room.hourly_rate_cents)} x ${formatDuration(getSelectedDurationMinutes())}</span><strong>${formatCurrency(estimatedTotal)}</strong></div>
+    <div class="reserve-price-line"><span>${rateLabel}</span><strong>${formatCurrency(estimatedTotal)}</strong></div>
     <div class="reserve-price-line"><span>Service fee</span><strong class="reserve-price-free">Free</strong></div>
     ${
       activePromo
         ? `<div class="reserve-price-line"><span>Promo ${escapeHtml(activePromo.code)}</span><strong>-${formatCurrency(activePromo.discount_cents)}</strong></div>`
-
         : ""
     }
     ${renderSelectedStaffBreakdown(room)
@@ -819,8 +872,10 @@ function renderSummary(currentState) {
     ${(() => {
       const subtotal = activePromo ? activePromo.final_amount_cents : estimatedTotal;
       const gst = Math.floor(subtotal * 0.05);
+      const deposit = getDepositCents(room);
       return `<div class="reserve-price-line"><span>GST (5%)</span><strong>${formatCurrency(gst)}</strong></div>
-    <div class="reserve-price-total"><span>Total</span><strong>${formatCurrency(subtotal + gst)}</strong></div>`;
+    <div class="reserve-price-total"><span>Total</span><strong>${formatCurrency(subtotal + gst)}</strong></div>
+    <div class="reserve-price-line reserve-deposit-note"><span>Deposit due now</span><strong>${formatCurrency(deposit)}</strong></div>`;
     })()}
     <div class="reserve-helper-copy reserve-helper-copy-strong">${escapeHtml(formatDateTime(selectedStart))}</div>
   `;
@@ -840,8 +895,9 @@ function renderSubmitButton(currentState) {
   const guestName = getReserveGuestNameInput()?.value?.trim() || "";
   const guestPhone = getReserveGuestPhoneInput()?.value?.trim() || "";
   const hasContact = Boolean(currentState.currentUser || (guestName && guestPhone));
+  const policyChecked = Boolean(getReservePolicyCheckbox()?.checked);
   const selection = getCurrentSelectionValidity();
-  const canSubmit = Boolean(selection.valid && hasContact);
+  const canSubmit = Boolean(selection.valid && hasContact && policyChecked);
   const estimatedTotal = calculateEstimatedTotal(currentState.selectedRoom);
   const promoSelectionKey = getReservePromoSelectionKey(
     currentState.selectedRoom.id,
@@ -1070,6 +1126,10 @@ export function initRoomBookingView() {
     });
   });
 
+  getReservePolicyCheckbox()?.addEventListener("change", () => {
+    renderSubmitButton(state);
+  });
+
   document.getElementById("reserve-promo-preview-button")?.addEventListener("click", async () => {
     await applyReservePromoPreview(state);
   });
@@ -1114,7 +1174,7 @@ export function initRoomBookingView() {
         start_time: selectedStart,
         duration_minutes: selection.duration,
         promo_code: getReservePromoInputValue() || null,
-        note: elements.reserveNoteInput?.value?.trim() || null,
+        note: buildSessionNote(),
         staff_assignments: [...selectedStaffIds],
       };
       let booking = null;
@@ -1138,6 +1198,10 @@ export function initRoomBookingView() {
       if (elements.reserveNoteInput) {
         elements.reserveNoteInput.value = "";
       }
+      ["reserve-session-purpose", "reserve-attendees", "reserve-equipment-needs"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      });
       if (getReserveGuestNameInput()) {
         getReserveGuestNameInput().value = "";
       }
@@ -1182,6 +1246,13 @@ export function renderRoomBookingView(currentState) {
 
   const room = currentState.selectedRoom;
   const hasRoom = Boolean(room);
+
+  // Hard block: coming-soon and inactive rooms are not bookable
+  if (room && (!room.active || room.coming_soon)) {
+    window.location.replace(`/room?id=${room.id}`);
+    return;
+  }
+
   toggleHidden(elements.reserveEmpty, hasRoom);
   toggleHidden(elements.reservePlannerPanel, !hasRoom);
   toggleHidden(elements.reserveSummaryPanel, !hasRoom);
