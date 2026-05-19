@@ -454,9 +454,9 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         self.assertEqual(resp.status_code, 201, resp.text)
         booking = resp.json()
 
-        subtotal = floor(5000 * (60 / 60))  # $50.00
-        expected_tax = floor(subtotal * 0.05)   # $2.50
-        expected_total = subtotal + expected_tax  # $52.50
+        subtotal = floor(10000 * (60 / 60))  # $100.00
+        expected_tax = floor(subtotal * 0.05)   # $5.00
+        expected_total = subtotal + expected_tax  # $105.00
 
         self.assertEqual(booking.get("tax_cents"), expected_tax,
                          f"Expected tax_cents={expected_tax}, got {booking.get('tax_cents')}")
@@ -485,7 +485,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         )
         self.assertEqual(resp.status_code, 201, resp.text)
         b = resp.json()
-        self.assertEqual(b["price_cents"], b["tax_cents"] + floor(6000 * 2))
+        self.assertEqual(b["price_cents"], b["tax_cents"] + floor(10000 * 2))
 
     # ── Booking with staff ────────────────────────────────────────────────────
 
@@ -542,9 +542,9 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         )
         self.assertEqual(resp.status_code, 201, resp.text)
         b = resp.json()
-        # subtotal = room (5000) + staff (3000) = 8000; tax = floor(8000*0.05) = 400
-        self.assertEqual(b.get("tax_cents"), floor(8000 * 0.05))
-        self.assertEqual(b.get("price_cents"), 8000 + floor(8000 * 0.05))
+        # subtotal = room (10000) + staff (3000) = 13000; tax = floor(13000*0.05) = 650
+        self.assertEqual(b.get("tax_cents"), floor(13000 * 0.05))
+        self.assertEqual(b.get("price_cents"), 13000 + floor(13000 * 0.05))
 
     # ── Booking intake note ───────────────────────────────────────────────────
 
@@ -643,7 +643,7 @@ class NewFeaturesSmokeTest(unittest.TestCase):
     def test_78_staff_page_has_catalog(self) -> None:
         resp = self.client.get("/staff")
         self.assertEqual(resp.status_code, 200)
-        self.assertIn("staff-catalog-shell", resp.text)
+        self.assertIn("staff-catalog-section", resp.text)
         self.assertIn("staff-team-grid", resp.text)
 
     def test_79_rooms_js_has_gst_rendering(self) -> None:

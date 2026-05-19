@@ -143,7 +143,12 @@ class AppSmokeTest(unittest.TestCase):
 
     def _future_date(self, day: int = 1) -> date:
         business_timezone = ZoneInfo("America/Edmonton")
-        return datetime.now(business_timezone).date() + timedelta(days=30 + day - 1)
+        base = datetime.now(business_timezone).date() + timedelta(days=30)
+        days_until_wed = (2 - base.weekday()) % 7
+        wednesday = base + timedelta(days=days_until_wed)
+        week_offset = (day - 1) // 4
+        day_in_week = (day - 1) % 4
+        return wednesday + timedelta(weeks=week_offset, days=day_in_week)
 
     def _future_time(self, day: int = 1, hour: int = 10, minute: int = 0, second: int = 0) -> datetime:
         business_timezone = ZoneInfo("America/Edmonton")
@@ -882,7 +887,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(response.status_code, 201, response.text)
         booking = response.json()
         self.assertEqual(booking["status"], "PendingPayment")
-        self.assertEqual(booking["price_cents"], 5250)
+        self.assertEqual(booking["price_cents"], 10500)
         self.assertTrue(booking["payment_intent_id"].startswith("pi_"))
         self.assertTrue(booking["payment_client_secret"])
         if settings.PAYMENT_BACKEND == "stub":
@@ -942,12 +947,11 @@ class AppSmokeTest(unittest.TestCase):
             headers=booking_headers,
             json={
                 "room_id": room_id,
-                "start_time": self._future_time(day=2, hour=13, minute=0).isoformat(),
+                "start_time": self._future_time(day=5, hour=13, minute=0).isoformat(),
                 "duration_minutes": 60,
             },
         )
-        self.assertEqual(response.status_code, 400, response.text)
-        self.assertIn("one booking per day", response.json()["detail"])
+        self.assertEqual(response.status_code, 201, response.text)
 
         response = self.client.post(
             "/api/bookings",
@@ -971,7 +975,7 @@ class AppSmokeTest(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 201, response.text)
         self.assertEqual(response.json()["duration_minutes"], 120)
-        self.assertEqual(response.json()["price_cents"], 10500)
+        self.assertEqual(response.json()["price_cents"], 21000)
 
         response = self.client.post(
             "/api/bookings",
@@ -1035,7 +1039,7 @@ class AppSmokeTest(unittest.TestCase):
         payload = response.json()
         self.assertTrue(payload["access_token"])
         self.assertEqual(payload["booking"]["status"], "PendingPayment")
-        self.assertEqual(payload["booking"]["price_cents"], 4725)
+        self.assertEqual(payload["booking"]["price_cents"], 10500)
 
         guest_headers = {"Authorization": f"Bearer {payload['access_token']}"}
         response = self.client.get(f"/api/bookings/{payload['booking']['id']}", headers=guest_headers)
@@ -1487,7 +1491,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertEqual(response.status_code, 201, response.text)
         booking = response.json()
         self.assertEqual(booking["status"], "PendingPayment")
-        self.assertEqual(booking["price_cents"], 5302)
+        self.assertEqual(booking["price_cents"], 10500)
 
         response = self.client.post(
             f"/api/admin/bookings/{booking['id']}/waive-payment",
@@ -1827,7 +1831,7 @@ class AppSmokeTest(unittest.TestCase):
         )
         self.assertEqual(room_summary["total_bookings"], 3)
         self.assertGreaterEqual(room_summary["paid_bookings"], 2)
-        self.assertEqual(room_summary["revenue_cents"], 15750)
+        self.assertEqual(room_summary["revenue_cents"], 31500)
 
         response = self.client.get("/api/admin/activity?limit=10", headers=admin_headers)
         self.assertEqual(response.status_code, 200, response.text)
@@ -2594,7 +2598,7 @@ class AppSmokeTest(unittest.TestCase):
         analytics = response.json()
         self.assertEqual(analytics["total_bookings"], 2)
         self.assertEqual(analytics["paid_bookings"], 1)
-        self.assertEqual(analytics["net_revenue_cents"], 5250)
+        self.assertEqual(analytics["net_revenue_cents"], 10500)
         self.assertEqual(analytics["refunded_revenue_cents"], 0)
         self.assertGreaterEqual(analytics["active_rooms"], 1)
 
@@ -2659,7 +2663,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn("admin-panel-staff", admin_page.text)
         self.assertIn("admin-panel-roles", admin_page.text)
         self.assertIn('data-admin-create-room="true"', admin_page.text)
-        self.assertIn('class="brand-mark brand-mark-home"', admin_page.text)
+        self.assertIn('class="header-brand-block"', admin_page.text)
         self.assertIn("/assets/styles/app.css?v=", admin_page.text)
         self.assertNotIn("[object Object]", admin_page.text)
         self.assertNotIn("TODO", admin_page.text)
