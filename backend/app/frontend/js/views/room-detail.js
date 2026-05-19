@@ -216,9 +216,12 @@ export function renderRoomDetailView(state) {
   const reviewCountLabel = summary && summary.review_count
     ? `${summary.review_count} review${summary.review_count === 1 ? "" : "s"}`
     : "No public reviews yet";
+  const isComingSoon = Boolean(room.coming_soon) && !room.active;
+  const statusLabel = room.active ? "Available" : isComingSoon ? "Coming Soon" : "Inactive";
+  const statusClass = room.active ? "" : isComingSoon ? "is-coming-soon" : "muted";
   elements.roomDetailMeta.innerHTML = `
     <span class="pill">${escapeHtml(formatCategoryLabel(room))}</span>
-    <span class="pill ${room.active ? "" : "muted"}">${room.active ? "Available" : "Inactive"}</span>
+    <span class="pill ${statusClass}">${escapeHtml(statusLabel)}</span>
     <span class="pill">Up to ${escapeHtml(room.capacity || "n/a")} people</span>
     <span class="pill">Min 1 hour</span>
     <span class="pill">${escapeHtml(reviewCountLabel)}</span>
@@ -253,8 +256,17 @@ export function renderRoomDetailView(state) {
     : '<div class="empty-state">No room images were added for this room yet.</div>';
 
   if (elements.roomDetailBookingLink) {
-    elements.roomDetailBookingLink.href = `/reserve?id=${room.id}`;
-    elements.roomDetailBookingLink.textContent = "Book this room";
+    if (room.active) {
+      elements.roomDetailBookingLink.href = `/reserve?id=${room.id}`;
+      elements.roomDetailBookingLink.textContent = "Book this room";
+      elements.roomDetailBookingLink.removeAttribute("aria-disabled");
+      elements.roomDetailBookingLink.classList.remove("is-disabled");
+    } else {
+      elements.roomDetailBookingLink.removeAttribute("href");
+      elements.roomDetailBookingLink.setAttribute("aria-disabled", "true");
+      elements.roomDetailBookingLink.classList.add("is-disabled");
+      elements.roomDetailBookingLink.textContent = isComingSoon ? "Coming Soon" : "Unavailable";
+    }
   }
   if (elements.roomDetailReserveLink) {
     elements.roomDetailReserveLink.href = `/rooms`;
@@ -264,6 +276,10 @@ export function renderRoomDetailView(state) {
     elements.roomDetailPrice.textContent = formatCurrency(room.hourly_rate_cents);
   }
   if (elements.roomDetailBookingCopy) {
-    elements.roomDetailBookingCopy.textContent = `Move into reserve to choose a time, confirm availability, and finish payment with Stripe.`;
+    elements.roomDetailBookingCopy.textContent = isComingSoon
+      ? "This studio is opening soon. Check back here to book once it launches."
+      : room.active
+        ? "Move into reserve to choose a time, confirm availability, and finish payment with Stripe."
+        : "This studio is not currently available for booking."
   }
 }

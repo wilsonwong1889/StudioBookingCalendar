@@ -13,9 +13,189 @@ from app.roles import USER_ROLE_ADMIN_MANAGER, is_admin_role, normalize_user_rol
 from app.schemas.promo_code import normalize_promo_code
 
 
-DEFAULT_ROOM_SEEDS: tuple[dict, ...] = ()
+DEFAULT_ROOM_SEEDS: tuple[dict, ...] = (
+    # --- Live for May beta launch ---
+    {
+        "name": "Podcast Studio",
+        "description": (
+            "A professional podcast-ready space with acoustic treatment, condenser mics, "
+            "headphone monitoring, and a broadcast-quality setup — perfect for solo shows, "
+            "interviews, and multi-guest recordings."
+        ),
+        "capacity": 4,
+        "hourly_rate_cents": 5000,
+        "max_booking_duration_minutes": 300,
+        "photos": [],
+        "staff_roles": [],
+        "active": True,
+        "coming_soon": False,
+    },
+    {
+        "name": "Sound Engineering / Recording Studio",
+        "description": (
+            "A full-featured recording studio with an isolation booth, professional DAW workstation, "
+            "studio monitors, and a curated mic locker — ideal for music production, voiceover, "
+            "and audio post-production."
+        ),
+        "capacity": 6,
+        "hourly_rate_cents": 5000,
+        "max_booking_duration_minutes": 300,
+        "photos": [],
+        "staff_roles": [],
+        "active": True,
+        "coming_soon": False,
+    },
+    # --- Coming soon (target June) ---
+    {
+        "name": "Small Photography / Video / Editing Studio",
+        "description": (
+            "A compact, versatile studio space for headshots, product photography, short-form video, "
+            "and on-site editing — equipped with continuous lighting and a seamless backdrop."
+        ),
+        "capacity": 4,
+        "hourly_rate_cents": 5000,
+        "max_booking_duration_minutes": 300,
+        "photos": [],
+        "staff_roles": [],
+        "active": False,
+        "coming_soon": True,
+    },
+    {
+        "name": "Large Photography / Videography Studio",
+        "description": (
+            "A spacious, high-ceiling studio built for full productions — fashion shoots, "
+            "brand campaigns, and video content — with strobe lighting, modifiers, and ample room "
+            "for crew and talent."
+        ),
+        "capacity": 12,
+        "hourly_rate_cents": 7500,
+        "max_booking_duration_minutes": 300,
+        "photos": [],
+        "staff_roles": [],
+        "active": False,
+        "coming_soon": True,
+    },
+    {
+        "name": "Dance / Movement Studio",
+        "description": (
+            "A sprung-floor movement studio with mirrored walls, ballet barres, and open space "
+            "for choreography, rehearsal, fitness classes, and performance capture."
+        ),
+        "capacity": 20,
+        "hourly_rate_cents": 5000,
+        "max_booking_duration_minutes": 300,
+        "photos": [],
+        "staff_roles": [],
+        "active": False,
+        "coming_soon": True,
+    },
+    # --- Hidden (TBC, not yet public) ---
+    {
+        "name": "Branding & Merchandise Production Area",
+        "description": (
+            "A dedicated production workspace for print-on-demand, merchandise fulfilment, "
+            "and brand prototyping — featuring heat press, vinyl cutter, and design workstations."
+        ),
+        "capacity": 6,
+        "hourly_rate_cents": 5000,
+        "max_booking_duration_minutes": 300,
+        "photos": [],
+        "staff_roles": [],
+        "active": False,
+        "coming_soon": False,
+    },
+    {
+        "name": "Conference Room",
+        "description": (
+            "A professional meeting room with presentation display, whiteboard, and seating for "
+            "up to 12 — suited for workshops, strategy sessions, and community meetings."
+        ),
+        "capacity": 12,
+        "hourly_rate_cents": 3500,
+        "max_booking_duration_minutes": 300,
+        "photos": [],
+        "staff_roles": [],
+        "active": False,
+        "coming_soon": False,
+    },
+    {
+        "name": "Co-Working Space",
+        "description": (
+            "An open, collaborative workspace with high-speed Wi-Fi, standing desks, and a "
+            "community atmosphere — available for day passes and hourly drop-in sessions."
+        ),
+        "capacity": 16,
+        "hourly_rate_cents": 2500,
+        "max_booking_duration_minutes": 300,
+        "photos": [],
+        "staff_roles": [],
+        "active": False,
+        "coming_soon": False,
+    },
+)
 
-DEFAULT_STAFF_PROFILE_SEEDS: tuple[dict, ...] = ()
+DEFAULT_STAFF_PROFILE_SEEDS: tuple[dict, ...] = (
+    {
+        "name": "Jordan Lee",
+        "description": "Versatile sound engineer and music producer with a decade of experience in recording, mixing, and live production across genres.",
+        "skills": ["Sound Engineering", "Music Production", "Mixing & Mastering"],
+        "talents": ["Live Recording", "Vocal Production", "Beat Making"],
+        "service_types": ["Sound Engineer", "Music Producer"],
+        "booking_rate_cents": 7500,
+        "photo_url": "/assets/media/staff/05e8ac68bc274a04a5c2795433a5e4a6.jpg",
+        "active": True,
+    },
+    {
+        "name": "Priya Sharma",
+        "description": "Award-winning photographer specializing in portrait, editorial, and brand photography. Brings warmth and intentionality to every shoot.",
+        "skills": ["Portrait Photography", "Editorial Photography", "Lighting Design"],
+        "talents": ["Retouching", "Brand Storytelling", "Studio Lighting"],
+        "service_types": ["Photographer"],
+        "booking_rate_cents": 8500,
+        "photo_url": "/assets/media/staff/14f170a760ad41c6a228c04ca64f545d.jpg",
+        "active": True,
+    },
+    {
+        "name": "Marcus Webb",
+        "description": "Filmmaker and videographer focused on documentary, narrative, and social media content. Skilled with cinema cameras and post-production.",
+        "skills": ["Videography", "Film Directing", "Color Grading"],
+        "talents": ["Drone Operation", "Motion Graphics", "Interview Production"],
+        "service_types": ["Videographer / Filmer", "Creative Director"],
+        "booking_rate_cents": 9000,
+        "photo_url": "/assets/media/staff/2864e21b8bc54f1480fe1a7d1346aa38.jpg",
+        "active": True,
+    },
+    {
+        "name": "Amara Osei",
+        "description": "Podcast producer and audio storyteller helping creators build consistent, professional shows from concept to final episode.",
+        "skills": ["Podcast Production", "Audio Editing", "Show Development"],
+        "talents": ["Guest Coaching", "RSS & Distribution", "Sound Design"],
+        "service_types": ["Podcast Producer"],
+        "booking_rate_cents": 6500,
+        "photo_url": "/assets/media/staff/50ea9fe562724e939b0e3da828c6cb07.jpg",
+        "active": True,
+    },
+    {
+        "name": "Tasha Rivera",
+        "description": "Graphic designer and content creator crafting bold visual identities, social media assets, and digital campaigns for independent artists and brands.",
+        "skills": ["Graphic Design", "Brand Identity", "Social Media Content"],
+        "talents": ["Logo Design", "Typography", "Campaign Strategy"],
+        "service_types": ["Graphic Designer", "Content Creator"],
+        "booking_rate_cents": 6000,
+        "photo_url": "/assets/media/staff/976e0904078b457f94586eddf6447dd4.jpg",
+        "active": True,
+    },
+    {
+        "name": "Devon Clarke",
+        "description": "Lighting technician with expertise in studio, stage, and film setups. Helps teams achieve the exact look and feel their creative vision demands.",
+        "skills": ["Lighting Design", "Studio Setup", "Colour Temperature"],
+        "talents": ["LED Programming", "Photography Assist", "Video Lighting"],
+        "service_types": ["Lighting Technician"],
+        "booking_rate_cents": 5500,
+        "photo_url": "/assets/media/staff/c4750caebf464a9eb8cf982474c32a45.jpg",
+        "active": True,
+    },
+)
 
 DEFAULT_PROMO_CODE_SEEDS: tuple[dict, ...] = (
     {
@@ -82,6 +262,11 @@ def ensure_rooms(db: Session, rooms: Sequence[dict] = DEFAULT_ROOM_SEEDS) -> lis
             if not existing_room.photos:
                 existing_room.photos = room_payload["photos"]
                 updated = True
+            # Always sync visibility flags from seed data
+            for field in ("active", "coming_soon"):
+                if field in room_payload and getattr(existing_room, field) != room_payload[field]:
+                    setattr(existing_room, field, room_payload[field])
+                    updated = True
             if updated:
                 db.add(existing_room)
             continue

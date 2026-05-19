@@ -38,9 +38,13 @@ from app.services.payment_service import (
     create_refund,
     get_payment_intent_session,
 )
+from app.services.pricing_service import get_hourly_rate, DAILY_HOUR_LIMIT
 from app.services.promo_code_service import apply_promo_code_to_amount
 from app.services.reservation_service import ReservationHold, create_hold, release_hold, validate_hold
 
+
+# Wednesday=2, Thursday=3, Friday=4, Saturday=5 (Python weekday() values)
+BOOKING_OPEN_WEEKDAYS = frozenset({2, 3, 4, 5})
 
 AMBIGUOUS_CHARACTERS = {"0", "1", "I", "O"}
 BOOKING_CODE_ALPHABET = "".join(
@@ -419,6 +423,7 @@ def ensure_single_booking_per_day(
     db: Session,
     user: User,
     booking_start: datetime,
+    new_duration_minutes: int = 60,
     *,
     exclude_booking_id=None,
 ) -> None:
@@ -426,18 +431,23 @@ def ensure_single_booking_per_day(
     local_booking_date = booking_start.astimezone(business_timezone).date()
     utc_start, utc_end = get_day_bounds(local_booking_date)
 
-    existing_booking = (
-        db.query(Booking)
+    query = (
+        db.query(func.coalesce(func.sum(Booking.duration_minutes), 0))
         .filter(Booking.user_id == user.id)
         .filter(Booking.start_time >= utc_start)
         .filter(Booking.start_time < utc_end)
         .filter(Booking.status.in_(("PendingPayment", "Paid", "Completed")))
     )
     if exclude_booking_id:
-        existing_booking = existing_booking.filter(Booking.id != exclude_booking_id)
-    existing_booking = existing_booking.first()
-    if existing_booking:
-        raise DailyBookingLimitError("Only one booking per day is allowed for each account")
+        query = query.filter(Booking.id != exclude_booking_id)
+    existing_minutes = query.scalar() or 0
+
+    if existing_minutes + new_duration_minutes > DAILY_HOUR_LIMIT * 60:
+        hours_used = existing_minutes // 60
+        raise DailyBookingLimitError(
+            f"This booking would exceed the {DAILY_HOUR_LIMIT}-hour daily limit. "
+            f"You have {hours_used} hour(s) already booked on this date."
+        )
 
 
 def create_booking(db: Session, user: User, payload: BookingCreate) -> Booking:
@@ -507,7 +517,7 @@ def _create_booking_record(
     ensure_booking_start_not_in_past(normalized_start)
     ensure_room_duration_allowed(room, duration_minutes)
     if enforce_daily_limit:
-        ensure_single_booking_per_day(db, user, normalized_start)
+        ensure_single_booking_per_day(db, user, normalized_start, duration_minutes)
     end_time = normalized_start + timedelta(minutes=duration_minutes)
     validate_booking_window(normalized_start, end_time)
     slot_starts = build_slot_starts(normalized_start, duration_minutes)
@@ -517,8 +527,11 @@ def _create_booking_record(
     except ValueError as exc:
         raise StaffSelectionError(str(exc)) from exc
     ensure_staff_assignments_available(db, staff_assignments, normalized_start, end_time)
+    category_hourly_rate = get_hourly_rate(
+        getattr(user, "user_category", None) or "general_public"
+    ) or room.hourly_rate_cents
     original_price_cents = calculate_booking_total_cents(
-        room.hourly_rate_cents,
+        category_hourly_rate,
         duration_minutes,
         staff_assignments,
     )
@@ -642,14 +655,19 @@ def get_room_availability(db: Session, room_id: str, target_date: date) -> dict:
     room_max_duration_minutes = get_room_max_booking_duration_minutes(room)
     current_time = datetime.now(timezone.utc)
 
+    empty_response = {
+        "room_id": room.id,
+        "date": target_date,
+        "timezone": settings.BUSINESS_TIMEZONE,
+        "available_start_times": [],
+        "max_duration_minutes_by_start": {},
+    }
+
     if is_booking_date_before_today(target_date, now=current_time):
-        return {
-            "room_id": room.id,
-            "date": target_date,
-            "timezone": settings.BUSINESS_TIMEZONE,
-            "available_start_times": [],
-            "max_duration_minutes_by_start": {},
-        }
+        return empty_response
+
+    if target_date.weekday() not in BOOKING_OPEN_WEEKDAYS:
+        return empty_response
 
     booked_slot_rows = (
         db.query(BookingSlot.slot_start)
@@ -873,6 +891,7 @@ def reschedule_booking(
         db,
         actor,
         normalized_start,
+        booking.duration_minutes,
         exclude_booking_id=booking.id,
     )
     end_time = normalized_start + timedelta(minutes=booking.duration_minutes)

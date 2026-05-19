@@ -31,6 +31,8 @@ class BookingCreate(BaseModel):
     promo_code: Optional[str] = None
     note: Optional[str] = None
     staff_assignments: List[str] = Field(default_factory=list)
+    with_engineer: bool = False
+    user_category: str = "general_public"
 
     @field_validator("start_time")
     @classmethod
@@ -80,6 +82,9 @@ class BookingOut(BaseModel):
     cancelled_at: Optional[datetime] = None
     cancellation_reason: Optional[str] = None
     note: Optional[str] = None
+    deposit_amount_cents: int = 0
+    deposit_paid: bool = False
+    deposit_with_engineer: bool = False
     user_email: Optional[str] = None
     user_full_name: Optional[str] = None
     user_phone: Optional[str] = None

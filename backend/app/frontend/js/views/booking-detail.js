@@ -1041,7 +1041,6 @@ function renderBookingSummaryLayout(booking) {
     layout.summaryRoom.textContent = bookingTitle;
     layout.summaryMedia.innerHTML = `
       <div class="booking-summary-room-card">
-        <img class="booking-summary-room-image" src="${visual}" alt="${roomName}" loading="lazy" />
         <div class="booking-summary-room-copy">
           <div class="booking-summary-room-pills">
             <span class="pill">${typeLabel}</span>

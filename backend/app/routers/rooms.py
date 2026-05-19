@@ -24,7 +24,12 @@ def list_rooms(
         if not current_user or not user_has_admin_access(current_user):
             raise HTTPException(status_code=403, detail="Admin access required")
         return query.order_by(Room.created_at.desc()).all()
-    return query.filter(Room.active.is_(True)).order_by(Room.created_at.desc()).all()
+    # Public view: show active rooms AND coming-soon rooms (visible but not bookable)
+    return (
+        query.filter((Room.active.is_(True)) | (Room.coming_soon.is_(True)))
+        .order_by(Room.created_at.desc())
+        .all()
+    )
 
 @router.get("/{room_id}", response_model=RoomOut)
 def get_room(

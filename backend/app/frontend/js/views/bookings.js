@@ -321,9 +321,6 @@ function renderBookingCard(booking, { upcoming = false } = {}) {
   return `
     <article class="booking-card ${pendingPayment ? "booking-card-pending" : "booking-card-secondary"}">
       <a class="booking-card-main" href="${escapeHtml(detailHref)}">
-        <div class="booking-card-media">
-          <img class="booking-card-image" src="${escapeHtml(getBookingImage(booking))}" alt="${escapeHtml(bookingTitle)}" loading="lazy" />
-        </div>
         <div class="booking-card-copy">
           <div class="booking-card-heading">
             <div class="booking-card-title-row">

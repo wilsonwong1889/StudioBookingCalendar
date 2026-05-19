@@ -57,6 +57,7 @@ class RoomOut(BaseModel):
     hourly_rate_cents: int
     max_booking_duration_minutes: int
     active: bool
+    coming_soon: bool = False
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -81,6 +82,7 @@ class RoomUpdate(BaseModel):
     hourly_rate_cents: Optional[int] = Field(default=None, ge=0)
     max_booking_duration_minutes: Optional[int] = None
     active: Optional[bool] = None
+    coming_soon: Optional[bool] = None
 
     @field_validator("photos")
     @classmethod

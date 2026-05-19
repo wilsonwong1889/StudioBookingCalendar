@@ -306,7 +306,7 @@ function getStaffSearchInput() {
 }
 
 function getStaffCategoryBar() {
-  return document.getElementById("staff-category-bar");
+  return document.getElementById("staff-role-bar");
 }
 
 function getStaffResultsCount() {
@@ -513,22 +513,35 @@ function getStaffCategories(profiles) {
 }
 
 function renderStaffCategoryBar(profiles) {
-  const target = getStaffCategoryBar();
-  if (!target) {
-    return;
-  }
+  const bar = document.getElementById("staff-role-bar");
+  if (!bar) return;
 
-  const categories = getStaffCategories(profiles);
-  target.innerHTML = [
-    `<button class="tab-button ${staffCategoryFilter === "all" ? "is-active" : ""}" type="button" data-staff-category="all">All</button>`,
-    ...categories.map(
-      (category) => `
-        <button class="tab-button ${staffCategoryFilter === category ? "is-active" : ""}" type="button" data-staff-category="${escapeHtml(category)}">
-          ${escapeHtml(category)}
-        </button>
-      `,
-    ),
-  ].join("");
+  const ROLES = [
+    { value: "all", label: "All" },
+    { value: "photographer", label: "Photographer" },
+    { value: "videographer", label: "Videographer" },
+    { value: "sound-engineer", label: "Sound Engineer" },
+    { value: "music-producer", label: "Music Producer" },
+    { value: "podcast-producer", label: "Podcast Producer" },
+    { value: "lighting-technician", label: "Lighting Tech" },
+    { value: "graphic-designer", label: "Graphic Designer" },
+    { value: "content-creator", label: "Content Creator" },
+    { value: "creative-director", label: "Creative Director" },
+    { value: "studio-consultant", label: "Studio Consultant" },
+  ];
+
+  bar.innerHTML = ROLES.map((role) => {
+    const isActive = staffCategoryFilter === role.value;
+    return `<button class="staff-role-pill${isActive ? " is-active" : ""}" type="button" data-staff-role="${escapeHtml(role.value)}">${escapeHtml(role.label)}</button>`;
+  }).join("");
+
+  bar.querySelectorAll(".staff-role-pill").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      staffCategoryFilter = btn.dataset.staffRole || "all";
+      renderStaffCategoryBar(profiles);
+      renderStaffCatalog(staffProfilesCache);
+    });
+  });
 }
 
 function getVisibleStaffProfiles(profiles) {
@@ -537,7 +550,7 @@ function getVisibleStaffProfiles(profiles) {
     const matchesQuery = !query || getStaffSearchText(profile).includes(query);
     const matchesCategory =
       staffCategoryFilter === "all" ||
-      [...(profile.skills || []), ...(profile.talents || []), ...(profile.service_types || [])].includes(staffCategoryFilter);
+      getStaffSearchText(profile).includes(staffCategoryFilter.replace(/-/g, " "));
     return matchesQuery && matchesCategory;
   });
 
@@ -556,39 +569,88 @@ function getVisibleStaffProfiles(profiles) {
 }
 
 function renderSelectedCard(profile) {
-  const target = getSelectedCard();
-  if (!target) {
-    return;
-  }
+  const target = document.getElementById("staff-booking-selected-card");
+  const profileCard = document.getElementById("staff-profile-card");
 
   if (!profile) {
-    target.className = "staff-booking-selected-card empty-state";
-    target.innerHTML = "Choose staff from the catalog to load a booking workspace.";
+    if (target) {
+      target.className = "staff-booking-selected-card empty-state";
+      target.innerHTML = "Choose a staff member from the catalog above.";
+    }
+    if (profileCard) profileCard.innerHTML = "";
     return;
   }
 
-  const rate = getStaffRateLabel(profile);
-  const skills = (profile.skills || []).slice(0, 3);
-  const talents = (profile.talents || []).slice(0, 3);
-  target.className = "staff-booking-selected-card staff-reserve-profile-card";
-  target.innerHTML = `
-    <div class="staff-reserve-profile-media">
-      ${renderStaffImage(profile.photo_url, profile.name)}
-    </div>
-    <div class="staff-reserve-profile-copy">
-      <div class="room-meta">
-        <span class="pill reserve-room-pill">${escapeHtml(rate)}</span>
-        <span class="pill reserve-room-pill">${escapeHtml(getStaffPrimaryCategory(profile))}</span>
-        <span class="pill reserve-room-pill">Bookable now</span>
+  // Small summary in booking sidebar
+  if (target) {
+    target.className = "staff-booking-selected-card staff-reserve-profile-card";
+    target.innerHTML = `
+      <div class="staff-booking-summary-top">
+        ${renderStaffImage(profile.photo_url, profile.name)}
+        <div class="staff-option-copy">
+          <strong>${escapeHtml(profile.name)}</strong>
+          <span>${escapeHtml(getStaffPrimaryCategory(profile))} · ${escapeHtml(getStaffRateLabel(profile))}</span>
+        </div>
       </div>
-      <h2>${escapeHtml(profile.name)}</h2>
-      <p>${escapeHtml(profile.description || "Staff booking support.")}</p>
-      <div class="staff-reserve-profile-tags">
-        ${renderTagGroup("Skills", skills)}
-        ${renderTagGroup("Talents", talents)}
+    `;
+  }
+
+  // Rich profile in left column
+  if (profileCard) {
+    const name = escapeHtml(profile.name || "Team Member");
+    const role = escapeHtml(getStaffPrimaryCategory(profile));
+    const bio = escapeHtml(profile.description || "Arts Marvels creative professional.");
+    const rate = escapeHtml(getStaffRateLabel(profile));
+    const skills = (profile.skills || []);
+    const talents = (profile.talents || []);
+    const photoSrc = profile.photo_url || STAFF_PLACEHOLDER_IMAGE;
+
+    const skillTags = skills.map((s) => `<span class="staff-profile-tag">${escapeHtml(s)}</span>`).join("") || '<span class="staff-profile-tag">Creative</span>';
+    const talentTags = talents.map((t) => `<span class="staff-profile-tag">${escapeHtml(t)}</span>`).join("") || '<span class="staff-profile-tag">Production</span>';
+
+    profileCard.innerHTML = `
+      <div class="staff-profile-photo-block">
+        <img class="staff-profile-photo" src="${escapeHtml(photoSrc)}" alt="${name}" loading="lazy" onerror="this.onerror=null;this.src='${escapeHtml(STAFF_PLACEHOLDER_IMAGE)}';" />
+        <div class="staff-profile-photo-overlay"></div>
+        <div class="staff-profile-photo-info">
+          <h2 class="staff-profile-photo-name">${name}</h2>
+          <p class="staff-profile-photo-role">${role}</p>
+          <span class="staff-profile-availability-badge">
+            <span class="staff-profile-availability-dot"></span>
+            Available to book
+          </span>
+        </div>
       </div>
-    </div>
-  `;
+      <div class="staff-profile-body">
+        <div>
+          <p class="staff-profile-section-label">About</p>
+          <p class="staff-profile-bio-text">${bio}</p>
+        </div>
+        <div class="staff-profile-skills-grid">
+          <div class="staff-profile-tag-group">
+            <p class="staff-profile-section-label">Skills</p>
+            <div class="staff-profile-tags">${skillTags}</div>
+          </div>
+          <div class="staff-profile-tag-group">
+            <p class="staff-profile-section-label">Specialties</p>
+            <div class="staff-profile-tags">${talentTags}</div>
+          </div>
+        </div>
+        <div class="staff-profile-meta-row">
+          <div class="staff-profile-meta-block">
+            <span class="staff-profile-meta-label">Rate</span>
+            <span class="staff-profile-meta-value">${rate}</span>
+            <span class="staff-profile-meta-sub">Guest checkout available</span>
+          </div>
+          <div class="staff-profile-meta-block">
+            <span class="staff-profile-meta-label">Hours</span>
+            <span class="staff-profile-meta-value">Wed – Sat</span>
+            <span class="staff-profile-meta-sub">12:00 PM – 8:00 PM</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
 }
 
 function renderSummaryCard(profile) {
@@ -867,6 +929,7 @@ function renderStaffBookingShell(currentState) {
   }
 
   shell.classList.toggle("is-ready", Boolean(profile));
+  shell.classList.toggle("hidden", !profile);
   renderSelectedCard(profile);
   renderSummaryCard(profile);
 
@@ -994,21 +1057,26 @@ async function selectStaffBooking(staffId, { syncUrl = true, scroll = true } = {
     syncSelectionUrl(nextId);
   }
   setStatus("Staff selected. Loading availability...");
+  const shell = getBookingShell();
+  if (shell) {
+    shell.classList.remove("hidden");
+  }
   renderStaffBookingShell({ currentUser: state.currentUser });
   if (scroll) {
-    getBookingShell()?.scrollIntoView({ behavior: "smooth", block: "start" });
+    shell?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   await loadAvailabilityForSelectedStaff();
 }
 
 function handleTeamGridClick(event) {
-  const button = event.target.closest("[data-staff-book-button], [data-staff-details-button]");
+  const button = event.target.closest("[data-staff-book], [data-staff-view], [data-staff-book-button], [data-staff-details-button]");
   if (!button) {
     return;
   }
 
   event.preventDefault();
-  void selectStaffBooking(button.dataset.staffBookButton || button.dataset.staffDetailsButton);
+  const staffId = button.dataset.staffBook || button.dataset.staffView || button.dataset.staffBookButton || button.dataset.staffDetailsButton;
+  void selectStaffBooking(staffId);
 }
 
 function handleTimeGridClick(event) {
@@ -1108,77 +1176,51 @@ async function handleBookingSubmit(event) {
   }
 }
 
-function renderStaffCard(profile) {
-  const rate = getStaffRateLabel(profile);
+function renderStaffCatalogCard(profile) {
+  const name = escapeHtml(profile.name || "Team Member");
+  const role = escapeHtml(getStaffPrimaryCategory(profile));
+  const bio = escapeHtml(profile.description || "Arts Marvels creative professional.");
+  const rate = escapeHtml(getStaffRateLabel(profile));
   const skills = (profile.skills || []).slice(0, 3);
-  const isSelected = String(profile.id) === String(selectedStaffId);
-  const category = getStaffPrimaryCategory(profile);
-  const rating = getStaffRating(profile);
-  const description = profile.description || `${profile.name} is available for studio support and production help.`;
-  const rateCents = getStaffRateCents(profile);
-  const priceMarkup = rateCents
-    ? `${formatCurrency(rateCents)}<span>/hr</span>`
-    : `Request<span>rate</span>`;
-  const featureLabels = [
-    category,
-    "5 hours max",
-    "Bookable now",
-  ];
+  const id = escapeHtml(String(profile.id || ""));
+  const photoSrc = profile.photo_url || STAFF_PLACEHOLDER_IMAGE;
+  const photoHtml = `<img class="staff-card-photo" src="${escapeHtml(photoSrc)}" alt="${name}" loading="lazy" onerror="this.onerror=null;this.src='${escapeHtml(STAFF_PLACEHOLDER_IMAGE)}';" />`;
+  const skillTags = skills.map((s) => `<span class="staff-card-skill-tag">${escapeHtml(s)}</span>`).join("");
+
   return `
-    <article class="room-card room-catalog-card staff-catalog-card ${isSelected ? "is-selected" : ""}" data-staff-id="${escapeHtml(profile.id)}">
-      <div class="room-catalog-media staff-catalog-media">
-        <img
-          class="room-card-image staff-catalog-image"
-          src="${escapeHtml(profile.photo_url || STAFF_PLACEHOLDER_IMAGE)}"
-          alt="${escapeHtml(profile.name)}"
-          loading="lazy"
-          onerror="this.onerror=null;this.src='${STAFF_PLACEHOLDER_IMAGE}';"
-        />
-        <div class="room-catalog-media-badges">
-          <span class="room-catalog-pill room-catalog-pill-category">${escapeHtml(category)}</span>
-          <span class="room-catalog-pill room-catalog-pill-status is-available">Available</span>
+    <article class="staff-card" data-staff-id="${id}" role="button" tabindex="0" aria-label="View profile for ${name}">
+      <div class="staff-card-media">
+        ${photoHtml}
+        <div class="staff-card-badges">
+          <span class="staff-card-badge staff-card-badge-role">${role}</span>
+          <span class="staff-card-badge staff-card-badge-available">Available</span>
         </div>
       </div>
-      <div class="room-catalog-content">
-        <div class="room-catalog-title-row">
-          <h3 class="room-catalog-title ${isSelected ? "is-accent" : ""}">${escapeHtml(profile.name)}</h3>
-          <span class="room-catalog-rating"><span aria-hidden="true">★</span> ${rating.toFixed(1).replace(".0", "")}</span>
-        </div>
-        <p class="room-catalog-description">${escapeHtml(description)}</p>
-        <div class="room-catalog-feature-row" aria-label="Staff highlights">
-          ${featureLabels.map((label) => `<span>${escapeHtml(label)}</span>`).join("")}
-        </div>
-        <div class="availability-preview availability-preview-idle">
-          <span class="availability-label">Live openings</span>
-          <p>Choose a date and available start time before checkout.</p>
-          ${
-            skills.length
-              ? `<div class="preview-pill-row">${skills.map((skill) => `<span class="pill">${escapeHtml(skill)}</span>`).join("")}</div>`
-              : ""
-          }
-        </div>
-        <div class="room-catalog-meta-row">
-          <span class="room-catalog-capacity">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-              <circle cx="10" cy="6.5" r="2.6"></circle>
-              <path d="M4.5 16c1-3 3.1-4.5 5.5-4.5s4.5 1.5 5.5 4.5"></path>
-            </svg>
-            Staff session
+      <div class="staff-card-content">
+        <div class="staff-card-name-row">
+          <h3 class="staff-card-name">${name}</h3>
+          <span class="staff-card-rating">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            4.9
           </span>
-          <strong class="room-catalog-price">${priceMarkup}</strong>
         </div>
-        <div class="room-actions room-catalog-actions">
-          <button class="primary-button room-catalog-book-button staff-book-button" type="button" data-staff-book-button="${escapeHtml(profile.id)}">
-            Book staff
-          </button>
-          <button class="ghost-button room-catalog-details-button staff-book-button-secondary" type="button" data-staff-details-button="${escapeHtml(profile.id)}">
-            Details
-          </button>
+        <p class="staff-card-role">${role}</p>
+        <p class="staff-card-bio">${bio}</p>
+        <div class="staff-card-skills">${skillTags}</div>
+        <div class="staff-card-footer">
+          <div class="staff-card-rate">${rate}<span>/hr</span></div>
+          <div class="staff-card-actions">
+            <button class="staff-card-view-btn" type="button" data-staff-view="${id}">Profile</button>
+            <button class="staff-card-book-btn" type="button" data-staff-book="${id}">Book →</button>
+          </div>
         </div>
       </div>
     </article>
   `;
 }
+
+// Keep legacy name as alias so any external callers still work
+const renderStaffCard = renderStaffCatalogCard;
 
 function initCarousel() {
   const AUTOPLAY_INTERVAL_MS = 6000;
@@ -1242,11 +1284,11 @@ export function initStaffDirectoryView() {
     renderStaffDirectoryView(state);
   });
   getStaffCategoryBar()?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-staff-category]");
+    const button = event.target.closest("[data-staff-role], [data-staff-category]");
     if (!button) {
       return;
     }
-    staffCategoryFilter = button.dataset.staffCategory || "all";
+    staffCategoryFilter = button.dataset.staffRole || button.dataset.staffCategory || "all";
     renderStaffDirectoryView(state);
   });
   getStaffFilterToggle()?.addEventListener("click", () => {
@@ -1341,20 +1383,27 @@ function renderBookingSection(currentState) {
   renderStaffBookingShell(currentState);
 }
 
+function renderStaffCatalog(allProfiles) {
+  const grid = elements.staffTeamGrid;
+  if (!grid) return;
+  const profiles = (allProfiles || staffProfilesCache).filter((profile) => profile?.active !== false);
+  const visibleProfiles = getVisibleStaffProfiles(profiles);
+  const resultsCount = getStaffResultsCount();
+  if (resultsCount) {
+    resultsCount.textContent = `${visibleProfiles.length} staff member${visibleProfiles.length === 1 ? "" : "s"} found`;
+  }
+  grid.innerHTML = visibleProfiles.length
+    ? visibleProfiles.map(renderStaffCatalogCard).join("")
+    : '<div class="empty-state">No staff matched those filters. Clear search or choose another specialty.</div>';
+}
+
 export function renderStaffDirectoryView(currentState) {
   staffProfilesCache = currentState.publicStaffProfiles || [];
 
   if (elements.staffTeamGrid) {
     const profiles = staffProfilesCache.filter((profile) => profile?.active !== false);
     renderStaffCategoryBar(profiles);
-    const visibleProfiles = getVisibleStaffProfiles(profiles);
-    const resultsCount = getStaffResultsCount();
-    if (resultsCount) {
-      resultsCount.textContent = `${visibleProfiles.length} staff member${visibleProfiles.length === 1 ? "" : "s"} found`;
-    }
-    elements.staffTeamGrid.innerHTML = visibleProfiles.length
-      ? visibleProfiles.map(renderStaffCard).join("")
-      : '<div class="empty-state">No staff matched those filters. Clear search or choose another specialty.</div>';
+    renderStaffCatalog(profiles);
   }
 
   if (selectedStaffId && !staffProfilesCache.some((profile) => String(profile.id) === String(selectedStaffId))) {

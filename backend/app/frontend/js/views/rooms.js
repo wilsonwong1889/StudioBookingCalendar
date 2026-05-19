@@ -8,6 +8,7 @@ let roomsViewBound = false;
 let selectedRoomCategory = "all";
 let roomsCatalogSort = "recommended";
 let roomsFiltersOpen = false;
+let pendingUrlSearch = false;
 
 const ROOM_CATEGORY_ORDER = [
   "all",
@@ -398,10 +399,16 @@ function renderAvailabilityPreview(roomId) {
   `;
 }
 
+function getRoomStatusLabel(room) {
+  if (room.active) return "Available";
+  if (room.coming_soon) return "Coming Soon";
+  return "Inactive";
+}
+
 function renderRoomCard(room, canManageRooms) {
   const { photo: primaryPhoto, fallback, category } = getRoomVisual(room);
   const categoryLabel = formatRoomCategoryLabel(category);
-  const statusLabel = room.active ? "Available" : "Inactive";
+  const statusLabel = getRoomStatusLabel(room);
   const rating = getRoomRating(room);
   const safeRoomId = escapeHtml(room.id);
   const safeRoomName = escapeHtml(room.name);
@@ -410,6 +417,8 @@ function renderRoomCard(room, canManageRooms) {
   const safeCategoryLabel = escapeHtml(categoryLabel);
   const safeDescription = escapeHtml(formatRoomDescription(room));
   const canEditRoom = canManageRooms && Boolean(elements.roomForm);
+  const isComingSoon = Boolean(room.coming_soon) && !room.active;
+
   if (canManageRooms && isAdminPage()) {
     const managementActions = [
       canEditRoom
@@ -434,7 +443,7 @@ function renderRoomCard(room, canManageRooms) {
           <div class="admin-studio-title-row">
             <h3>${safeRoomName}</h3>
             <span class="pill">${safeCategoryLabel}</span>
-            ${room.active ? "" : '<span class="pill status-cancelled">Unavailable</span>'}
+            ${room.active ? "" : isComingSoon ? '<span class="pill status-pending">Coming Soon</span>' : '<span class="pill status-cancelled">Unavailable</span>'}
           </div>
           <p>${formatCompactCurrency(room.hourly_rate_cents)}/hr · capacity ${escapeHtml(room.capacity || "n/a")} · ★ ${rating.toFixed(1).replace(".0", "")}</p>
         </div>
@@ -457,8 +466,11 @@ function renderRoomCard(room, canManageRooms) {
       ].filter(Boolean).join("")
     : "";
 
+  const statusPillClass = room.active ? "is-available" : isComingSoon ? "is-coming-soon" : "is-booked";
+  const featureRowStatus = room.active ? "Bookable now" : isComingSoon ? "Opening soon" : "Inactive";
+
   return `
-    <article class="room-card room-catalog-card">
+    <article class="room-card room-catalog-card${isComingSoon ? " is-coming-soon" : ""}">
       <div class="room-catalog-media">
         ${
           primaryPhoto
@@ -467,7 +479,7 @@ function renderRoomCard(room, canManageRooms) {
         }
         <div class="room-catalog-media-badges">
           <span class="room-catalog-pill room-catalog-pill-category">${safeCategoryLabel}</span>
-          <span class="room-catalog-pill room-catalog-pill-status ${room.active ? "is-available" : "is-booked"}">${statusLabel}</span>
+          <span class="room-catalog-pill room-catalog-pill-status ${statusPillClass}">${escapeHtml(statusLabel)}</span>
         </div>
       </div>
       <div class="room-catalog-content">
@@ -479,9 +491,9 @@ function renderRoomCard(room, canManageRooms) {
         <div class="room-catalog-feature-row" aria-label="Room highlights">
           <span>${safeCategoryLabel}</span>
           <span>${formatDuration(room.max_booking_duration_minutes || 300)} max</span>
-          <span>${room.active ? "Bookable now" : "Inactive"}</span>
+          <span>${featureRowStatus}</span>
         </div>
-        ${renderAvailabilityPreview(room.id)}
+        ${room.active ? renderAvailabilityPreview(room.id) : ""}
         <div class="room-catalog-meta-row">
           <span class="room-catalog-capacity">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -495,8 +507,15 @@ function renderRoomCard(room, canManageRooms) {
           <strong class="room-catalog-price">${formatCompactCurrency(room.hourly_rate_cents)}<span>/hr</span></strong>
         </div>
         <div class="room-actions room-catalog-actions">
-          <a class="primary-button room-catalog-book-button" href="/reserve?id=${safeRoomId}">Book now</a>
-          <a class="ghost-button room-catalog-details-button" href="/room?id=${safeRoomId}">View details</a>
+          ${
+            room.active
+              ? `<a class="primary-button room-catalog-book-button" href="/reserve?id=${safeRoomId}">Book now</a>
+                 <a class="ghost-button room-catalog-details-button" href="/room?id=${safeRoomId}">View details</a>`
+              : isComingSoon
+                ? `<span class="ghost-button room-catalog-coming-soon-label" aria-disabled="true">Coming Soon</span>
+                   <a class="ghost-button room-catalog-details-button" href="/room?id=${safeRoomId}">Learn more</a>`
+                : ""
+          }
         </div>
       </div>
       ${
@@ -712,6 +731,16 @@ function initCarousel() {
 }
 
 export function initRoomsView(actions) {
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlDate = urlParams.get("date");
+  const urlTime = urlParams.get("time");
+  if (urlDate && !pendingUrlSearch) {
+    if (elements.roomsSearchDate) elements.roomsSearchDate.value = urlDate;
+    if (urlTime && elements.roomsSearchTime) elements.roomsSearchTime.value = urlTime;
+    roomsFiltersOpen = true;
+    pendingUrlSearch = true;
+  }
+
   initCarousel();
 
   if (!roomsViewBound) {
@@ -971,6 +1000,12 @@ export function renderRoomsView(currentState) {
   }
 
   renderCreateRoomStaffOptions(currentState);
+
+  if (pendingUrlSearch && currentState.rooms.length) {
+    pendingUrlSearch = false;
+    searchRoomsByAvailability();
+    return;
+  }
 
   if (!elements.roomsGrid) {
     return;

@@ -20,6 +20,7 @@ class User(Base):
     city = Column(String)
     stripe_customer_id = Column(String)
     role = Column(String, nullable=False, default=USER_ROLE_CUSTOMER)
+    user_category = Column(String, nullable=False, default="general_public")
     opt_in_email = Column(Boolean, default=True)
     opt_in_sms = Column(Boolean, default=False)
     two_factor_enabled = Column(Boolean, default=False)

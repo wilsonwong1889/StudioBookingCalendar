@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     ForeignKey,
@@ -43,6 +44,9 @@ class Booking(Base):
     cancelled_at = Column(DateTime(timezone=True))
     cancellation_reason = Column(String)
     note = Column(String)
+    deposit_amount_cents = Column(Integer, nullable=False, default=0)
+    deposit_paid = Column(Boolean, nullable=False, default=False)
+    deposit_with_engineer = Column(Boolean, nullable=False, default=False)
     staff_assignments = Column(JSONB, default=list)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

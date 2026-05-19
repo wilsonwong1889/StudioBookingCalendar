@@ -95,6 +95,15 @@ class Settings(BaseSettings):
     HOURLY_RATE_CENTS: int = 5000
     DEFAULT_CURRENCY: str = "CAD"
 
+    # Feature flags for TBC features
+    FEATURE_OPENING_DISCOUNT: bool = False
+    FEATURE_VENTURE_TIERS: bool = False
+    FEATURE_MONTHLY_PACKAGES: bool = False
+    FEATURE_DAY_RATES: bool = False
+    FEATURE_EQUIPMENT_RENTAL: bool = False
+    FEATURE_SPECIAL_PROJECTS: bool = True
+    FEATURE_ENGINEER_PROFILES: bool = False
+
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
         extra="ignore",

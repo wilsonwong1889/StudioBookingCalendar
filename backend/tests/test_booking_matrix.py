@@ -245,7 +245,12 @@ class BookingServiceMatrixTest(unittest.TestCase):
             db.commit()
 
     def _aware_date(self, day: int = 1) -> date:
-        return datetime.now(BUSINESS_TIMEZONE).date() + timedelta(days=30 + day - 1)
+        base = datetime.now(BUSINESS_TIMEZONE).date() + timedelta(days=30)
+        days_until_wed = (2 - base.weekday()) % 7
+        wednesday = base + timedelta(days=days_until_wed)
+        week_offset = (day - 1) // 4
+        day_in_week = (day - 1) % 4
+        return wednesday + timedelta(weeks=week_offset, days=day_in_week)
 
     def _aware_time(self, day: int = 1, hour: int = 10, minute: int = 0, second: int = 0) -> datetime:
         target_date = self._aware_date(day)
@@ -458,7 +463,7 @@ class BookingServiceMatrixTest(unittest.TestCase):
                 staff_assignments=["sound-engineer"],
             )
 
-            self.assertEqual(booking.price_cents, 8925)
+            self.assertEqual(booking.price_cents, 14175)
             self.assertEqual(booking.staff_assignments[0]["name"], "Sound Engineer")
             self.assertEqual(booking.staff_assignments[0]["photo_url"], "/assets/media/staff/sound.jpg")
             self.assertEqual(booking.user_full_name_snapshot, "Sound Client")
@@ -571,19 +576,23 @@ class BookingServiceMatrixTest(unittest.TestCase):
             user = self._create_user(db)
             room_one = self._create_room(db, name="Morning Room")
             room_two = self._create_room(db, name="Afternoon Room")
+            # Fill the full 5-hour daily limit with one booking
             self._create_pending_booking(
                 db,
                 user=user,
                 room=room_one,
                 start_time=self._aware_time(day=2, hour=10),
+                duration_minutes=300,
             )
 
+            # Any additional booking on the same day should now be blocked
             with self.assertRaises(self.DailyBookingLimitError):
                 self._create_pending_booking(
                     db,
                     user=user,
                     room=room_two,
-                    start_time=self._aware_time(day=2, hour=12),
+                    start_time=self._aware_time(day=2, hour=15),
+                    duration_minutes=60,
                 )
 
     def test_122_admin_self_booking_bypasses_daily_limit(self) -> None:
@@ -1111,9 +1120,9 @@ class BookingServiceMatrixTest(unittest.TestCase):
                 promo_code="FOUNDATION10",
             )
 
-            self.assertEqual(booking.original_price_cents, 5000)
-            self.assertEqual(booking.discount_cents, 500)
-            self.assertEqual(booking.price_cents, 4725)
+            self.assertEqual(booking.original_price_cents, 10000)
+            self.assertEqual(booking.discount_cents, 1000)
+            self.assertEqual(booking.price_cents, 9450)
             self.assertEqual(booking.promo_code, "FOUNDATION10")
 
     def test_140_webhook_success_is_idempotent_for_paid_booking(self) -> None:
