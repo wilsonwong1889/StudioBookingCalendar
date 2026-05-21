@@ -382,9 +382,9 @@ class AppSmokeTest(unittest.TestCase):
 
         response = self.client.get("/assets/js/views/payment-success.js")
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertIn("Payment successful", response.text)
-        self.assertIn("Booking confirmed without Stripe", response.text)
-        self.assertIn("Booking marked paid", response.text)
+        self.assertIn("Booking confirmed", response.text)
+        self.assertIn("You're all booked", response.text)
+        self.assertIn("Payment received — confirming your booking", response.text)
         self.assertIn("Refresh status", response.text)
         self.assertIn("Add to calendar", response.text)
         self.assertIn("downloadBookingCalendarFile(currentPaymentSuccessBooking)", response.text)

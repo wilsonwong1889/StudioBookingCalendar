@@ -87,9 +87,9 @@ class JsAssetTest(BaseAppTest):
     def test_05_payment_success_js(self) -> None:
         resp = self.client.get("/assets/js/views/payment-success.js")
         self.assertEqual(resp.status_code, 200)
-        self.assertIn("Payment successful", resp.text)
-        self.assertIn("Booking confirmed without Stripe", resp.text)
-        self.assertIn("Booking marked paid", resp.text)
+        self.assertIn("Booking confirmed", resp.text)
+        self.assertIn("You're all booked", resp.text)
+        self.assertIn("Payment received — confirming your booking", resp.text)
         self.assertIn("Refresh status", resp.text)
         self.assertIn("Add to calendar", resp.text)
         self.assertIn("downloadBookingCalendarFile(currentPaymentSuccessBooking)", resp.text)
