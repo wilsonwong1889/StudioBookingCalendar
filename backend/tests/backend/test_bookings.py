@@ -26,7 +26,7 @@ class BookingTest(BaseAppTest):
                 description="Room used for booking smoke tests",
                 capacity=3,
                 photos=[],
-                hourly_rate_cents=5000,
+                hourly_rate_cents=10000,
                 max_booking_duration_minutes=120,
             )
             db.add(room)
@@ -241,7 +241,7 @@ class BookingTest(BaseAppTest):
                 description="Room used for guest booking smoke tests",
                 capacity=2,
                 photos=[],
-                hourly_rate_cents=4500,
+                hourly_rate_cents=10000,
                 max_booking_duration_minutes=180,
             )
             db.add(room)

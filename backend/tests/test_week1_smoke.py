@@ -790,7 +790,7 @@ class AppSmokeTest(unittest.TestCase):
                 description="Room used for booking smoke tests",
                 capacity=3,
                 photos=[],
-                hourly_rate_cents=5000,
+                hourly_rate_cents=10000,
                 max_booking_duration_minutes=120,
             )
             db.add(room)
@@ -1025,7 +1025,7 @@ class AppSmokeTest(unittest.TestCase):
                 description="Room used for guest booking smoke tests",
                 capacity=2,
                 photos=[],
-                hourly_rate_cents=4500,
+                hourly_rate_cents=10000,
                 max_booking_duration_minutes=180,
             )
             db.add(room)
@@ -1434,7 +1434,7 @@ class AppSmokeTest(unittest.TestCase):
                 description="Room used for admin free payment tests",
                 capacity=4,
                 photos=[],
-                hourly_rate_cents=5050,
+                hourly_rate_cents=10000,
             )
             db.add(room)
             db.commit()
@@ -1753,7 +1753,7 @@ class AppSmokeTest(unittest.TestCase):
                 description="Room used for webhook and admin tests",
                 capacity=5,
                 photos=[],
-                hourly_rate_cents=5000,
+                hourly_rate_cents=10000,
             )
             admin_room = Room(
                 name="Admin Unlimited Room",
@@ -2423,7 +2423,7 @@ class AppSmokeTest(unittest.TestCase):
                 description="Room used for Week 7 and 8 tests",
                 capacity=6,
                 photos=[],
-                hourly_rate_cents=5000,
+                hourly_rate_cents=10000,
             )
             db.add(room)
             db.commit()

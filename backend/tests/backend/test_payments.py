@@ -105,7 +105,7 @@ class PaymentTest(BaseAppTest):
                 description="Room used for webhook and admin tests",
                 capacity=5,
                 photos=[],
-                hourly_rate_cents=5000,
+                hourly_rate_cents=10000,
             )
             admin_room = Room(
                 name="Admin Unlimited Room",

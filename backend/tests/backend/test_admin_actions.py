@@ -71,7 +71,7 @@ class AdminActionsTest(BaseAppTest):
                 description="Room used for admin free payment tests",
                 capacity=4,
                 photos=[],
-                hourly_rate_cents=5050,
+                hourly_rate_cents=10000,
             )
             db.add(room)
             db.commit()
@@ -471,7 +471,7 @@ class AdminActionsTest(BaseAppTest):
         self.assertEqual(resp.status_code, 200)
         member_headers = {"Authorization": f"Bearer {resp.json()['access_token']}"}
 
-        # Room booking at $100/hr (organizational_member falls back to room.hourly_rate_cents)
+        # Room booking at $100/hr — driven by room.hourly_rate_cents (admin-controlled)
         resp = self.client.post(
             "/api/bookings",
             headers=member_headers,
