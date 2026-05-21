@@ -217,11 +217,17 @@ export function renderRoomDetailView(state) {
     ? `${summary.review_count} review${summary.review_count === 1 ? "" : "s"}`
     : "No public reviews yet";
   const isComingSoon = Boolean(room.coming_soon) && !room.active;
-  const statusLabel = room.active ? "Available" : isComingSoon ? "Coming Soon" : "Inactive";
-  const statusClass = room.active ? "" : isComingSoon ? "is-coming-soon" : "muted";
+  const STATUS_LABELS = { available: "Available", in_progress: "In Progress", tbc: "TBC" };
+  const STATUS_CLASSES = { available: "is-available", in_progress: "is-in-progress", tbc: "is-tbc" };
+  const statusLabel = !room.active
+    ? (isComingSoon ? "Coming Soon" : "Inactive")
+    : (STATUS_LABELS[room.status] || "Available");
+  const statusClass = !room.active
+    ? (isComingSoon ? "is-coming-soon" : "muted")
+    : (STATUS_CLASSES[room.status] || "is-available");
   elements.roomDetailMeta.innerHTML = `
     <span class="pill">${escapeHtml(formatCategoryLabel(room))}</span>
-    <span class="pill ${statusClass}">${escapeHtml(statusLabel)}</span>
+    <span class="pill room-status-pill ${statusClass}">${escapeHtml(statusLabel)}</span>
     <span class="pill">Up to ${escapeHtml(room.capacity || "n/a")} people</span>
     <span class="pill">Min 1 hour</span>
     <span class="pill">${escapeHtml(reviewCountLabel)}</span>

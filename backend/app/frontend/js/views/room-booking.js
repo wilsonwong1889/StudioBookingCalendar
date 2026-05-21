@@ -438,7 +438,7 @@ function renderRoomVisuals(room) {
   if (elements.reserveRoomMeta) {
     elements.reserveRoomMeta.innerHTML = `
       <span class="pill reserve-room-pill">${escapeHtml(room.name.split(" ")[0])}</span>
-      <span class="pill reserve-room-pill ${room.active ? "" : "muted"}">${room.active ? "Available" : "Inactive"}</span>
+      <span class="pill reserve-room-pill ${room.active ? "" : "muted"}">${room.active ? ({ available: "Available", in_progress: "In Progress", tbc: "TBC" }[room.status] || "Available") : "Inactive"}</span>
       <span class="pill reserve-room-pill">Up to ${escapeHtml(room.capacity || "n/a")} people</span>
       <span class="pill reserve-room-pill">★ 4.9 rating</span>
       <span class="pill reserve-room-pill">Min 1 hour</span>
@@ -1292,8 +1292,8 @@ export function renderRoomBookingView(currentState) {
   getReserveGuestFields()?.classList.toggle("hidden", Boolean(currentState.currentUser));
   if (elements.reserveRoomCopy) {
     const bookingPrompt = currentState.currentUser
-      ? "Choose a day, pick a start time, and confirm your booking."
-      : "Choose a day, pick a start time, and continue with your name and phone number.";
+      ? "Pick a date and start time, then complete your session details below."
+      : "Pick a date and start time, then enter your contact info to continue.";
     elements.reserveRoomCopy.textContent = `${room.description || "Review available times for this room."} ${bookingPrompt}`;
   }
 

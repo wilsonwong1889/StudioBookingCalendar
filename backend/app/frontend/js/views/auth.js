@@ -118,11 +118,11 @@ function setAccountAuthCopy(mode) {
   }
 
   const content = {
-    login: ["Welcome Back", "Sign in to manage your bookings"],
-    signup: ["Create account", "Save your details for faster studio bookings"],
-    "forgot-password": ["Reset password", "Enter your email and we will send a reset link"],
-    "reset-password": ["Choose a new password", "Save the new password for your account"],
-    "two-factor": ["Verify sign in", "Enter the code sent to your sign-in method"],
+    login: ["Welcome back", "Sign in to view and manage your studio bookings"],
+    signup: ["Create your account", "Join the Hub — save your details for faster bookings"],
+    "forgot-password": ["Reset your password", "Enter your email and we'll send you a reset link"],
+    "reset-password": ["Choose a new password", "Create a new password for your account"],
+    "two-factor": ["One more step", "Enter the verification code we sent to your sign-in method"],
   };
   const [nextTitle, nextCopy] = content[mode] || content.login;
   title.textContent = nextTitle;
@@ -681,6 +681,10 @@ export function renderAuthView(state) {
   if (elements.headerAccountLink) {
     elements.headerAccountLink.href = "/account";
     elements.headerAccountLink.textContent = "Log in";
+  }
+  if (elements.mobileNavAccountLink) {
+    elements.mobileNavAccountLink.href = state.currentUser ? "/account" : "/account";
+    elements.mobileNavAccountLink.textContent = state.currentUser ? "My Account" : "Log in";
   }
 
   if (elements.headerSecondaryLink) {

@@ -271,6 +271,9 @@ function resetRoomForm() {
   if (elements.roomForm?.elements?.max_booking_duration_minutes) {
     elements.roomForm.elements.max_booking_duration_minutes.value = "300";
   }
+  if (elements.roomForm?.elements?.status) {
+    elements.roomForm.elements.status.value = "available";
+  }
   const roomPhotoUrlInput = getRoomPhotoUrlInput();
   if (roomPhotoUrlInput) {
     roomPhotoUrlInput.value = "";
@@ -296,6 +299,9 @@ function populateRoomForm(room) {
   elements.roomForm.elements.photos.value = roomPhotos.slice(1).join("\n");
   elements.roomForm.elements.hourly_rate_cents.value = room.hourly_rate_cents || 5000;
   elements.roomForm.elements.max_booking_duration_minutes.value = room.max_booking_duration_minutes || 300;
+  if (elements.roomForm.elements.status) {
+    elements.roomForm.elements.status.value = room.status || "available";
+  }
   const roomPhotoUrlInput = getRoomPhotoUrlInput();
   if (roomPhotoUrlInput) {
     roomPhotoUrlInput.value = primaryPhoto;
@@ -399,10 +405,23 @@ function renderAvailabilityPreview(roomId) {
   `;
 }
 
+const ROOM_STATUS_LABELS = {
+  available: "Available",
+  in_progress: "In Progress",
+  tbc: "TBC",
+};
+
 function getRoomStatusLabel(room) {
-  if (room.active) return "Available";
-  if (room.coming_soon) return "Coming Soon";
-  return "Inactive";
+  if (!room.active && !room.coming_soon) return "Inactive";
+  if (room.coming_soon && !room.active) return "Coming Soon";
+  return ROOM_STATUS_LABELS[room.status] || "Available";
+}
+
+function getRoomStatusPillClass(room) {
+  if (!room.active && !room.coming_soon) return "is-booked";
+  if (room.coming_soon && !room.active) return "is-coming-soon";
+  const map = { available: "is-available", in_progress: "is-in-progress", tbc: "is-tbc" };
+  return map[room.status] || "is-available";
 }
 
 function renderRoomCard(room, canManageRooms) {
@@ -443,7 +462,12 @@ function renderRoomCard(room, canManageRooms) {
           <div class="admin-studio-title-row">
             <h3>${safeRoomName}</h3>
             <span class="pill">${safeCategoryLabel}</span>
-            ${room.active ? "" : isComingSoon ? '<span class="pill status-pending">Coming Soon</span>' : '<span class="pill status-cancelled">Unavailable</span>'}
+            ${room.active
+              ? `<span class="pill room-status-pill ${getRoomStatusPillClass(room)}">${escapeHtml(getRoomStatusLabel(room))}</span>`
+              : isComingSoon
+                ? '<span class="pill status-pending">Coming Soon</span>'
+                : '<span class="pill status-cancelled">Unavailable</span>'
+            }
           </div>
           <p>${formatCompactCurrency(room.hourly_rate_cents)}/hr · capacity ${escapeHtml(room.capacity || "n/a")} · ★ ${rating.toFixed(1).replace(".0", "")}</p>
         </div>
@@ -466,8 +490,8 @@ function renderRoomCard(room, canManageRooms) {
       ].filter(Boolean).join("")
     : "";
 
-  const statusPillClass = room.active ? "is-available" : isComingSoon ? "is-coming-soon" : "is-booked";
-  const featureRowStatus = room.active ? "Bookable now" : isComingSoon ? "Opening soon" : "Inactive";
+  const statusPillClass = getRoomStatusPillClass(room);
+  const featureRowStatus = room.active ? (ROOM_STATUS_LABELS[room.status] || "Bookable now") : isComingSoon ? "Opening soon" : "Inactive";
 
   return `
     <article class="room-card room-catalog-card${isComingSoon ? " is-coming-soon" : ""}">
@@ -730,6 +754,155 @@ function initCarousel() {
   render(activeIndex);
 }
 
+// ---------------------------------------------------------------------------
+// Public availability calendar
+// ---------------------------------------------------------------------------
+
+let availCalMonth = (() => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+})();
+let availCalData = null;
+let availCalBound = false;
+
+function availCalHeadingEl() { return document.getElementById("avail-cal-heading"); }
+function availCalCellsEl() { return document.getElementById("avail-cal-cells"); }
+function availCalPrevBtn() { return document.getElementById("avail-cal-prev"); }
+function availCalNextBtn() { return document.getElementById("avail-cal-next"); }
+
+function availCalFormatHeading(month) {
+  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" })
+    .format(new Date(`${month}-01T12:00:00`));
+}
+
+function availCalOffsetMonth(month, delta) {
+  const [year, mon] = month.split("-").map(Number);
+  const d = new Date(year, mon - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function availCalTodayLocal() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function availCalMonthDayCount(month) {
+  const [year, mon] = month.split("-").map(Number);
+  return new Date(year, mon, 0).getDate();
+}
+
+function availCalStartOffset(month) {
+  const [year, mon] = month.split("-").map(Number);
+  return new Date(year, mon - 1, 1).getDay();
+}
+
+async function availCalLoad() {
+  const heading = availCalHeadingEl();
+  const cells = availCalCellsEl();
+  if (!heading || !cells) return;
+
+  heading.textContent = availCalFormatHeading(availCalMonth);
+  cells.innerHTML = '<div class="avail-cal-loading">Loading…</div>';
+
+  try {
+    availCalData = await api.getMonthlyAvailability(availCalMonth);
+    availCalRender();
+  } catch {
+    cells.innerHTML = '<div class="avail-cal-loading">Could not load availability.</div>';
+  }
+}
+
+function availCalRender() {
+  const cells = availCalCellsEl();
+  if (!cells || !availCalData) return;
+
+  const offset = availCalStartOffset(availCalMonth);
+  const dayCount = availCalMonthDayCount(availCalMonth);
+  const today = availCalTodayLocal();
+  const days = availCalData.days || {};
+
+  const spacers = Array.from({ length: offset }, () =>
+    '<div class="avail-cal-spacer" aria-hidden="true"></div>'
+  );
+
+  const dayCells = Array.from({ length: dayCount }, (_, i) => {
+    const dayNum = i + 1;
+    const dateKey = `${availCalMonth}-${String(dayNum).padStart(2, "0")}`;
+    const info = days[dateKey] || { status: "closed" };
+    const isToday = dateKey === today;
+    const isPast = info.status === "past";
+    const isClosed = info.status === "closed";
+    const isClickable = !isPast && !isClosed && info.status !== "full";
+
+    const classes = ["avail-cal-day", `is-${info.status}`];
+    if (isToday) classes.push("is-today");
+
+    const label = info.status === "available"
+      ? `${info.open_rooms} studio${info.open_rooms === 1 ? "" : "s"} open`
+      : info.status === "limited"
+        ? `${info.open_rooms} of ${info.total_rooms} open`
+        : info.status === "full"
+          ? "Fully booked"
+          : info.status === "past"
+            ? ""
+            : "Closed";
+
+    if (isClickable) {
+      return `
+        <button class="${classes.join(" ")}" type="button" data-avail-date="${dateKey}" title="${label}">
+          <strong>${dayNum}</strong>
+          <span>${label}</span>
+        </button>`;
+    }
+    return `
+      <div class="${classes.join(" ")}" aria-hidden="${isClosed || isPast ? "true" : "false"}">
+        <strong>${dayNum}</strong>
+        ${!isClosed && !isPast ? `<span>${label}</span>` : ""}
+      </div>`;
+  });
+
+  cells.innerHTML = [...spacers, ...dayCells].join("");
+}
+
+function availCalPickDate(dateKey) {
+  if (elements.roomsSearchDate) elements.roomsSearchDate.value = dateKey;
+  if (!roomsFiltersOpen) {
+    roomsFiltersOpen = true;
+    renderRoomsFilterPanelState();
+  }
+  const filterPanel = document.getElementById("rooms-filter-panel");
+  if (filterPanel) {
+    filterPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function initAvailCal() {
+  if (availCalBound) return;
+  availCalBound = true;
+
+  availCalPrevBtn()?.addEventListener("click", () => {
+    const today = availCalTodayLocal();
+    const currentMonth = today.slice(0, 7);
+    if (availCalMonth <= currentMonth) return;
+    availCalMonth = availCalOffsetMonth(availCalMonth, -1);
+    availCalHeadingEl().textContent = availCalFormatHeading(availCalMonth);
+    availCalLoad();
+  });
+
+  availCalNextBtn()?.addEventListener("click", () => {
+    availCalMonth = availCalOffsetMonth(availCalMonth, 1);
+    availCalHeadingEl().textContent = availCalFormatHeading(availCalMonth);
+    availCalLoad();
+  });
+
+  availCalCellsEl()?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-avail-date]");
+    if (btn) availCalPickDate(btn.dataset.availDate);
+  });
+
+  availCalLoad();
+}
+
 export function initRoomsView(actions) {
   const urlParams = new URLSearchParams(window.location.search);
   const urlDate = urlParams.get("date");
@@ -742,6 +915,7 @@ export function initRoomsView(actions) {
   }
 
   initCarousel();
+  initAvailCal();
 
   if (!roomsViewBound) {
     roomsViewBound = true;
@@ -880,6 +1054,7 @@ export function initRoomsView(actions) {
           staff_roles: collectCreateRoomStaffPayload(),
           hourly_rate_cents: Number(form.get("hourly_rate_cents") || 0),
           max_booking_duration_minutes: Number(form.get("max_booking_duration_minutes") || 300),
+          status: form.get("status") || "available",
         };
 
         const isEditingRoom = Boolean(editingRoomId);
