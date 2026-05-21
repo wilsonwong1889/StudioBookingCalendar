@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     EMAIL_FROM: str = "noreply@yourstudio.com"
     EMAIL_REPLY_TO: str = ""
     EMAIL_BACKEND: str = "console"
+    STUDIO_ADMIN_EMAIL: str = "lethsmakeithappen@bipocfoundation.org"
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USERNAME: str = ""

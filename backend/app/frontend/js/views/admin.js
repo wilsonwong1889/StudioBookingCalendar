@@ -5,9 +5,9 @@ import { setState } from "../state.js";
 let editingStaffProfileId = null;
 let activeAdminTab = "rooms";
 let adminRoomEditorOpen = false;
-let selectedAdminScheduleDate = new Date().toISOString().slice(0, 10);
+let selectedAdminScheduleDate = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
 let selectedAdminScheduleRoomId = "all";
-let selectedAdminCalendarMonth = new Date().toISOString().slice(0, 7);
+let selectedAdminCalendarMonth = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; })();
 let selectedAdminCalendarRoomId = "all";
 let selectedAdminAccountId = null;
 let adminSearchResults = null;
@@ -172,7 +172,8 @@ function toIsoStringFromLocal(value) {
 }
 
 function todayString() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function safeMonthValue(value) {
@@ -1325,7 +1326,7 @@ function renderAdminBookingCompactRow(booking) {
       </div>
       <div class="admin-booking-row-cell">
         <strong>${escapeHtml(venueLabel)}</strong>
-        <span>${isStaffBooking ? "Staff session" : "Studio booking"}</span>
+        <span class="pill pill-xs ${isStaffBooking ? "admin-kind-staff" : "admin-kind-room"}">${isStaffBooking ? "Staff" : "Room"}</span>
       </div>
       <div class="admin-booking-row-cell">
         <strong>${escapeHtml(formatDateOnly(booking.start_time))}</strong>
@@ -1529,9 +1530,28 @@ function renderScheduleBlocks(bookings) {
     .join("");
 }
 
+function getLocalDateString(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 function renderAdminDaySchedule(currentState) {
   if (!elements.adminDaySchedule) {
     return;
+  }
+
+  const allRoomBookings = (currentState.adminBookings || []).filter((b) => b.booking_kind !== "staff");
+
+  if (!selectedAdminScheduleDate || !getFilteredScheduleBookings(currentState).length) {
+    const nextBookingDate = allRoomBookings
+      .map((b) => getDateKey(b.start_time))
+      .filter((d) => d >= getLocalDateString(new Date()))
+      .sort()[0];
+    if (nextBookingDate && nextBookingDate !== selectedAdminScheduleDate) {
+      selectedAdminScheduleDate = nextBookingDate;
+      if (elements.adminScheduleDate) {
+        elements.adminScheduleDate.value = selectedAdminScheduleDate;
+      }
+    }
   }
 
   const bookings = getFilteredScheduleBookings(currentState);
@@ -1545,6 +1565,7 @@ function renderAdminDaySchedule(currentState) {
     return;
   }
 
+  const activeStatuses = new Set(["PendingPayment", "Paid", "Completed"]);
   elements.adminDaySchedule.innerHTML = `
     <div class="admin-schedule-hours">
       <div></div>
@@ -1558,17 +1579,19 @@ function renderAdminDaySchedule(currentState) {
       rooms
         .map((room) => {
           const roomBookings = bookings.filter((booking) => String(booking.room_id) === String(room.id));
+          const activeCount = roomBookings.filter((booking) => activeStatuses.has(booking.status)).length;
+          const roomStatusClass = !room.active ? "muted" : activeCount > 0 ? "is-booked" : "is-available";
           return `
             <article class="admin-day-row">
               <div class="admin-day-room">
                 <strong>${escapeHtml(room.name)}</strong>
-                <span>${roomBookings.length} booking${roomBookings.length === 1 ? "" : "s"}</span>
+                <span class="pill pill-xs ${roomStatusClass}">${activeCount > 0 ? `${activeCount} booking${activeCount === 1 ? "" : "s"}` : "Open"}</span>
               </div>
               <div class="admin-day-track">
                 <div class="admin-day-grid">
                   ${hourLabels.map(() => '<span></span>').join("")}
                 </div>
-                ${roomBookings.length ? renderScheduleBlocks(roomBookings) : '<div class="admin-day-empty">No bookings in this room for the selected day.</div>'}
+                ${roomBookings.length ? renderScheduleBlocks(roomBookings) : '<div class="admin-day-empty">Available all day</div>'}
               </div>
             </article>
           `;
@@ -2542,6 +2565,37 @@ export function renderAdminView(currentState) {
           )
           .join("")
       : '<div class="empty-state">Analytics will appear once booking data is available.</div>';
+  }
+
+  const todayGlanceEl = document.getElementById("admin-today-glance");
+  if (todayGlanceEl) {
+    const todayBookings = (currentState.adminBookings || [])
+      .filter((booking) => getDateKey(booking.start_time) === todayString())
+      .sort((left, right) => new Date(left.start_time).getTime() - new Date(right.start_time).getTime());
+
+    if (!todayBookings.length) {
+      todayGlanceEl.innerHTML = '<div class="empty-state">No bookings scheduled for today.</div>';
+    } else {
+      todayGlanceEl.innerHTML = todayBookings
+        .map((booking) => {
+          const isStaff = booking.booking_kind === "staff";
+          const venue = isStaff
+            ? booking.staff_name || "Staff session"
+            : booking.room_name || "Room";
+          const guest = booking.user_full_name || booking.user_email || "Guest";
+          const statusClass = getStatusClass(booking.status);
+          const bookingHref = `/booking?id=${encodeURIComponent(booking.id)}${isStaff ? "&kind=staff" : ""}`;
+          return `
+            <a class="admin-today-row ${escapeAttribute(statusClass)}" href="${escapeAttribute(bookingHref)}">
+              <span class="admin-today-time">${formatTimeOnly(booking.start_time)} – ${formatTimeOnly(booking.end_time)}</span>
+              <span class="admin-today-venue">${escapeHtml(venue)}</span>
+              <span class="admin-today-guest">${escapeHtml(guest)}</span>
+              <span class="pill pill-xs ${escapeAttribute(statusClass)}">${escapeHtml(getStatusLabel(booking.status))}</span>
+            </a>
+          `;
+        })
+        .join("");
+    }
   }
 
   if (elements.adminRoomBreakdown) {

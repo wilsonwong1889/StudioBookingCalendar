@@ -52,12 +52,12 @@ function renderPaymentSuccessSummary(booking) {
   }
 
   const settlementLine = isAdminWaivedPayment(booking)
-    ? "Admin skipped Stripe and marked this booking free."
+    ? "Booking confirmed — no payment required."
     : isAdminManualPayment(booking)
-      ? "Admin marked this booking paid manually."
+      ? "Payment confirmed by our team."
       : booking.confirmed_at
         ? `Payment confirmed ${formatBookingDate(booking.confirmed_at)}.`
-        : "Payment confirmation is still being checked.";
+        : "Payment received — confirming your booking now.";
   const bookingKind = getBookingKind(booking);
   const bookingLabel = bookingKind === "staff" ? "Staff" : "Room";
   const bookingName = bookingKind === "staff"
@@ -76,34 +76,34 @@ function renderPaymentSuccessSummary(booking) {
 
 function getPaymentSuccessTitle(booking, paymentSettled, paymentStillProcessing) {
   if (isAdminWaivedPayment(booking)) {
-    return "Booking confirmed without Stripe";
+    return "Booking confirmed";
   }
   if (isAdminManualPayment(booking)) {
-    return "Booking marked paid";
+    return "Booking confirmed";
   }
   if (paymentSettled) {
-    return "Payment successful";
+    return "You're all booked — see you at the studio!";
   }
   if (paymentStillProcessing) {
-    return "Payment submitted";
+    return "Payment received — confirming your booking";
   }
-  return `Payment status: ${booking.status}`;
+  return `Booking status: ${booking.status}`;
 }
 
 function getPaymentSuccessCopy(booking, paymentSettled, paymentStillProcessing) {
   if (isAdminWaivedPayment(booking)) {
-    return "Admin skipped checkout and confirmed the booking for free.";
+    return "Your booking has been confirmed. No payment was required for this session.";
   }
   if (isAdminManualPayment(booking)) {
-    return "Admin marked this booking as paid so the rest of the flow can be tested.";
+    return "Your booking has been confirmed and marked as paid. A confirmation email is on its way.";
   }
   if (paymentSettled) {
-    return "Your payment went through and the booking is confirmed.";
+    return "Your payment went through and your studio session is confirmed. Check your inbox for a confirmation email and calendar invite.";
   }
   if (paymentStillProcessing) {
-    return "Stripe accepted the payment step. This page is checking for final booking confirmation now.";
+    return "Payment received — we're just finishing up the confirmation. This page will update automatically, or you can refresh in a moment.";
   }
-  return "This booking changed after payment. Review the booking details below.";
+  return "Your booking has been updated. Review the details below.";
 }
 
 function ensurePolling(booking) {
@@ -117,7 +117,7 @@ function ensurePolling(booking) {
 
   paymentSuccessPollTimer = window.setInterval(async () => {
     paymentSuccessPollCount += 1;
-    await reloadPaymentSuccessAction("Checking payment status...");
+    await reloadPaymentSuccessAction("Confirming your booking...");
     if (paymentSuccessPollCount >= 10) {
       stopPolling();
     }
@@ -140,7 +140,7 @@ export function initPaymentSuccessView(actions) {
       return;
     }
     if (button.dataset.paymentSuccessAction === "refresh-status" && reloadPaymentSuccessAction) {
-      await reloadPaymentSuccessAction("Checking payment status...");
+      await reloadPaymentSuccessAction("Confirming your booking...");
     }
   });
 }

@@ -51,6 +51,41 @@ document.querySelectorAll("img").forEach((img) => {
   if (img.complete && img.naturalWidth === 0) img.style.display = "none";
 });
 
+// Mobile navigation toggle
+(function initMobileNav() {
+  const toggle = document.getElementById("mobile-nav-toggle");
+  const header = toggle?.closest(".site-header");
+  const nav = document.getElementById("site-nav");
+  if (!toggle || !header || !nav) return;
+
+  const OPEN_SVG = '<svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="4" x2="18" y2="18"/><line x1="18" y1="4" x2="4" y2="18"/></svg>';
+  const CLOSED_SVG = '<svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="19" y2="6"/><line x1="3" y1="11" x2="19" y2="11"/><line x1="3" y1="16" x2="19" y2="16"/></svg>';
+
+  function openNav() {
+    header.classList.add("nav-open");
+    toggle.setAttribute("aria-expanded", "true");
+    toggle.innerHTML = OPEN_SVG;
+  }
+
+  function closeNav() {
+    header.classList.remove("nav-open");
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.innerHTML = CLOSED_SVG;
+  }
+
+  toggle.addEventListener("click", () => {
+    if (header.classList.contains("nav-open")) closeNav(); else openNav();
+  });
+
+  nav.querySelectorAll(".nav-link").forEach((link) => {
+    link.addEventListener("click", closeNav);
+  });
+
+  document.addEventListener("click", (e) => {
+    if (header.classList.contains("nav-open") && !header.contains(e.target)) closeNav();
+  });
+}());
+
 // Inject icons into nav links on all pages
 (function injectNavIcons() {
   const ICONS = {

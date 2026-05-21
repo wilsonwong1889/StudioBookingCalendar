@@ -8,6 +8,7 @@ from app.config import settings
 from app.database import SessionLocal
 from app.monitoring import record_task_items, record_task_run
 from app.models.booking import Booking, NotificationLog
+from app.models.room import Room
 from app.models.user import User
 from app.services.booking_service import (
     create_notification_log,
@@ -26,6 +27,7 @@ from app.services.notification_service import (
     booking_confirmation_sms,
     booking_reminder_email,
     booking_reminder_sms,
+    booking_staff_notification_email,
     login_verification_email,
     login_verification_sms,
     password_reset_email,
@@ -49,6 +51,13 @@ def _get_booking_and_user(db, booking_id: str):
     if booking.user_id:
         user = db.query(User).filter(User.id == booking.user_id).first()
     return booking, user
+
+
+def _get_room_name(db, room_id) -> str | None:
+    if not room_id:
+        return None
+    room = db.query(Room).filter(Room.id == room_id).first()
+    return room.name if room else None
 
 
 def _get_user(db, user_id: str):
@@ -284,11 +293,19 @@ def send_booking_created_email_task(booking_id: str):
             record_task_run("send_booking_created_email")
             record_task_items("send_booking_created_email", "skipped", 1)
             return {"sent": False}
+        room_name = _get_room_name(db, booking.room_id)
+        end_dt = booking.start_time + timedelta(minutes=booking.duration_minutes)
         delivery = booking_created_email(
             to_email=user.email,
             booking_code=booking.booking_code,
             start_time=booking.start_time.isoformat(),
             status=booking.status,
+            full_name=user.full_name,
+            room_name=room_name,
+            duration_minutes=booking.duration_minutes,
+            price_cents=booking.price_cents,
+            start_dt=booking.start_time,
+            end_dt=end_dt,
         )
         create_notification_log(
             db,
@@ -346,10 +363,18 @@ def send_booking_confirmation_email_task(booking_id: str):
             record_task_run("send_booking_confirmation_email")
             record_task_items("send_booking_confirmation_email", "skipped", 1)
             return {"sent": False}
+        room_name = _get_room_name(db, booking.room_id)
+        end_dt = booking.start_time + timedelta(minutes=booking.duration_minutes)
         delivery = booking_confirmation_email(
             to_email=user.email,
             booking_code=booking.booking_code,
             start_time=booking.start_time.isoformat(),
+            full_name=user.full_name,
+            room_name=room_name,
+            duration_minutes=booking.duration_minutes,
+            price_cents=booking.price_cents,
+            start_dt=booking.start_time,
+            end_dt=end_dt,
         )
         create_notification_log(
             db,
@@ -406,10 +431,14 @@ def send_booking_cancellation_email_task(booking_id: str):
             record_task_run("send_booking_cancellation_email")
             record_task_items("send_booking_cancellation_email", "skipped", 1)
             return {"sent": False}
+        room_name = _get_room_name(db, booking.room_id)
         delivery = booking_cancellation_email(
             to_email=user.email,
             booking_code=booking.booking_code,
             reason=booking.cancellation_reason,
+            full_name=user.full_name,
+            start_dt=booking.start_time,
+            room_name=room_name,
         )
         create_notification_log(
             db,
@@ -547,11 +576,15 @@ def dispatch_due_reminders_task(hours_before: int):
                     .first()
                 )
                 if not existing_email:
+                    room_name = _get_room_name(db, booking.room_id)
                     delivery = booking_reminder_email(
                         to_email=user.email,
                         booking_code=booking.booking_code,
                         start_time=booking.start_time.isoformat(),
                         hours_before=hours_before,
+                        full_name=user.full_name,
+                        room_name=room_name,
+                        start_dt=booking.start_time,
                     )
                     create_notification_log(
                         db,
@@ -609,5 +642,56 @@ def cleanup_expired_pending_bookings_task(
         record_task_run("cleanup_expired_pending_bookings")
         record_task_items("cleanup_expired_pending_bookings", "cleaned", cleaned)
         return {"cleaned": cleaned}
+    finally:
+        db.close()
+
+
+@task(name="app.tasks.send_booking_staff_notification_email")
+def send_booking_staff_notification_email_task(booking_id: str, event_type: str):
+    """Send a booking update to the studio admin/coordinator email."""
+    admin_email = settings.STUDIO_ADMIN_EMAIL
+    if not admin_email:
+        record_task_run("send_booking_staff_notification_email")
+        record_task_items("send_booking_staff_notification_email", "skipped", 1)
+        return {"sent": False, "reason": "no_admin_email"}
+
+    db = SessionLocal()
+    try:
+        booking, user = _get_booking_and_user(db, booking_id)
+        if not booking:
+            record_task_run("send_booking_staff_notification_email")
+            record_task_items("send_booking_staff_notification_email", "skipped", 1)
+            return {"sent": False, "reason": "booking_not_found"}
+
+        room_name = _get_room_name(db, booking.room_id)
+        end_dt = booking.start_time + timedelta(minutes=booking.duration_minutes)
+
+        delivery = booking_staff_notification_email(
+            to_email=admin_email,
+            event_type=event_type,
+            booking_code=booking.booking_code,
+            client_name=booking.user_full_name_snapshot or (user.full_name if user else None),
+            client_email=booking.user_email_snapshot or (user.email if user else None),
+            client_phone=booking.user_phone_snapshot or (user.phone if user else None),
+            room_name=room_name,
+            start_dt=booking.start_time,
+            end_dt=end_dt,
+            duration_minutes=booking.duration_minutes,
+            price_cents=booking.price_cents,
+            staff_assignments=booking.staff_assignments or [],
+            note=booking.note,
+        )
+        create_notification_log(
+            db,
+            user_id=user.id if user else None,
+            booking_id=booking.id,
+            notification_type=f"booking_staff_notification_{event_type}_email",
+            status="Sent",
+            details={"delivery": delivery, "to": admin_email},
+        )
+        db.commit()
+        record_task_run("send_booking_staff_notification_email")
+        record_task_items("send_booking_staff_notification_email", "sent", 1)
+        return {"sent": True}
     finally:
         db.close()

@@ -31,6 +31,7 @@ class RoomCreate(BaseModel):
     staff_roles: List[StaffOption] = Field(default_factory=list)
     hourly_rate_cents: int = Field(default=5000, ge=0)
     max_booking_duration_minutes: int = Field(default=300)
+    status: str = "available"
 
     @field_validator("photos")
     @classmethod
@@ -47,6 +48,9 @@ class RoomCreate(BaseModel):
     def validate_max_booking_duration(cls, value: int) -> int:
         return validate_room_max_duration(value)
 
+ROOM_STATUS_VALUES = ("available", "in_progress", "tbc")
+
+
 class RoomOut(BaseModel):
     id: UUID
     name: str
@@ -58,6 +62,7 @@ class RoomOut(BaseModel):
     max_booking_duration_minutes: int
     active: bool
     coming_soon: bool = False
+    status: str = "available"
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -83,6 +88,7 @@ class RoomUpdate(BaseModel):
     max_booking_duration_minutes: Optional[int] = None
     active: Optional[bool] = None
     coming_soon: Optional[bool] = None
+    status: Optional[str] = None
 
     @field_validator("photos")
     @classmethod

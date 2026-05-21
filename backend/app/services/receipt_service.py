@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from textwrap import wrap
-from unicodedata import normalize
 
+from fpdf import FPDF
 from sqlalchemy.orm import Session
 
 from app.models.booking import Booking
@@ -12,6 +11,20 @@ from app.staffing import normalize_staff_roles
 
 
 RECEIPT_ALLOWED_STATUSES = {"Paid", "Completed", "Refunded"}
+
+# Brand colours
+_RED = (215, 25, 32)
+_NAVY = (13, 37, 69)
+_LGREY = (245, 245, 245)
+_MGREY = (218, 218, 218)
+_DARK = (26, 26, 26)
+_MID = (100, 100, 100)
+_WHITE = (255, 255, 255)
+_GREEN = (22, 150, 80)
+_AMBER = (200, 110, 0)
+
+PAGE_W = 215.9  # Letter width mm
+MX = 14         # horizontal margin
 
 
 def booking_receipt_available(booking: Booking) -> bool:
@@ -25,144 +38,211 @@ def build_booking_receipt_filename(booking: Booking) -> str:
 
 def build_booking_receipt_pdf(db: Session, booking: Booking) -> bytes:
     room = db.query(Room).filter(Room.id == booking.room_id).first()
-    lines = _build_receipt_lines(booking, room)
-    return _build_simple_pdf(lines)
+    return _build_pdf(booking, room)
 
 
-def _build_receipt_lines(booking: Booking, room: Room | None) -> list[str]:
-    staff_names = [
-        assignment.get("name", "").strip()
-        for assignment in normalize_staff_roles(booking.staff_assignments or [])
-        if assignment.get("name")
-    ]
-    guest_name = booking.user_full_name_snapshot or "Studio guest"
-    guest_email = booking.user_email_snapshot or "Account email unavailable"
-    room_name = room.name if room else "Studio booking"
-    created_at = _format_datetime(booking.created_at, fallback="Not available")
-    confirmed_at = _format_datetime(booking.confirmed_at, fallback="Not yet confirmed")
-    checked_in_at = _format_datetime(booking.checked_in_at, fallback="Not checked in")
-    cancelled_at = _format_datetime(booking.cancelled_at, fallback="Not cancelled")
-    settlement = _describe_settlement(booking)
-    note = booking.note or "No booking notes added."
-    payment_reference = booking.payment_intent_id or "No payment reference"
-    lines = [
-        "BIPOC Creative Innovation Studio",
-        "Booking receipt",
-        "",
-        f"Booking code: {booking.booking_code}",
-        f"Receipt generated: {_format_datetime(datetime.now(timezone.utc), fallback='Not available')}",
-        f"Guest: {guest_name}",
-        f"Email: {guest_email}",
-        f"Room: {room_name}",
-        f"Starts: {_format_datetime(booking.start_time, fallback='Not available')}",
-        f"Ends: {_format_datetime(booking.end_time, fallback='Not available')}",
-        f"Duration: {int((booking.duration_minutes or 0) / 60)} hour{'s' if booking.duration_minutes != 60 else ''}",
-        f"Status: {booking.status}",
-        *( [f"Original amount: {_format_currency(booking.original_price_cents, booking.currency)}"] if booking.original_price_cents is not None and booking.discount_cents else [] ),
-        *( [f"Discount: -{_format_currency(booking.discount_cents, booking.currency)}"] if booking.discount_cents else [] ),
-        *( [f"Promo code: {booking.promo_code}"] if booking.promo_code else [] ),
-        f"Amount: {_format_currency(booking.price_cents, booking.currency)}",
-        f"Payment reference: {payment_reference}",
-        f"Settlement: {settlement}",
-        f"Booked at: {created_at}",
-    ]
-    if confirmed_at != "Not yet confirmed":
-        lines.append(f"Confirmed at: {confirmed_at}")
-    if checked_in_at != "Not checked in":
-        lines.append(f"Checked in at: {checked_in_at}")
-    if cancelled_at != "Not cancelled":
-        lines.append(f"Cancelled at: {cancelled_at}")
-    if staff_names:
-        lines.append(f"Staff: {', '.join(staff_names)}")
-    lines.append(f"Notes: {note}")
-    lines.append("")
-    lines.append("Thank you for booking with BIPOC Creative Innovation Studio.")
-    return _wrap_lines(lines)
+# ── helpers ──────────────────────────────────────────────────────────────────
+
+def _fill(pdf: FPDF, x: float, y: float, w: float, h: float, r: int, g: int, b: int) -> None:
+    pdf.set_fill_color(r, g, b)
+    pdf.rect(x, y, w, h, "F")
 
 
-def _describe_settlement(booking: Booking) -> str:
-    payment_reference = str(booking.payment_intent_id or "")
-    if booking.price_cents == 0 and payment_reference.startswith("admin_waived_"):
-        return "Admin skipped Stripe and confirmed this booking for free."
-    if payment_reference.startswith("admin_manual_paid_"):
-        return "Admin marked this booking paid manually."
-    if booking.status == "Refunded":
-        return "This booking has a processed refund state."
-    if booking.confirmed_at:
-        return f"Payment confirmed {_format_datetime(booking.confirmed_at, fallback='Not yet confirmed')}."
-    return f"Booking status is {booking.status}."
+def _text(pdf: FPDF, x: float, y: float, text: str, font: str, style: str, size: float,
+          r: int, g: int, b: int, w: float = 0, align: str = "L") -> None:
+    pdf.set_font(font, style, size)
+    pdf.set_text_color(r, g, b)
+    pdf.set_xy(x, y)
+    pdf.cell(w or (PAGE_W - x - MX), 6, text, border=0, align=align)
 
 
-def _format_currency(cents: int | None, currency: str | None) -> str:
-    safe_cents = cents or 0
-    safe_currency = (currency or "CAD").upper()
-    return f"{safe_currency} {safe_cents / 100:.2f}"
-
-
-def _format_datetime(value: datetime | None, *, fallback: str) -> str:
+def _fmt_dt(value: datetime | None) -> str:
     if not value:
-        return fallback
-    normalized_value = value.astimezone(timezone.utc)
-    return normalized_value.strftime("%Y-%m-%d %H:%M UTC")
+        return "N/A"
+    return value.astimezone(timezone.utc).strftime("%B %d, %Y  %H:%M UTC")
 
 
-def _wrap_lines(lines: list[str], width: int = 76) -> list[str]:
-    wrapped: list[str] = []
-    for line in lines:
-        if not line:
-            wrapped.append("")
-            continue
-        wrapped.extend(wrap(line, width=width, break_long_words=True, break_on_hyphens=False) or [""])
-    return wrapped
+def _fmt_money(cents: int | None, currency: str | None = None) -> str:
+    safe = cents or 0
+    curr = (currency or "CAD").upper()
+    sign = "-" if safe < 0 else ""
+    return f"{sign}{curr} {abs(safe) / 100:.2f}"
 
 
-def _sanitize_pdf_text(value: str) -> str:
-    ascii_value = normalize("NFKD", str(value)).encode("ascii", "replace").decode("ascii")
-    return ascii_value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-
-
-def _build_simple_pdf(lines: list[str]) -> bytes:
-    commands = [
-        "BT",
-        "/F1 18 Tf",
-        "50 780 Td",
+def _staff_names(booking: Booking) -> list[str]:
+    return [
+        a.get("name", "").strip()
+        for a in normalize_staff_roles(booking.staff_assignments or [])
+        if a.get("name")
     ]
 
-    for index, line in enumerate(lines):
-        safe_line = _sanitize_pdf_text(line)
-        if index == 0:
-            commands.append(f"({safe_line}) Tj")
-            commands.append("/F1 11 Tf")
-            continue
-        commands.append("0 -18 Td")
-        commands.append(f"({safe_line}) Tj")
 
-    commands.append("ET")
-    stream = "\n".join(commands).encode("latin-1", "replace")
-    objects = [
-        b"<< /Type /Catalog /Pages 2 0 R >>",
-        b"<< /Type /Pages /Count 1 /Kids [3 0 R] >>",
-        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
-        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-        b"<< /Length %d >>\nstream\n%b\nendstream" % (len(stream), stream),
+# ── sections ─────────────────────────────────────────────────────────────────
+
+def _header(pdf: FPDF) -> float:
+    _fill(pdf, 0, 0, PAGE_W, 30, *_RED)
+    _text(pdf, MX, 7, "bipoc foundation", "Helvetica", "B", 21, *_WHITE, w=130)
+    _text(pdf, MX, 18, "Digital Media & Creative Innovation Hub", "Helvetica", "", 7.5, *_WHITE, w=130)
+    _text(pdf, PAGE_W - MX - 46, 9, "RECEIPT", "Helvetica", "B", 26, *_WHITE, w=46, align="R")
+    return 30.0
+
+
+def _booking_band(pdf: FPDF, booking: Booking, y: float) -> float:
+    _fill(pdf, 0, y, PAGE_W, 9, *_NAVY)
+    code = booking.booking_code or "N/A"
+    status = booking.status or "Unknown"
+    _text(pdf, MX, y + 1.5, f"Booking #{code}   |   {status}", "Helvetica", "", 8, *_WHITE,
+          w=PAGE_W - 2 * MX, align="C")
+    return y + 9
+
+
+def _bill_to(pdf: FPDF, booking: Booking, y: float) -> float:
+    _fill(pdf, 0, y, PAGE_W, 30, *_LGREY)
+
+    # Left — bill to
+    _text(pdf, MX, y + 4, "BILL TO", "Helvetica", "B", 6.5, *_MID, w=85)
+    name = booking.user_full_name_snapshot or "Studio Guest"
+    _text(pdf, MX, y + 9.5, name, "Helvetica", "B", 11, *_DARK, w=85)
+    email = booking.user_email_snapshot or ""
+    _text(pdf, MX, y + 18, email, "Helvetica", "", 8.5, *_MID, w=85)
+
+    # Right — date / status
+    cx = PAGE_W / 2 + 6
+    _text(pdf, cx, y + 4, "DATE ISSUED", "Helvetica", "B", 6.5, *_MID)
+    now_str = datetime.now(timezone.utc).strftime("%B %d, %Y")
+    _text(pdf, cx, y + 9.5, now_str, "Helvetica", "", 8.5, *_DARK)
+
+    _text(pdf, cx, y + 19, "PAYMENT STATUS", "Helvetica", "B", 6.5, *_MID)
+    status = booking.status or "Unknown"
+    sc = _GREEN if status in ("Paid", "Completed") else _AMBER if status not in ("Cancelled",) else _MID
+    _text(pdf, cx + 34, y + 19, status, "Helvetica", "B", 8.5, *sc)
+
+    return y + 30
+
+
+def _section_bar(pdf: FPDF, label: str, y: float) -> float:
+    _fill(pdf, MX - 2, y, PAGE_W - 2 * MX + 4, 8, *_NAVY)
+    _text(pdf, MX + 2, y + 1.5, label, "Helvetica", "B", 8, *_WHITE, w=PAGE_W - 2 * MX - 4)
+    return y + 8
+
+
+def _detail_row(pdf: FPDF, label: str, value: str, y: float, alt: bool) -> float:
+    if alt:
+        _fill(pdf, MX - 2, y, PAGE_W - 2 * MX + 4, 7, 250, 250, 250)
+    _text(pdf, MX + 2, y + 1.5, label, "Helvetica", "", 8.5, *_MID, w=55)
+    _text(pdf, MX + 58, y + 1.5, value, "Helvetica", "", 8.5, *_DARK, w=PAGE_W - MX - 58 - 12)
+    return y + 7
+
+
+def _booking_details(pdf: FPDF, booking: Booking, room: Room | None, y: float) -> float:
+    y = _section_bar(pdf, "BOOKING DETAILS", y)
+    room_name = room.name if room else "Studio Booking"
+    dur_hrs = (booking.duration_minutes or 0) // 60
+    dur_label = f"{dur_hrs} hour{'s' if dur_hrs != 1 else ''}"
+    names = _staff_names(booking)
+
+    rows = [
+        ("Room / Studio", room_name),
+        ("Start time", _fmt_dt(booking.start_time)),
+        ("End time", _fmt_dt(booking.end_time)),
+        ("Duration", dur_label),
     ]
+    if names:
+        rows.append(("Staff / Engineer", ", ".join(names)))
+    if booking.note:
+        rows.append(("Notes", booking.note))
 
-    pdf = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
-    offsets = [0]
+    for i, (lbl, val) in enumerate(rows):
+        y = _detail_row(pdf, lbl, val, y, i % 2 == 1)
+    return y
 
-    for index, obj in enumerate(objects, start=1):
-        offsets.append(len(pdf))
-        pdf.extend(f"{index} 0 obj\n".encode("ascii"))
-        pdf.extend(obj)
-        if not obj.endswith(b"\n"):
-            pdf.extend(b"\n")
-        pdf.extend(b"endobj\n")
 
-    xref_offset = len(pdf)
-    pdf.extend(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
-    pdf.extend(b"0000000000 65535 f \n")
-    for offset in offsets[1:]:
-        pdf.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
-    pdf.extend(f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n".encode("ascii"))
-    pdf.extend(f"startxref\n{xref_offset}\n%%EOF".encode("ascii"))
-    return bytes(pdf)
+def _money_row(pdf: FPDF, label: str, cents: int, y: float, *,
+               alt: bool = False, bold: bool = False,
+               color: tuple[int, int, int] | None = None) -> float:
+    row_h = 7
+    if bold:
+        _fill(pdf, MX - 2, y, PAGE_W - 2 * MX + 4, row_h, *_LGREY)
+    elif alt:
+        _fill(pdf, MX - 2, y, PAGE_W - 2 * MX + 4, row_h, 250, 250, 250)
+
+    style = "B" if bold else ""
+    size = 9.5 if bold else 8.5
+    tc = _DARK if (bold or color is None) else color
+
+    _text(pdf, MX + 2, y + 1.5, label, "Helvetica", style, size, *(_DARK if bold else _MID),
+          w=PAGE_W - MX - 55)
+    val_x = PAGE_W - MX - 44
+    _text(pdf, val_x, y + 1.5, _fmt_money(cents), "Helvetica", style, size, *(color or tc),
+          w=44, align="R")
+    return y + row_h
+
+
+def _payment_summary(pdf: FPDF, booking: Booking, y: float) -> float:
+    y = _section_bar(pdf, "PAYMENT SUMMARY", y)
+
+    total = booking.price_cents or 0
+    tax = booking.tax_cents or 0
+    discount = booking.discount_cents or 0
+    subtotal = total - tax
+    original = booking.original_price_cents if (booking.original_price_cents and discount) else subtotal
+
+    alt = False
+    if discount:
+        y = _money_row(pdf, "Subtotal (before discount)", original, y, alt=alt); alt = not alt
+        y = _money_row(pdf, "Discount", -discount, y, alt=alt, color=_GREEN); alt = not alt
+
+    y = _money_row(pdf, "Subtotal", subtotal, y, alt=alt); alt = not alt
+    y = _money_row(pdf, "GST (5%)", tax, y, alt=alt); alt = not alt
+
+    # separator
+    pdf.set_draw_color(*_MGREY)
+    pdf.set_line_width(0.3)
+    pdf.line(MX, y, PAGE_W - MX, y)
+    y += 1
+
+    y = _money_row(pdf, "TOTAL", total, y, bold=True)
+    y += 2
+
+    if booking.deposit_amount_cents:
+        dep_label = "Deposit paid" if booking.deposit_paid else "Deposit due"
+        dep_color = _GREEN if booking.deposit_paid else _AMBER
+        y = _money_row(pdf, dep_label, booking.deposit_amount_cents, y, color=dep_color); y += 1
+
+    if booking.payment_intent_id:
+        _text(pdf, MX + 2, y + 1, f"Payment ref: {booking.payment_intent_id}",
+              "Helvetica", "", 7, *_MID, w=PAGE_W - 2 * MX - 4)
+        y += 6
+
+    return y
+
+
+def _footer(pdf: FPDF) -> None:
+    y = 262.0
+    pdf.set_draw_color(*_MGREY)
+    pdf.set_line_width(0.3)
+    pdf.line(MX, y, PAGE_W - MX, y)
+    _text(pdf, MX, y + 3, "Thank you for choosing BIPOC Foundation Digital Media & Creative Innovation Hub",
+          "Helvetica", "B", 8, *_DARK, w=PAGE_W - 2 * MX, align="C")
+    _text(pdf, MX, y + 10, "2525 36 St N, Lethbridge, AB T1H 5L1   |   403-393-8857   |   lethsmakeithappen@bipocfoundation.org",
+          "Helvetica", "", 7, *_MID, w=PAGE_W - 2 * MX, align="C")
+
+
+# ── main builder ─────────────────────────────────────────────────────────────
+
+def _build_pdf(booking: Booking, room: Room | None) -> bytes:
+    pdf = FPDF(orientation="P", unit="mm", format="Letter")
+    pdf.set_margins(0, 0, 0)
+    pdf.set_auto_page_break(False)
+    pdf.add_page()
+
+    y = _header(pdf)
+    y = _booking_band(pdf, booking, y)
+    y = _bill_to(pdf, booking, y)
+    y += 5
+    y = _booking_details(pdf, booking, room, y)
+    y += 5
+    y = _payment_summary(pdf, booking, y)
+    _footer(pdf)
+
+    return bytes(pdf.output())

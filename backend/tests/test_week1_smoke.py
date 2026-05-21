@@ -284,7 +284,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn('/assets/styles/app.css?v=', bookings_page.text)
 
         booking_page = self.client.get("/booking")
-        self.assertIn("Resume your booking checkout", booking_page.text)
+        self.assertIn("Ready to book a studio?", booking_page.text)
         self.assertIn("booking-detail-empty", booking_page.text)
         self.assertIn("booking-detail-card", booking_page.text)
         self.assertIn("Booking summary", booking_page.text)
@@ -382,9 +382,9 @@ class AppSmokeTest(unittest.TestCase):
 
         response = self.client.get("/assets/js/views/payment-success.js")
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertIn("Payment successful", response.text)
-        self.assertIn("Booking confirmed without Stripe", response.text)
-        self.assertIn("Booking marked paid", response.text)
+        self.assertIn("Booking confirmed", response.text)
+        self.assertIn("You're all booked", response.text)
+        self.assertIn("Payment received — confirming your booking", response.text)
         self.assertIn("Refresh status", response.text)
         self.assertIn("Add to calendar", response.text)
         self.assertIn("downloadBookingCalendarFile(currentPaymentSuccessBooking)", response.text)
@@ -1518,6 +1518,216 @@ class AppSmokeTest(unittest.TestCase):
         activity_actions = [item["action"] for item in response.json()]
         self.assertIn("payment_waived_by_admin", activity_actions)
 
+    def test_34_admin_booking_action_suite(self) -> None:
+        """Covers mark-paid, check-in, refund, staff waive/mark-paid, and error paths."""
+        from app.models.room import Room
+        from app.models.staff_profile import StaffProfile
+
+        # ── setup ─────────────────────────────────────────────────────────────
+        with self.SessionLocal() as db:
+            room = Room(
+                name="Admin Action Room",
+                description="Room for admin action tests",
+                capacity=4,
+                photos=[],
+                hourly_rate_cents=6000,
+            )
+            db.add(room)
+            profile = StaffProfile(
+                name="Action Staff",
+                description="Test staff for admin action suite",
+                skills=[],
+                talents=[],
+                booking_rate_cents=5000,
+                add_on_price_cents=0,
+                service_types=["Recording"],
+                booking_enabled=True,
+                active=True,
+            )
+            db.add(profile)
+            db.commit()
+            db.refresh(room)
+            db.refresh(profile)
+            room_id = str(room.id)
+            profile_id = str(profile.id)
+
+        # create admin
+        resp = self.client.post(
+            "/api/auth/signup",
+            json={"email": "suite-admin@example.com", "password": "Password123!", "full_name": "Suite Admin", "phone": "4031110001"},
+        )
+        self.assertEqual(resp.status_code, 201, resp.text)
+        admin_user_id = resp.json()["id"]
+        with self.SessionLocal() as db:
+            u = db.query(self.User).filter(self.User.id == admin_user_id).first()
+            u.is_admin = True
+            db.commit()
+        resp = self.client.post("/api/auth/login", data={"username": "suite-admin@example.com", "password": "Password123!"})
+        self.assertEqual(resp.status_code, 200, resp.text)
+        admin_headers = {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
+        # create guest
+        resp = self.client.post(
+            "/api/auth/signup",
+            json={"email": "suite-guest@example.com", "password": "Password123!", "full_name": "Suite Guest", "phone": "4031110002"},
+        )
+        self.assertEqual(resp.status_code, 201, resp.text)
+        resp = self.client.post("/api/auth/login", data={"username": "suite-guest@example.com", "password": "Password123!"})
+        self.assertEqual(resp.status_code, 200, resp.text)
+        guest_headers = {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
+        from zoneinfo import ZoneInfo
+        biz_tz = ZoneInfo("America/Edmonton")
+        base = datetime.now(biz_tz).date() + timedelta(days=10)
+
+        def make_start(day_offset, hour):
+            d = base + timedelta(days=day_offset)
+            return datetime(d.year, d.month, d.day, hour + 2, 0, tzinfo=biz_tz).isoformat()
+
+        # ── 1. admin mark-paid (room booking) ─────────────────────────────────
+        resp = self.client.post(
+            "/api/bookings",
+            headers=guest_headers,
+            json={"room_id": room_id, "start_time": make_start(0, 10), "duration_minutes": 60},
+        )
+        self.assertEqual(resp.status_code, 201, resp.text)
+        booking = resp.json()
+        self.assertEqual(booking["status"], "PendingPayment")
+        price = booking["price_cents"]
+        self.assertGreater(price, 0)
+
+        resp = self.client.post(f"/api/admin/bookings/{booking['id']}/mark-paid", headers=admin_headers)
+        self.assertEqual(resp.status_code, 200, resp.text)
+        paid = resp.json()
+        self.assertEqual(paid["status"], "Paid")
+        self.assertTrue(paid["payment_intent_id"].startswith("admin_manual_paid_"))
+        self.assertEqual(paid["price_cents"], price)
+
+        # ── 2. check-in (room booking already paid) ───────────────────────────
+        resp = self.client.post(f"/api/admin/bookings/{booking['id']}/check-in", headers=admin_headers)
+        self.assertEqual(resp.status_code, 200, resp.text)
+        checked_in = resp.json()
+        self.assertEqual(checked_in["status"], "Completed")
+        self.assertIsNotNone(checked_in["checked_in_at"])
+
+        # ── 3. refund (completed booking) ─────────────────────────────────────
+        resp = self.client.post(
+            f"/api/admin/bookings/{booking['id']}/refund",
+            headers=admin_headers,
+            json={"amount_cents": price, "reason": "Test refund"},
+        )
+        self.assertEqual(resp.status_code, 200, resp.text)
+        refund = resp.json()
+        self.assertIn("id", refund)
+        self.assertEqual(refund["amount_cents"], price)
+
+        # ── 4. admin waive-payment (second room booking) ──────────────────────
+        resp = self.client.post(
+            "/api/bookings",
+            headers=guest_headers,
+            json={"room_id": room_id, "start_time": make_start(1, 14), "duration_minutes": 60},
+        )
+        self.assertEqual(resp.status_code, 201, resp.text)
+        booking2 = resp.json()
+        self.assertEqual(booking2["status"], "PendingPayment")
+
+        resp = self.client.post(f"/api/admin/bookings/{booking2['id']}/waive-payment", headers=admin_headers)
+        self.assertEqual(resp.status_code, 200, resp.text)
+        waived = resp.json()
+        self.assertEqual(waived["status"], "Paid")
+        self.assertEqual(waived["price_cents"], 0)
+        self.assertTrue(waived["payment_intent_id"].startswith("admin_waived_"))
+
+        # ── 5. staff booking: waive-payment ───────────────────────────────────
+        resp = self.client.post(
+            "/api/staff-bookings",
+            headers=guest_headers,
+            json={
+                "staff_profile_id": profile_id,
+                "start_time": make_start(2, 10),
+                "duration_minutes": 60,
+            },
+        )
+        self.assertEqual(resp.status_code, 201, resp.text)
+        staff_booking = resp.json()
+        self.assertEqual(staff_booking["status"], "PendingPayment")
+
+        resp = self.client.post(
+            f"/api/admin/staff-bookings/{staff_booking['id']}/waive-payment",
+            headers=admin_headers,
+        )
+        self.assertEqual(resp.status_code, 200, resp.text)
+        self.assertEqual(resp.json()["status"], "Paid")
+        self.assertEqual(resp.json()["price_cents"], 0)
+
+        # ── 6. staff booking: mark-paid ────────────────────────────────────────
+        resp = self.client.post(
+            "/api/staff-bookings",
+            headers=guest_headers,
+            json={
+                "staff_profile_id": profile_id,
+                "start_time": make_start(3, 10),
+                "duration_minutes": 60,
+            },
+        )
+        self.assertEqual(resp.status_code, 201, resp.text)
+        staff_booking2 = resp.json()
+        self.assertEqual(staff_booking2["status"], "PendingPayment")
+
+        resp = self.client.post(
+            f"/api/admin/staff-bookings/{staff_booking2['id']}/mark-paid",
+            headers=admin_headers,
+        )
+        self.assertEqual(resp.status_code, 200, resp.text)
+        self.assertEqual(resp.json()["status"], "Paid")
+        self.assertTrue(resp.json()["payment_intent_id"].startswith("admin_staff_manual_paid_"))
+
+        # ── 7. error: mark-paid on already-Paid booking ────────────────────────
+        resp = self.client.post(f"/api/admin/bookings/{booking['id']}/mark-paid", headers=admin_headers)
+        self.assertEqual(resp.status_code, 400, resp.text)
+        self.assertIn("pending", resp.json()["detail"].lower())
+
+        # ── 8. error: waive-payment on already-Paid booking ───────────────────
+        resp = self.client.post(f"/api/admin/bookings/{booking2['id']}/waive-payment", headers=admin_headers)
+        self.assertEqual(resp.status_code, 400, resp.text)
+
+        # ── 9. error: check-in on PendingPayment booking ──────────────────────
+        resp = self.client.post(
+            "/api/bookings",
+            headers=guest_headers,
+            json={"room_id": room_id, "start_time": make_start(4, 10), "duration_minutes": 60},
+        )
+        self.assertEqual(resp.status_code, 201, resp.text)
+        pending_id = resp.json()["id"]
+
+        resp = self.client.post(f"/api/admin/bookings/{pending_id}/check-in", headers=admin_headers)
+        self.assertEqual(resp.status_code, 400, resp.text)
+        self.assertIn("paid", resp.json()["detail"].lower())
+
+        # ── 10. error: check-in on already-completed/refunded booking ─────────
+        resp = self.client.post(f"/api/admin/bookings/{booking['id']}/check-in", headers=admin_headers)
+        self.assertEqual(resp.status_code, 400, resp.text)
+
+        # ── 11. non-admin is rejected ─────────────────────────────────────────
+        resp = self.client.post(f"/api/admin/bookings/{pending_id}/mark-paid", headers=guest_headers)
+        self.assertEqual(resp.status_code, 403, resp.text)
+
+        # ── 12. admin lookup returns both room and staff bookings ─────────────
+        resp = self.client.get("/api/admin/bookings", headers=admin_headers)
+        self.assertEqual(resp.status_code, 200, resp.text)
+        all_bookings = resp.json()
+        kinds = {b["booking_kind"] for b in all_bookings}
+        self.assertIn("room", kinds)
+        self.assertIn("staff", kinds)
+
+        # ── 13. audit log records admin actions ───────────────────────────────
+        resp = self.client.get("/api/admin/activity?limit=50", headers=admin_headers)
+        self.assertEqual(resp.status_code, 200, resp.text)
+        actions = {item["action"] for item in resp.json()}
+        self.assertIn("payment_marked_paid_by_admin", actions)
+        self.assertIn("payment_waived_by_admin", actions)
+        self.assertIn("booking_checked_in", actions)
+
     def test_30_week_five_six_flow(self) -> None:
         from app.config import settings
         from app.models.booking import Booking
@@ -1572,8 +1782,14 @@ class AppSmokeTest(unittest.TestCase):
 
         business_timezone = ZoneInfo("America/Edmonton")
         pending_booking_date = datetime.now(business_timezone).date() + timedelta(days=3)
+        while pending_booking_date.weekday() not in {2, 3, 4, 5}:
+            pending_booking_date += timedelta(days=1)
         manual_booking_date = pending_booking_date + timedelta(days=1)
+        while manual_booking_date.weekday() not in {2, 3, 4, 5}:
+            manual_booking_date += timedelta(days=1)
         admin_self_booking_date = manual_booking_date + timedelta(days=1)
+        while admin_self_booking_date.weekday() not in {2, 3, 4, 5}:
+            admin_self_booking_date += timedelta(days=1)
         response = self.client.post(
             "/api/bookings",
             headers=admin_headers,
@@ -1703,7 +1919,7 @@ class AppSmokeTest(unittest.TestCase):
             f'studio-booking-receipt-{paid_booking["booking_code"]}.pdf',
             response.headers["content-disposition"],
         )
-        self.assertTrue(response.content.startswith(b"%PDF-1.4"))
+        self.assertTrue(response.content.startswith(b"%PDF-1."))
 
         response = self.client.get("/api/admin/bookings?email=paying-user@example.com", headers=admin_headers)
         self.assertEqual(response.status_code, 200, response.text)

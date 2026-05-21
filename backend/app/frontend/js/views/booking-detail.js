@@ -321,20 +321,20 @@ function renderBookingEmptyState(currentState) {
   const secondaryHref = currentState.currentUser ? "/bookings" : "/account";
   const secondaryLabel = currentState.currentUser ? "My bookings" : "Sign in";
   const fallbackCopy = resumeBookingId
-    ? "Your last booking is ready to review and confirm."
+    ? "Your booking is ready — complete payment to secure your session."
     : requestedKind === "staff"
-      ? "Start from Staff or My Bookings to open checkout."
-      : "Start from Rooms or My Bookings to open checkout.";
+      ? "Browse our staff directory and choose someone to get started."
+      : "Browse our studios and pick a room to get started.";
   const message = currentState.message && currentState.message !== "Ready." ? currentState.message : fallbackCopy;
 
   if (elements.bookingEmptyTitle) {
     elements.bookingEmptyTitle.textContent = resumeBookingId
-      ? "Resume your booking checkout"
+      ? "Ready to complete your booking?"
       : currentState.currentUser
         ? requestedKind === "staff"
-          ? "Start a staff booking to open checkout"
-          : "Start a booking to open checkout"
-        : "Sign in or continue as guest to resume checkout";
+          ? "Choose a staff member to get started"
+          : "Choose a studio to get started"
+        : "Sign in or continue as a guest to book";
   }
   if (elements.bookingEmptyCopy) {
     elements.bookingEmptyCopy.textContent = message;
@@ -716,10 +716,10 @@ function renderPaymentPanel(state, booking) {
     idsMatch(activePaymentSession?.booking_id, booking.id) && activePaymentSession.payment_backend === "stripe";
   const isPaymentLoading = idsMatch(autoLoadingPaymentBookingId, booking.id) || paymentSessionStatus === "loading";
   elements.bookingPaymentCopy.textContent = hasStripeSession
-    ? "Enter payment details, then pay to confirm the booking."
+    ? "Enter your payment details below to secure your studio session."
     : isPaymentLoading
-      ? "Preparing payment..."
-      : paymentSessionMessage || "Prepare payment to confirm this booking.";
+      ? "Loading secure payment..."
+      : paymentSessionMessage || "Complete payment to confirm your studio session.";
   const primaryAction =
     hasStripeSession ? "confirm-payment" : "load-payment";
   const primaryLabel =
@@ -985,10 +985,10 @@ function renderBookingSummaryLayout(booking) {
   const contactDraft = getBookingContactDraft(booking);
   const supportCopy =
     booking.status === "PendingPayment"
-      ? "Payment confirms this booking."
+      ? "Complete payment below to secure your studio session."
       : booking.status === "Paid"
-        ? "Calendar and receipt tools stay attached here."
-        : "Use this page for booking history and receipts.";
+        ? "Your session is confirmed. Add it to your calendar or download your receipt below."
+        : "Your booking history and receipt are available below.";
 
   if (layout.kicker) {
     layout.kicker.textContent = getBookingPrimaryKicker(booking);
@@ -1173,6 +1173,41 @@ export function initBookingDetailView(actions) {
         return;
       }
 
+      if (action === "check-in") {
+        const confirmed = window.confirm("Mark this guest as arrived and complete the session?");
+        if (!confirmed) {
+          return;
+        }
+        setState({ message: "Marking guest as arrived..." });
+        const booking = await api.adminCheckInBooking(button.dataset.bookingId);
+        if (reloadBookingDetailAction) {
+          await reloadBookingDetailAction("Guest checked in.");
+        } else {
+          setState({ selectedBooking: booking, message: "Guest checked in." });
+        }
+        return;
+      }
+
+      if (action === "admin-refund") {
+        const amount = Number(button.dataset.amount || 0);
+        const amountLabel = formatCurrency(amount, state.selectedBooking?.currency || "CAD");
+        const confirmed = window.confirm(`Process a ${amountLabel} refund? This changes payment records.`);
+        if (!confirmed) {
+          return;
+        }
+        setState({ message: "Processing refund..." });
+        await api.adminRefundBooking(button.dataset.bookingId, {
+          amount_cents: amount,
+          reason: "Admin refund",
+        });
+        if (reloadBookingDetailAction) {
+          await reloadBookingDetailAction("Refund processed.");
+        } else {
+          setState({ message: "Refund processed." });
+        }
+        return;
+      }
+
       if (action === "download-calendar") {
         const booking = await api.getBooking(button.dataset.bookingId);
         downloadBookingCalendarFile(booking);
@@ -1292,30 +1327,36 @@ export function renderBookingDetailView(state) {
   }
   if (elements.bookingDetailWindow) {
     elements.bookingDetailWindow.textContent = checkoutMode
-      ? "Review the details, then confirm the booking."
+      ? "Review your session details and complete payment below."
       : `${formatDateLine(booking.start_time)} • ${formatTimeLine(booking.start_time, booking.end_time)}`;
   }
   if (elements.bookingDetailNote) {
     elements.bookingDetailNote.textContent = booking.note
-      ? `Booking note: ${booking.note}`
+      ? `Session note: ${booking.note}`
       : booking.status === "PendingPayment"
-        ? "Confirm the booking from the summary panel."
+        ? "Complete payment to secure your studio session."
         : booking.status === "Paid"
-          ? "Use the actions below to add the booking to your calendar, download a receipt, or reschedule."
-          : "This booking is archived here for reference, follow-up actions, and receipts.";
+          ? "Your session is confirmed — add it to your calendar, download your receipt, or reschedule if needed."
+          : "Past sessions are stored here so you can access receipts and review your history.";
   }
   renderBookingSummaryLayout(booking);
   renderStaffAssignments(booking);
   renderPaymentDeadline(booking);
 
+  const isAdmin = Boolean(state.currentUser?.is_admin);
+  const bookingKindForActions = getBookingKind(booking);
   const canCancel = booking.status === "PendingPayment" || booking.status === "Paid";
   const canPay = booking.status === "PendingPayment";
   const canAddToCalendar = ["Paid", "Completed"].includes(booking.status);
   const canDownloadReceipt = ["Paid", "Completed", "Refunded"].includes(booking.status);
+  const canAdminCheckIn = isAdmin && booking.status === "Paid" && !booking.checked_in_at && bookingKindForActions !== "staff";
+  const canAdminRefund = isAdmin && bookingKindForActions !== "staff" && booking.price_cents > 0 && ["Paid", "Completed", "Cancelled"].includes(booking.status);
   if (elements.bookingDetailActions) {
     elements.bookingDetailActions.innerHTML = `
       ${canAddToCalendar ? `<button class="ghost-button" type="button" data-booking-detail-action="download-calendar" data-booking-id="${booking.id}">Add to calendar</button>` : ""}
       ${canDownloadReceipt ? `<button class="ghost-button" type="button" data-booking-detail-action="download-receipt" data-booking-id="${booking.id}">Download receipt PDF</button>` : ""}
+      ${canAdminCheckIn ? `<button class="ghost-button" type="button" data-booking-detail-action="check-in" data-booking-id="${booking.id}">Mark guest arrived</button>` : ""}
+      ${canAdminRefund ? `<button class="ghost-button" type="button" data-booking-detail-action="admin-refund" data-booking-id="${booking.id}" data-amount="${booking.price_cents}">Process refund</button>` : ""}
       ${canCancel ? `<button class="ghost-button" type="button" data-booking-detail-action="cancel" data-booking-id="${booking.id}">Cancel booking</button>` : ""}
     `;
   }

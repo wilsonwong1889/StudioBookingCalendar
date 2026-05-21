@@ -1,5 +1,6 @@
 export const elements = {
   headerAccountLink: document.getElementById("header-account-link"),
+  mobileNavAccountLink: document.getElementById("mobile-nav-account-link"),
   headerSecondaryLink: document.getElementById("header-secondary-link"),
   headerUserMenuShell: document.getElementById("header-user-menu-shell"),
   headerUserTrigger: document.getElementById("header-user-trigger"),

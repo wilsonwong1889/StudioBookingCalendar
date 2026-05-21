@@ -620,10 +620,12 @@ def _create_booking_record(
     from app.tasks import (
         send_booking_created_email_task,
         send_booking_created_sms_task,
+        send_booking_staff_notification_email_task,
     )
 
     send_booking_created_email_task.delay(str(booking.id))
     send_booking_created_sms_task.delay(str(booking.id))
+    send_booking_staff_notification_email_task.delay(str(booking.id), "created")
     return booking
 
 
@@ -644,6 +646,80 @@ def get_day_bounds(target_date: date) -> tuple[datetime, datetime]:
     local_start = datetime.combine(target_date, time.min, tzinfo=business_timezone)
     local_end = local_start + timedelta(days=1)
     return local_start.astimezone(timezone.utc), local_end.astimezone(timezone.utc)
+
+
+def get_monthly_availability_summary(db: Session, month: str) -> dict:
+    """Return per-day availability status for every day in *month* (YYYY-MM).
+
+    Status values:
+      available — at least one room has open slots
+      limited   — some rooms have slots but not all
+      full      — all rooms are fully booked
+      closed    — not a business day (Sun/Mon/Tue)
+      past      — date is in the past
+    """
+    from calendar import monthrange
+
+    year, month_num = int(month[:4]), int(month[5:7])
+    days_in_month = monthrange(year, month_num)[1]
+    open_hour, close_hour = get_booking_window_hours()
+    now = datetime.now(timezone.utc)
+    business_tz = get_business_timezone()
+
+    active_room_ids = [r[0] for r in db.query(Room.id).filter(Room.active == True).all()]
+    total_rooms = len(active_room_ids)
+
+    # Slots per room per day: one per bookable hour (only on-the-hour starts count)
+    slots_per_room = close_hour - open_hour  # e.g. 12–20 = 8
+
+    # Bulk-fetch all booked slot_starts for the whole month across all active rooms
+    month_start_dt = datetime.combine(date(year, month_num, 1), time.min, tzinfo=business_tz).astimezone(timezone.utc)
+    month_end_dt = datetime.combine(date(year, month_num, days_in_month), time.max, tzinfo=business_tz).astimezone(timezone.utc)
+
+    booked_rows = (
+        db.query(BookingSlot.room_id, BookingSlot.slot_start)
+        .filter(BookingSlot.room_id.in_(active_room_ids))
+        .filter(BookingSlot.slot_start >= month_start_dt)
+        .filter(BookingSlot.slot_start <= month_end_dt)
+        .all()
+    )
+
+    # Group by (room_id, local_date) counting only on-the-hour slots
+    from collections import defaultdict
+    booked_hours: dict[tuple, int] = defaultdict(int)
+    for room_id, slot_start in booked_rows:
+        local_dt = slot_start.astimezone(business_tz)
+        if local_dt.minute == 0:
+            booked_hours[(str(room_id), local_dt.date().isoformat())] += 1
+
+    days: dict[str, dict] = {}
+    for day_num in range(1, days_in_month + 1):
+        target_date = date(year, month_num, day_num)
+        day_key = target_date.isoformat()
+
+        if target_date.weekday() not in BOOKING_OPEN_WEEKDAYS:
+            days[day_key] = {"status": "closed", "open_rooms": 0, "total_rooms": total_rooms}
+            continue
+
+        if is_booking_date_before_today(target_date, now=now):
+            days[day_key] = {"status": "past", "open_rooms": 0, "total_rooms": total_rooms}
+            continue
+
+        open_rooms = sum(
+            1 for rid in active_room_ids
+            if booked_hours.get((str(rid), day_key), 0) < slots_per_room
+        )
+
+        if open_rooms == 0:
+            status = "full"
+        elif open_rooms < total_rooms:
+            status = "limited"
+        else:
+            status = "available"
+
+        days[day_key] = {"status": status, "open_rooms": open_rooms, "total_rooms": total_rooms}
+
+    return {"month": month, "total_rooms": total_rooms, "days": days}
 
 
 def get_room_availability(db: Session, room_id: str, target_date: date) -> dict:
@@ -857,10 +933,12 @@ def cancel_booking(db: Session, booking: Booking, actor: User, reason: Optional[
     from app.tasks import (
         send_booking_cancellation_email_task,
         send_booking_cancellation_sms_task,
+        send_booking_staff_notification_email_task,
     )
 
     send_booking_cancellation_email_task.delay(str(booking.id))
     send_booking_cancellation_sms_task.delay(str(booking.id))
+    send_booking_staff_notification_email_task.delay(str(booking.id), "cancelled")
     return booking
 
 
@@ -954,10 +1032,12 @@ def reschedule_booking(
     from app.tasks import (
         send_booking_confirmation_email_task,
         send_booking_confirmation_sms_task,
+        send_booking_staff_notification_email_task,
     )
 
     send_booking_confirmation_email_task.delay(str(booking.id))
     send_booking_confirmation_sms_task.delay(str(booking.id))
+    send_booking_staff_notification_email_task.delay(str(booking.id), "confirmed")
     return booking
 
 
@@ -1565,10 +1645,12 @@ def mark_booking_paid(db: Session, booking: Booking, payment_intent_id: str) -> 
     from app.tasks import (
         send_booking_confirmation_email_task,
         send_booking_confirmation_sms_task,
+        send_booking_staff_notification_email_task,
     )
 
     send_booking_confirmation_email_task.delay(str(booking.id))
     send_booking_confirmation_sms_task.delay(str(booking.id))
+    send_booking_staff_notification_email_task.delay(str(booking.id), "confirmed")
     return booking
 
 
@@ -1640,10 +1722,12 @@ def handle_payment_webhook_event(db: Session, event: dict) -> dict:
         from app.tasks import (
             send_booking_cancellation_email_task,
             send_booking_cancellation_sms_task,
+            send_booking_staff_notification_email_task,
         )
 
         send_booking_cancellation_email_task.delay(str(booking.id))
         send_booking_cancellation_sms_task.delay(str(booking.id))
+        send_booking_staff_notification_email_task.delay(str(booking.id), "cancelled")
         return {"received": True, "booking_id": str(booking.id), "status": booking.status}
 
     if event_type == "charge.refunded":

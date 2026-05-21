@@ -35,6 +35,7 @@ from app.services.booking_service import (
     get_booking_payment_session,
     get_booking_for_user,
     get_booking_review_for_user,
+    get_monthly_availability_summary,
     get_room_availability,
     list_booking_feed_for_user,
     list_bookings_for_user,
@@ -70,6 +71,14 @@ def room_availability(
         return get_room_availability(db, room_id, date_value)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/availability/monthly")
+def monthly_availability(
+    month: str = Query(..., pattern=r"^\d{4}-\d{2}$"),
+    db: Session = Depends(get_db),
+):
+    return get_monthly_availability_summary(db, month)
 
 
 @router.post("/bookings/reservations", response_model=ReservationOut, status_code=201)

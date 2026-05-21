@@ -113,6 +113,9 @@ export const api = {
   getAvailability(roomId, date) {
     return request(`/api/rooms/${roomId}/availability?date=${date}`);
   },
+  getMonthlyAvailability(month) {
+    return request(`/api/availability/monthly?month=${encodeURIComponent(month)}`);
+  },
   getBookings() {
     return request("/api/bookings");
   },

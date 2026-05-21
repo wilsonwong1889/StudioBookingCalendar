@@ -16,5 +16,6 @@ class Room(Base):
     max_booking_duration_minutes = Column(Integer, nullable=False, default=300)
     active = Column(Boolean, default=True)
     coming_soon = Column(Boolean, default=False)
+    status = Column(String(32), default="available")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
