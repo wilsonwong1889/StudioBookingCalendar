@@ -284,7 +284,7 @@ class AppSmokeTest(unittest.TestCase):
         self.assertIn('/assets/styles/app.css?v=', bookings_page.text)
 
         booking_page = self.client.get("/booking")
-        self.assertIn("Resume your booking checkout", booking_page.text)
+        self.assertIn("Ready to book a studio?", booking_page.text)
         self.assertIn("booking-detail-empty", booking_page.text)
         self.assertIn("booking-detail-card", booking_page.text)
         self.assertIn("Booking summary", booking_page.text)
@@ -1782,8 +1782,14 @@ class AppSmokeTest(unittest.TestCase):
 
         business_timezone = ZoneInfo("America/Edmonton")
         pending_booking_date = datetime.now(business_timezone).date() + timedelta(days=3)
+        while pending_booking_date.weekday() not in {2, 3, 4, 5}:
+            pending_booking_date += timedelta(days=1)
         manual_booking_date = pending_booking_date + timedelta(days=1)
+        while manual_booking_date.weekday() not in {2, 3, 4, 5}:
+            manual_booking_date += timedelta(days=1)
         admin_self_booking_date = manual_booking_date + timedelta(days=1)
+        while admin_self_booking_date.weekday() not in {2, 3, 4, 5}:
+            admin_self_booking_date += timedelta(days=1)
         response = self.client.post(
             "/api/bookings",
             headers=admin_headers,
