@@ -13631,6 +13631,52 @@ body[data-page="community-links"]::before {
   color: var(--links-accent);
 }
 
+/* An organisation row: the main card, plus an optional Instagram button beside
+   it. The button is its own link rather than something nested inside the card,
+   because a link inside a link is invalid and browsers resolve it unpredictably. */
+.org-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.org-row .link-card {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.org-ig {
+  flex: 0 0 auto;
+  width: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--links-accent);
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .org-ig:hover {
+    background: rgba(255, 255, 255, 0.13);
+    border-color: var(--button-red);
+    color: #ffffff;
+  }
+}
+
+.org-ig:focus-visible {
+  outline: 3px solid var(--button-red);
+  outline-offset: 2px;
+}
+
+.links-subnote {
+  margin: -2px 0 2px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.83rem;
+  line-height: 1.4;
+}
+
 .links-footer {
   margin-top: 6px;
   text-align: center;
