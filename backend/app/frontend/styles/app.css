@@ -7466,6 +7466,7 @@ body[data-page="admin"] .site-acknowledgement {
   display: none !important;
 }
 
+
 /* Upload limits, stated under the file picker rather than discovered on
    failure. The error is announced (role="alert") so screen readers hear it the
    moment an over-sized file is chosen. */
@@ -13496,4 +13497,151 @@ body[data-page="home"] .home-layout > .panel:nth-of-type(even) {
   body[data-page]:not([data-page="account"]) .site-header.site-header-public .site-nav {
     margin-bottom: 4px;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Community links — the unlisted link hub at /community-links.
+   Reached by QR code and shared links, so it is phone-first: one column, large
+   tap targets, and no site navigation to get lost in.
+   --------------------------------------------------------------------------- */
+body[data-page="community-links"] {
+  background: var(--brand-blue);
+  color: #ffffff;
+}
+
+.links-page {
+  width: min(100% - 32px, 560px);
+  margin: 0 auto;
+  padding: clamp(28px, 7vw, 56px) 0 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.links-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.links-logos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 12px 18px;
+}
+.links-logos img {
+  height: 34px;
+  width: auto;
+}
+
+.links-header h1 {
+  font-family: "Space Grotesk", "Charter", "Iowan Old Style", Georgia, serif;
+  font-size: clamp(1.75rem, 6vw, 2.3rem);
+  line-height: 1.1;
+  margin: 0;
+  color: #ffffff;
+  text-wrap: balance;
+}
+
+.links-tagline {
+  margin: 0;
+  max-width: 44ch;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.97rem;
+  line-height: 1.5;
+}
+
+.links-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.links-group h2 {
+  margin: 0 0 2px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.link-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  /* Comfortably past the 44px minimum touch target, since this page exists to
+     be tapped on a phone. */
+  min-height: 60px;
+  justify-content: center;
+  padding: 14px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.link-title {
+  font-weight: 700;
+  font-size: 1.02rem;
+  line-height: 1.3;
+}
+
+.link-note {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.link-ext {
+  font-size: 0.8em;
+  opacity: 0.65;
+  margin-left: 2px;
+}
+
+.links-footer {
+  margin-top: 6px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+.links-footer p { margin: 0; }
+.links-footer a { color: inherit; }
+
+/* The shared acknowledgement block is styled for light pages; on this dark one
+   it needs its own colours rather than inheriting navy-on-navy. */
+body[data-page="community-links"] .site-acknowledgement {
+  margin-top: 10px;
+  padding: 18px 2px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  background: none;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  text-align: center;
+}
+body[data-page="community-links"] .site-acknowledgement-credit {
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 600;
+}
+
+@media (hover: hover) {
+  .link-card:hover {
+    background: rgba(255, 255, 255, 0.13);
+    border-color: rgba(255, 255, 255, 0.4);
+  }
+}
+
+.link-card:focus-visible {
+  outline: 3px solid var(--button-red);
+  outline-offset: 2px;
 }

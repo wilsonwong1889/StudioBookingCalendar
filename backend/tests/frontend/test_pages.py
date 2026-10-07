@@ -102,6 +102,39 @@ class PageContentTest(BaseAppTest):
         self.assertIn("Five studios open for booking now", home)
         self.assertNotIn("Two studios", home)
 
+    def test_02c_community_links_page_is_reachable_but_unlisted(self) -> None:
+        """Unlisted, not secret: anyone with the URL can open it, but it must not
+        be discoverable by browsing the site or by a search engine."""
+        resp = self.client.get("/community-links")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.text
+
+        self.assertIn("BIPOC Community Links", html)
+        self.assertIn('<meta name="robots" content="noindex, nofollow"', html)
+
+        robots = self.client.get("/robots.txt").text
+        self.assertIn("Disallow: /community-links", robots)
+
+        sitemap = self.client.get("/sitemap.xml").text
+        self.assertNotIn("/community-links", sitemap)
+
+    def test_02d_nothing_on_the_site_links_to_the_community_links_page(self) -> None:
+        """The whole point. A link from any page — a nav item added later, a
+        footer tidy-up — would make it discoverable by browsing and quietly
+        undo the one property it needs."""
+        public_pages = (
+            "/", "/rooms", "/pricing", "/services", "/staff",
+            "/programming", "/info", "/faq", "/contact", "/room",
+            "/account", "/booking", "/bookings", "/reserve",
+        )
+        for path in public_pages:
+            with self.subTest(path=path):
+                self.assertNotIn(
+                    "/community-links",
+                    self.client.get(path).text,
+                    f"{path} links to the unlisted page, which makes it findable",
+                )
+
     def test_03_account_page(self) -> None:
         resp = self.client.get("/account")
         self.assertEqual(resp.status_code, 200)

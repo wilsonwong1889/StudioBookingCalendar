@@ -61,6 +61,9 @@ FRONTEND_PAGES = {
     "/payment-success": "payment-success.html",
     "/admin": "admin.html",
     "/programming": "programming.html",
+    # Unlisted: reachable only by its URL. Deliberately absent from the
+    # navigation and from SITEMAP_PATHS, and disallowed in robots.txt below.
+    "/community-links": "community-links.html",
 }
 
 
@@ -341,6 +344,7 @@ Disallow: /payment-success
 Disallow: /reserve
 Disallow: /staff-dashboard
 Disallow: /staff-respond
+Disallow: /community-links
 Disallow: /api/
 """
 
