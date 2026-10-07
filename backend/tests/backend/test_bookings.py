@@ -17,6 +17,17 @@ from tests.base import BaseAppTest
 
 class BookingTest(BaseAppTest):
 
+    def _future_month(self) -> str:
+        """A month that still has open days in it.
+
+        Not hard-coded: these assertions are about days that can still be
+        booked, so pinning a literal month makes the test start failing the
+        moment that month is in the past.
+        """
+        from datetime import date, timedelta
+
+        return (date.today() + timedelta(days=3)).strftime("%Y-%m")
+
     def _create_bookable_room(self, name: str) -> str:
         from app.models.room import Room
 
@@ -327,7 +338,8 @@ class BookingTest(BaseAppTest):
         every day rendered "0 slots" while the API had real availability."""
         room_id = self._create_bookable_room("Monthly Calendar Room")
 
-        resp = self.client.get(f"/api/availability/monthly?month=2026-09&room_id={room_id}")
+        month = self._future_month()
+        resp = self.client.get(f"/api/availability/monthly?month={month}&room_id={room_id}")
         self.assertEqual(resp.status_code, 200, resp.text)
         body = resp.json()
         self.assertEqual(body["total_rooms"], 1)
@@ -343,7 +355,7 @@ class BookingTest(BaseAppTest):
         variable, shadowing the parameter, so after it ran the parameter held
         the last booked slot's room and every site-wide response leaked a
         per-room count."""
-        resp = self.client.get("/api/availability/monthly?month=2026-09")
+        resp = self.client.get(f"/api/availability/monthly?month={self._future_month()}")
         self.assertEqual(resp.status_code, 200, resp.text)
         for day_key, day in resp.json()["days"].items():
             self.assertNotIn("open_slots", day, f"{day_key} leaked a per-room count")
@@ -353,7 +365,7 @@ class BookingTest(BaseAppTest):
         are not bookable and must not be counted."""
         room_id = self._create_bookable_room("Month vs Day Room")
         month = self.client.get(
-            f"/api/availability/monthly?month=2026-09&room_id={room_id}"
+            f"/api/availability/monthly?month={self._future_month()}&room_id={room_id}"
         ).json()["days"]
 
         checked = 0
