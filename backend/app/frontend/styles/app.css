@@ -13597,6 +13597,19 @@ body[data-page="community-links"]::before {
   color: var(--links-accent);
 }
 
+/* Sub-headings inside a group. Quieter than the red h2 above them so the
+   group still reads as one section rather than as several. */
+.links-subhead {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.62);
+}
+.links-group h2 + .links-subhead {
+  margin-top: 0;
+}
+
 .link-card {
   display: flex;
   flex-direction: column;
