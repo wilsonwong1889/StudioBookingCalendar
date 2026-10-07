@@ -13690,6 +13690,9 @@ body[data-page="community-links"]::before {
 /* The shared acknowledgement block is styled for light pages; on this dark one
    it needs its own colours rather than inheriting navy-on-navy. */
 body[data-page="community-links"] .site-acknowledgement {
+  /* The shared rule insets this block 28px on each side, which left the rule
+     above it visibly narrower than the cards. Match the column instead. */
+  width: 100%;
   margin-top: 10px;
   padding: 18px 2px 0;
   border-top: 1px solid rgba(255, 255, 255, 0.16);
@@ -13698,6 +13701,14 @@ body[data-page="community-links"] .site-acknowledgement {
   font-size: 0.8rem;
   line-height: 1.6;
   text-align: center;
+  /* This block is a grid. A grid item normally stretches to fill its column,
+     but an item carrying a max-width that bites cannot stretch, and the
+     fallback alignment is `start` — so the paragraphs sat against the left
+     edge while `text-align: center` only centred the lines inside them. */
+  justify-items: center;
+}
+body[data-page="community-links"] .site-acknowledgement p {
+  max-width: 68ch;
 }
 body[data-page="community-links"] .site-acknowledgement-credit {
   margin-top: 8px;
