@@ -13507,6 +13507,21 @@ body[data-page="home"] .home-layout > .panel:nth-of-type(even) {
 body[data-page="community-links"] {
   background: var(--brand-blue);
   color: #ffffff;
+  /* Brand red lightened for text use: #d71920 on this navy lands near 4:1,
+     which is under the bar for the small uppercase labels below. Borders and
+     rules keep the full brand red, where contrast ratios do not apply. */
+  --links-accent: #ff8a8f;
+}
+
+/* A band of brand red across the top, so the page reads as BIPOC rather than
+   as a generic navy link list. */
+body[data-page="community-links"]::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto;
+  height: 5px;
+  background: linear-gradient(90deg, var(--brand-red) 0%, var(--button-red) 100%);
+  z-index: 2;
 }
 
 .links-page {
@@ -13549,6 +13564,16 @@ body[data-page="community-links"] {
   text-wrap: balance;
 }
 
+.links-header h1::after {
+  content: "";
+  display: block;
+  width: 56px;
+  height: 3px;
+  margin: 12px auto 0;
+  border-radius: 2px;
+  background: var(--brand-red);
+}
+
 .links-tagline {
   margin: 0;
   max-width: 44ch;
@@ -13569,7 +13594,7 @@ body[data-page="community-links"] {
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--links-accent);
 }
 
 .link-card {
@@ -13602,8 +13627,8 @@ body[data-page="community-links"] {
 
 .link-ext {
   font-size: 0.8em;
-  opacity: 0.65;
   margin-left: 2px;
+  color: var(--links-accent);
 }
 
 .links-footer {
@@ -13637,7 +13662,7 @@ body[data-page="community-links"] .site-acknowledgement-credit {
 @media (hover: hover) {
   .link-card:hover {
     background: rgba(255, 255, 255, 0.13);
-    border-color: rgba(255, 255, 255, 0.4);
+    border-color: var(--button-red);
   }
 }
 
