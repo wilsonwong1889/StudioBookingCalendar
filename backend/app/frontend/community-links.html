@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Community Links | BIPOC Hub</title>
+    <title>BIPOC Community Links Landing Page</title>
     <!-- Unlisted, not secret. Kept out of the navigation, the sitemap and
          robots.txt, and marked noindex so it does not surface in search — but
          anyone holding the URL can open it. Nothing confidential belongs here. -->
@@ -12,29 +12,57 @@
   </head>
   <body data-page="community-links">
     <main class="links-page">
+      <!-- This is BIPOC Foundation's landing page, hosted on the studio's
+           domain. The Foundation leads; the studio is one of its sub-brands,
+           which is why the Foundation logo and photo come first. -->
       <header class="links-header">
         <div class="links-logos">
-          <img src="/assets/media/arts-marvels-logo.png" alt="Arts Marvels" />
-          <img src="/assets/media/bipoc-foundation-logo.png" alt="BIPOC Foundation" />
+          <img src="/assets/media/bipoc-foundation-logo.png" alt="BIPOC Foundation" width="4500" height="1539" />
+          <img src="/assets/media/arts-marvels-logo.png" alt="Arts Marvels" width="2710" height="1447" />
         </div>
-        <h1>BIPOC Community Links</h1>
+        <h1>BIPOC Community Links Landing Page</h1>
         <p class="links-tagline">
-          What&rsquo;s coming up, the organisations behind the Hub, and the partners
-          we work alongside in Lethbridge — all in one place.
+          BIPOC Foundation&rsquo;s one-stop hub — what&rsquo;s coming up, the
+          organisations we run, and the partners we work alongside in Lethbridge.
         </p>
+        <!-- The Foundation's own hero photo, served from their WordPress. The
+             CSP already allows bipocfoundation.org as an image source, and the
+             About and Community pages pull banner artwork the same way. The
+             768px variant goes to phones so a QR scan is not a 175 KB download. -->
+        <figure class="links-hero">
+          <picture>
+            <source
+              media="(max-width: 640px)"
+              srcset="https://www.bipocfoundation.org/wp-content/uploads/2024/02/53397513612_9c9bb1504c_k-768x512.jpg"
+            />
+            <img
+              src="https://www.bipocfoundation.org/wp-content/uploads/2024/02/53397513612_9c9bb1504c_k-1024x683.jpg"
+              alt="Guests seated at a BIPOC Foundation event"
+              width="1024"
+              height="683"
+            />
+          </picture>
+          <figcaption>Economic freedom within reach for the BIPOC community.</figcaption>
+        </figure>
       </header>
 
       <section class="links-group">
         <h2>Upcoming</h2>
         <h3 class="links-subhead">Upcoming events</h3>
         <a class="link-card" href="https://www.bipocfoundation.org/legacy-gala/" target="_blank" rel="noopener noreferrer">
-          <span class="link-title">Legacy Gala <span class="link-ext" aria-hidden="true">↗</span></span>
-          <span class="link-note">Our next event — details and tickets</span>
+          <span class="link-thumb link-thumb-logo"><img src="/assets/media/links/logo-bipoc-foundation.png" alt="" width="192" height="66" loading="lazy" /></span>
+          <span class="link-body">
+            <span class="link-title">Legacy Gala <span class="link-ext" aria-hidden="true">↗</span></span>
+            <span class="link-note">Our next event — details and tickets</span>
+          </span>
         </a>
         <h3 class="links-subhead">Upcoming programs</h3>
         <a class="link-card" href="https://damazinlions.ca/upcoming-games?view=events" target="_blank" rel="noopener noreferrer">
-          <span class="link-title">Soccer program <span class="link-ext" aria-hidden="true">↗</span></span>
-          <span class="link-note">Indoor camp with D&rsquo;Amazin Lions — dates and sign-up</span>
+          <span class="link-thumb link-thumb-logo"><img src="/assets/media/links/logo-damazin-lions.png" alt="" width="192" height="192" loading="lazy" /></span>
+          <span class="link-body">
+            <span class="link-title">Soccer program <span class="link-ext" aria-hidden="true">↗</span></span>
+            <span class="link-note">Indoor camp with D&rsquo;Amazin Lions — dates and sign-up</span>
+          </span>
         </a>
       </section>
 
@@ -43,42 +71,60 @@
         <p class="links-subnote">The first three have websites. Tap the icon for Instagram.</p>
       <div class="org-row">
         <a class="link-card" href="https://www.bipocfoundation.org" target="_blank" rel="noopener noreferrer">
-          <span class="link-title">BIPOC Foundation <span class="link-ext" aria-hidden="true">↗</span></span>
-          <span class="link-note">The non-profit behind the Hub</span>
+          <span class="link-thumb link-thumb-logo"><img src="/assets/media/links/logo-bipoc-foundation.png" alt="" width="192" height="66" loading="lazy" /></span>
+          <span class="link-body">
+            <span class="link-title">BIPOC Foundation <span class="link-ext" aria-hidden="true">↗</span></span>
+            <span class="link-note">The non-profit behind everything on this page</span>
+          </span>
         </a>
         <a class="org-ig" href="https://www.instagram.com/bipocfoundation/" target="_blank" rel="noopener noreferrer" aria-label="BIPOC Foundation on Instagram"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.6" cy="6.4" r="1.15" fill="currentColor" stroke="none"/></svg></a>
       </div>
       <div class="org-row">
         <a class="link-card" href="https://damazinlions.ca" target="_blank" rel="noopener noreferrer">
-          <span class="link-title">D&rsquo;Amazin Lions <span class="link-ext" aria-hidden="true">↗</span></span>
-          <span class="link-note">Lethbridge community sports and youth programming</span>
+          <span class="link-thumb link-thumb-logo"><img src="/assets/media/links/logo-damazin-lions.png" alt="" width="192" height="192" loading="lazy" /></span>
+          <span class="link-body">
+            <span class="link-title">D&rsquo;Amazin Lions <span class="link-ext" aria-hidden="true">↗</span></span>
+            <span class="link-note">Lethbridge community sports and youth programming</span>
+          </span>
         </a>
         <a class="org-ig" href="https://www.instagram.com/amazin_lions_soccer_project/" target="_blank" rel="noopener noreferrer" aria-label="D’Amazin Lions on Instagram"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.6" cy="6.4" r="1.15" fill="currentColor" stroke="none"/></svg></a>
       </div>
       <div class="org-row">
         <a class="link-card" href="https://bipoccreativeinnovationstudio.com" target="_blank" rel="noopener noreferrer">
-          <span class="link-title">BIPOC Creative Innovation Studio <span class="link-ext" aria-hidden="true">↗</span></span>
-          <span class="link-note">Book a studio, see pricing, meet the team</span>
+          <span class="link-thumb link-thumb-photo"><img src="/assets/media/links/thumb-studio.jpg" alt="" width="192" height="192" loading="lazy" /></span>
+          <span class="link-body">
+            <span class="link-title">BIPOC Creative Innovation Studio <span class="link-ext" aria-hidden="true">↗</span></span>
+            <span class="link-note">Our studio — book a room, see pricing, meet the team</span>
+          </span>
         </a>
       </div>
       <div class="org-row">
         <a class="link-card" href="https://www.instagram.com/bf.mediacollective/" target="_blank" rel="noopener noreferrer">
-          <span class="link-title">BIPOC Foundation Media Collective</span>
-          <span class="link-note">On Instagram &mdash; no website yet</span>
+          <span class="link-thumb link-thumb-photo"><img src="/assets/media/links/thumb-media-collective.jpg" alt="" width="192" height="192" loading="lazy" /></span>
+          <span class="link-body">
+            <span class="link-title">BIPOC Foundation Media Collective</span>
+            <span class="link-note">On Instagram — no website yet</span>
+          </span>
         </a>
         <a class="org-ig" href="https://www.instagram.com/bf.mediacollective/" target="_blank" rel="noopener noreferrer" aria-label="BIPOC Foundation Media Collective on Instagram"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.6" cy="6.4" r="1.15" fill="currentColor" stroke="none"/></svg></a>
       </div>
       <div class="org-row">
         <a class="link-card" href="https://www.instagram.com/artsmarvels/" target="_blank" rel="noopener noreferrer">
-          <span class="link-title">Arts Marvels</span>
-          <span class="link-note">On Instagram — no website yet</span>
+          <span class="link-thumb link-thumb-logo"><img src="/assets/media/links/logo-arts-marvels.png" alt="" width="192" height="103" loading="lazy" /></span>
+          <span class="link-body">
+            <span class="link-title">Arts Marvels</span>
+            <span class="link-note">On Instagram — no website yet</span>
+          </span>
         </a>
         <a class="org-ig" href="https://www.instagram.com/artsmarvels/" target="_blank" rel="noopener noreferrer" aria-label="Arts Marvels on Instagram"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.6" cy="6.4" r="1.15" fill="currentColor" stroke="none"/></svg></a>
       </div>
       <div class="org-row">
         <a class="link-card" href="https://www.instagram.com/leths.makeithappen/" target="_blank" rel="noopener noreferrer">
-          <span class="link-title">Leth&rsquo;s Make It Happen</span>
-          <span class="link-note">On Instagram — no website yet</span>
+          <span class="link-thumb link-thumb-logo"><img src="/assets/media/links/logo-leths-make-it-happen.png" alt="" width="192" height="115" loading="lazy" /></span>
+          <span class="link-body">
+            <span class="link-title">Leth&rsquo;s Make It Happen</span>
+            <span class="link-note">On Instagram — no website yet</span>
+          </span>
         </a>
         <a class="org-ig" href="https://www.instagram.com/leths.makeithappen/" target="_blank" rel="noopener noreferrer" aria-label="Leth’s Make It Happen on Instagram"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.6" cy="6.4" r="1.15" fill="currentColor" stroke="none"/></svg></a>
       </div>
@@ -86,26 +132,46 @@
 
       <section class="links-group">
         <h2>Partners &amp; resources</h2>
+        <!-- No artwork for these two yet, so they carry a monogram tile rather
+             than a borrowed logo we have no file for. -->
         <a class="link-card" href="https://airifoundation.org" target="_blank" rel="noopener noreferrer">
-          <span class="link-title">AIRI Foundation <span class="link-ext" aria-hidden="true">↗</span></span>
-          <span class="link-note">AI literacy training and adoption</span>
+          <span class="link-thumb link-thumb-mono" aria-hidden="true">AI</span>
+          <span class="link-body">
+            <span class="link-title">AIRI Foundation <span class="link-ext" aria-hidden="true">↗</span></span>
+            <span class="link-note">AI literacy training and adoption</span>
+          </span>
         </a>
         <a class="link-card" href="https://saceaspirefoundation.org" target="_blank" rel="noopener noreferrer">
-          <span class="link-title">SACE Aspire Foundation <span class="link-ext" aria-hidden="true">↗</span></span>
-          <span class="link-note">Grants, advocacy and community initiatives across Canada</span>
+          <span class="link-thumb link-thumb-mono" aria-hidden="true">SA</span>
+          <span class="link-body">
+            <span class="link-title">SACE Aspire Foundation <span class="link-ext" aria-hidden="true">↗</span></span>
+            <span class="link-note">Grants, advocacy and community initiatives across Canada</span>
+          </span>
         </a>
       </section>
 
       <section class="links-group">
         <h2>Follow along</h2>
         <a class="link-card" href="https://www.facebook.com/bipocfoundation" target="_blank" rel="noopener noreferrer">
-          <span class="link-title">Facebook <span class="link-ext" aria-hidden="true">↗</span></span>
+          <span class="link-thumb link-thumb-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M13.5 21v-8h2.7l.4-3.1h-3.1V7.9c0-.9.25-1.5 1.55-1.5H16.7V3.63A21 21 0 0 0 14.28 3.5c-2.4 0-4.03 1.46-4.03 4.15V9.9H7.5V13h2.75v8z"/></svg></span>
+          <span class="link-body">
+            <span class="link-title">Facebook <span class="link-ext" aria-hidden="true">↗</span></span>
+            <span class="link-note">BIPOC Foundation on Facebook</span>
+          </span>
         </a>
         <a class="link-card" href="https://www.instagram.com/bipocfoundation/" target="_blank" rel="noopener noreferrer">
-          <span class="link-title">Instagram <span class="link-ext" aria-hidden="true">↗</span></span>
+          <span class="link-thumb link-thumb-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.6" cy="6.4" r="1.15" fill="currentColor" stroke="none"/></svg></span>
+          <span class="link-body">
+            <span class="link-title">Instagram <span class="link-ext" aria-hidden="true">↗</span></span>
+            <span class="link-note">BIPOC Foundation on Instagram</span>
+          </span>
         </a>
         <a class="link-card" href="https://www.youtube.com/channel/UCF-GWe5G5RrPi1g0ByQzGmg" target="_blank" rel="noopener noreferrer">
-          <span class="link-title">YouTube <span class="link-ext" aria-hidden="true">↗</span></span>
+          <span class="link-thumb link-thumb-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M22.1 8.1a2.65 2.65 0 0 0-1.85-1.9C18.6 5.75 12 5.75 12 5.75s-6.6 0-8.25.45A2.65 2.65 0 0 0 1.9 8.1 27.6 27.6 0 0 0 1.45 12c0 1.32.15 2.63.45 3.9a2.65 2.65 0 0 0 1.85 1.85c1.65.45 8.25.45 8.25.45s6.6 0 8.25-.45a2.65 2.65 0 0 0 1.85-1.85c.3-1.27.45-2.58.45-3.9 0-1.32-.15-2.63-.45-3.9ZM9.9 15.15v-6.3L15.4 12Z"/></svg></span>
+          <span class="link-body">
+            <span class="link-title">YouTube <span class="link-ext" aria-hidden="true">↗</span></span>
+            <span class="link-note">Talks, recaps and programme highlights</span>
+          </span>
         </a>
       </section>
 
