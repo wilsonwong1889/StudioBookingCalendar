@@ -13503,24 +13503,36 @@ body[data-page="home"] .home-layout > .panel:nth-of-type(even) {
    Community links — the unlisted link hub at /community-links.
    Reached by QR code and shared links, so it is phone-first: one column, large
    tap targets, and no site navigation to get lost in.
+
+   This block must stay at the END of this file. The `body[data-page]` rules
+   higher up share its specificity, so anything placed above them wins on
+   source order and the page renders navy-on-navy.
    --------------------------------------------------------------------------- */
 body[data-page="community-links"] {
-  background: var(--brand-blue);
-  color: #ffffff;
-  /* Brand red lightened for text use: #d71920 on this navy lands near 4:1,
-     which is under the bar for the small uppercase labels below. Borders and
-     rules keep the full brand red, where contrast ratios do not apply. */
-  --links-accent: #ff8a8f;
+  background: #ffffff;
+  color: var(--brand-blue);
+  /* Full brand red: on white it lands at 5.2:1, so it clears AA for the small
+     uppercase labels below without being lightened the way the navy version
+     needed. */
+  --links-accent: var(--brand-red);
+  /* Hairlines and surfaces, tinted with the brand navy rather than neutral
+     grey, so the page still reads as BIPOC with the colour turned down. */
+  --links-line: rgba(0, 38, 62, 0.14);
+  --links-surface: rgba(0, 38, 62, 0.025);
+  --links-surface-hover: rgba(0, 38, 62, 0.06);
 }
 
-/* A band of brand red across the top, so the page reads as BIPOC rather than
-   as a generic navy link list. */
+/* A brand frame around the whole page: red at one corner, navy at the other.
+   `border-image` paints the gradient on all four edges at once, and the
+   overlay is fixed so the frame stays put while the links scroll inside it.
+   pointer-events: none keeps it from swallowing taps near the edge. */
 body[data-page="community-links"]::before {
   content: "";
   position: fixed;
-  inset: 0 0 auto;
-  height: 5px;
-  background: linear-gradient(90deg, var(--brand-red) 0%, var(--button-red) 100%);
+  inset: 0;
+  border: 5px solid transparent;
+  border-image: linear-gradient(135deg, var(--brand-red) 0%, var(--button-red) 35%, var(--brand-blue) 100%) 1;
+  pointer-events: none;
   z-index: 2;
 }
 
@@ -13541,14 +13553,13 @@ body[data-page="community-links"]::before {
   text-align: center;
 }
 
+/* Both logos are dark ink on transparent, so on a white page they need no
+   tile behind them — one would just be a white square on white. */
 .links-logos {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 20px;
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 12px 18px;
 }
 .links-logos img {
   height: 34px;
@@ -13560,7 +13571,7 @@ body[data-page="community-links"]::before {
   font-size: clamp(1.75rem, 6vw, 2.3rem);
   line-height: 1.1;
   margin: 0;
-  color: #ffffff;
+  color: var(--brand-blue);
   text-wrap: balance;
 }
 
@@ -13577,7 +13588,7 @@ body[data-page="community-links"]::before {
 .links-tagline {
   margin: 0;
   max-width: 44ch;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--muted);
   font-size: 0.97rem;
   line-height: 1.5;
 }
@@ -13599,10 +13610,10 @@ body[data-page="community-links"]::before {
   aspect-ratio: 1024 / 683;
   object-fit: cover;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--links-line);
 }
 .links-hero figcaption {
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--muted);
   font-size: 0.86rem;
   line-height: 1.4;
 }
@@ -13622,14 +13633,14 @@ body[data-page="community-links"]::before {
   color: var(--links-accent);
 }
 
-/* Sub-headings inside a group. Quieter than the red h2 above them so the
-   group still reads as one section rather than as several. */
+/* Sub-headings inside a group. Navy rather than red so they sit a step below
+   the section heading above them and the group still reads as one section. */
 .links-subhead {
   margin: 10px 0 0;
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.01em;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--muted);
 }
 .links-group h2 + .links-subhead {
   margin-top: 0;
@@ -13643,10 +13654,10 @@ body[data-page="community-links"]::before {
      be tapped on a phone. */
   min-height: 60px;
   padding: 12px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid var(--links-line);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.07);
-  color: #ffffff;
+  background: var(--links-surface);
+  color: var(--brand-blue);
   text-decoration: none;
 }
 
@@ -13677,10 +13688,12 @@ body[data-page="community-links"]::before {
   height: 100%;
 }
 
-/* Every one of these logos is drawn for paper or a white page, so it needs a
-   light tile under it rather than being dropped straight onto the navy. */
+/* The logos keep their white tile even on a white page: it separates them from
+   the card's tinted surface and gives each one the background it was drawn for.
+   The hairline is what makes the tile visible at all. */
 .link-thumb-logo {
   background: #ffffff;
+  border: 1px solid var(--links-line);
   padding: 5px;
 }
 .link-thumb-logo img {
@@ -13695,8 +13708,8 @@ body[data-page="community-links"]::before {
    a logo lifted off their website would not be ours to publish. */
 .link-thumb-mono,
 .link-thumb-glyph {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 38, 62, 0.055);
+  border: 1px solid var(--links-line);
 }
 .link-thumb-mono {
   color: var(--links-accent);
@@ -13705,17 +13718,18 @@ body[data-page="community-links"]::before {
   letter-spacing: 0.04em;
 }
 .link-thumb-glyph {
-  color: #ffffff;
+  color: var(--brand-blue);
 }
 
 .link-title {
   font-weight: 700;
   font-size: 1.02rem;
   line-height: 1.3;
+  color: var(--brand-blue);
 }
 
 .link-note {
-  color: rgba(255, 255, 255, 0.68);
+  color: var(--muted);
   font-size: 0.85rem;
   line-height: 1.4;
 }
@@ -13745,29 +13759,28 @@ body[data-page="community-links"]::before {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid var(--links-line);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--links-surface);
   color: var(--links-accent);
   text-decoration: none;
 }
 
 @media (hover: hover) {
   .org-ig:hover {
-    background: rgba(255, 255, 255, 0.13);
-    border-color: var(--button-red);
-    color: #ffffff;
+    background: var(--links-surface-hover);
+    border-color: var(--brand-red);
   }
 }
 
 .org-ig:focus-visible {
-  outline: 3px solid var(--button-red);
+  outline: 3px solid var(--brand-red);
   outline-offset: 2px;
 }
 
 .links-subnote {
   margin: -2px 0 2px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--muted);
   font-size: 0.83rem;
   line-height: 1.4;
 }
@@ -13775,24 +13788,24 @@ body[data-page="community-links"]::before {
 .links-footer {
   margin-top: 6px;
   text-align: center;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--muted);
   font-size: 0.84rem;
   line-height: 1.6;
 }
 .links-footer p { margin: 0; }
 .links-footer a { color: inherit; }
 
-/* The shared acknowledgement block is styled for light pages; on this dark one
-   it needs its own colours rather than inheriting navy-on-navy. */
+/* The shared rules paint this block white-on-navy for the dark site footer, so
+   on this light page it needs its colours stated back. */
 body[data-page="community-links"] .site-acknowledgement {
   /* The shared rule insets this block 28px on each side, which left the rule
      above it visibly narrower than the cards. Match the column instead. */
   width: 100%;
   margin-top: 10px;
   padding: 18px 2px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  border-top: 1px solid var(--links-line);
   background: none;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--muted);
   font-size: 0.8rem;
   line-height: 1.6;
   text-align: center;
@@ -13807,18 +13820,18 @@ body[data-page="community-links"] .site-acknowledgement p {
 }
 body[data-page="community-links"] .site-acknowledgement-credit {
   margin-top: 8px;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--brand-blue);
   font-weight: 600;
 }
 
 @media (hover: hover) {
   .link-card:hover {
-    background: rgba(255, 255, 255, 0.13);
-    border-color: var(--button-red);
+    background: var(--links-surface-hover);
+    border-color: var(--brand-red);
   }
 }
 
 .link-card:focus-visible {
-  outline: 3px solid var(--button-red);
+  outline: 3px solid var(--brand-red);
   outline-offset: 2px;
 }
