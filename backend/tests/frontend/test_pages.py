@@ -239,11 +239,13 @@ class PageContentTest(BaseAppTest):
             self.assertIn(f"export function {renderer}", partners_js)
 
         # Names must not be duplicated into the page markup, or editing the
-        # list in one place stops being enough.
+        # list in one place stops being enough. (Arts Marvels and BIPOC
+        # Foundation are no use as sentinels — both are in every page's header
+        # and footer lockup already.)
         page = (
             Path(__file__).resolve().parents[2] / "app" / "frontend" / "partners.html"
         ).read_text(encoding="utf-8")
-        self.assertNotIn("Oilsmarble", page)
+        self.assertNotIn("Community Foundation", page)
         self.assertNotIn("NRED Program", page)
 
         main_js = (
