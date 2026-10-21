@@ -221,17 +221,25 @@ class PageContentTest(BaseAppTest):
                 )
         self.assertGreater(checked, 1)
 
-    def test_02h_partner_list_lives_in_one_editable_block_and_is_flagged_unconfirmed(self) -> None:
-        """The public funder list was never confirmed — the Oct 6 2026 notes
-        named six organisations but said "five in total". This fails the moment
-        someone removes the warning without settling the list, and keeps the
-        list from being scattered back into page markup."""
+    def test_02h_partner_list_lives_in_one_editable_block_and_names_five(self) -> None:
+        """The "six names but five in total" discrepancy is settled: the 6 Oct
+        2026 summary names five funders, and the sixth was "Government of
+        Alberta NRED Program" split in two. The count is pinned here because
+        re-splitting it is the exact mistake that produced six the first time,
+        and because the acronym must not be expanded until someone confirms
+        what it stands for."""
         partners_js = (
             Path(__file__).resolve().parents[2] / "app" / "frontend" / "js" / "partners.js"
         ).read_text(encoding="utf-8")
 
+        self.assertEqual(partners_js.count("    name: "), 5)
+        self.assertIn('name: "Government of Alberta NRED Program"', partners_js)
+
         self.assertIn("export const PARTNERS", partners_js)
-        self.assertIn("NOT CONFIRMED", partners_js)
+        # What is still open, per the summary: the formal names. Keep the
+        # reminder in the file so nobody publishes an expanded acronym or a
+        # guessed foundation name on the strength of the list looking settled.
+        self.assertIn("subject to confirmation", partners_js)
 
         # The strip and the cards must both read from that one list.
         self.assertEqual(partners_js.count("export const PARTNERS"), 1)

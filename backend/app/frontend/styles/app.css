@@ -14241,3 +14241,35 @@ body[data-page="community-links"] .site-acknowledgement-credit {
     font-size: 0.85rem;
   }
 }
+
+/* The standing schedule on /community-program — the recurring pattern, shown
+   above the month's own card. Deliberately lighter than .cp-facts: this is
+   what usually happens, not what is confirmed for this month. */
+.cp-standing {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  margin-top: 18px;
+  padding: 16px 20px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+}
+
+.cp-standing-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cp-standing-note {
+  margin: 10px 0 0;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+@media (max-width: 720px) {
+  .cp-standing {
+    flex-direction: column;
+    gap: 14px;
+  }
+}

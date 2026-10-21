@@ -12,30 +12,30 @@
 // index.html (or anywhere else) is picked up with no further wiring.
 
 /* ════════════════════════════════════════════════════════════════════════
-   ⚠️  THE PUBLIC FUNDER LIST IS NOT CONFIRMED — DO NOT SHIP AS-IS.  ⚠️
+   FUNDER LIST — five organisations, per the 6 Oct 2026 meeting summary.
 
-   The Oct 6 2026 stakeholder meeting named six organisations but said "five
-   in total", and that discrepancy is still unresolved.
+   The earlier "six names but five in total" discrepancy is resolved. The
+   summary names the funders as "City of Lethbridge, Community Foundations
+   and Government of Alberta NRED Program", then adds "Arts Marvels and
+   BIPOC Foundation" — five. The count only looked like six because
+   "Government of Alberta NRED Program" had been split into two entries,
+   and because the notes' "Oilsmarble" was a mis-transcription of Arts
+   Marvels.
 
-   Settled so far: the notes' "Oilsmarble" was a mis-transcription of Arts
-   Marvels, which already runs the Hub alongside BIPOC Foundation.
+   Still subject to confirmation, in the summary's own words: the formal
+   names, which "were unclear in the recording". Specifically, which
+   Community Foundations, and what NRED stands for — do not expand the
+   acronym on the page until someone confirms it.
 
-   Still open: whether the public list is five or six, and whether Arts
-   Marvels and BIPOC Foundation belong here at all — they operate the Hub
-   rather than fund it from outside, which may be exactly how a count of six
-   names was described as five. Confirm the final list with the stakeholders,
-   then delete this banner.
-
-   Every `note` below is DRAFT COPY written to be deliberately generic — it
-   claims support for the Hub and nothing more. No funding amounts, grant
-   names, programme names, or terms are asserted anywhere, because none were
-   verified. All of it needs stakeholder sign-off before launch.
+   Every `note` below claims support for the Hub and nothing more. No
+   funding amounts, grant names, or terms are asserted, because none were
+   verified.
 
    EDITING THIS LIST
      name   Required. Shown as-is, and used for the fallback tile.
      url    Official website, or "" for none. Only verified URLs belong here.
-     logo   Path to the logo image, or "" for none. Four entries below are
-            "" because no logo file has been supplied yet: an src pointing at
+     logo   Path to the logo image, or "" for none. Entries below are ""
+            because no logo file has been supplied yet: an src pointing at
             a file that is not there still renders the name tile, but costs a
             404 on every page load — so leave it "" until the file exists.
             New funder logos go in /assets/media/partners/ (create the
@@ -55,27 +55,23 @@ export const PARTNERS = [
     note: "Thank you to the City of Lethbridge for supporting creative space and community access here at home.",
   },
   {
-    name: "Government of Alberta",
-    // Verified 2026-10-21: resolves to "Government of Alberta | Alberta.ca".
+    // One funder, not two: the 6 Oct 2026 summary names it "Government of
+    // Alberta NRED Program". Splitting it was what made five look like six.
+    // The acronym is left unexpanded on purpose — nobody has confirmed it.
+    // URL is the province's own; the programme's page is not confirmed.
+    name: "Government of Alberta NRED Program",
     url: "https://www.alberta.ca/",
     logo: "",
-    note: "Thank you to the Government of Alberta for supporting creative and economic opportunity across the province.",
+    note: "Thank you to the Government of Alberta NRED Program for supporting creative and economic opportunity across the province.",
   },
   {
-    // TODO(confirm): which community foundation? The meeting notes say only
-    // "Community Foundation". Name and URL must be confirmed before launch.
-    name: "Community Foundation",
+    // TODO(confirm): which Community Foundations? The 6 Oct 2026 summary
+    // writes it plural but names no specific foundation, and flags that
+    // formal names were unclear in the recording. Confirm name and URL.
+    name: "Community Foundations",
     url: "",
     logo: "",
     note: "Thank you for the community investment that helps keep the Hub open and accessible.",
-  },
-  {
-    // TODO(confirm): "NRED Program" as written in the meeting notes. Confirm
-    // the full programme name, the organisation behind it, and its URL.
-    name: "NRED Program",
-    url: "",
-    logo: "",
-    note: "Thank you for the programme support behind skills, training, and creative development at the Hub.",
   },
   {
     // "Oilsmarble" in the meeting notes was a mis-transcription of Arts Marvels
