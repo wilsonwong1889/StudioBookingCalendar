@@ -14,11 +14,17 @@
 /* ════════════════════════════════════════════════════════════════════════
    ⚠️  THE PUBLIC FUNDER LIST IS NOT CONFIRMED — DO NOT SHIP AS-IS.  ⚠️
 
-   The Oct 6 2026 stakeholder meeting named the six organisations below but
-   said "five in total". That discrepancy is unresolved, so one of these is
-   either a duplicate, a sub-programme of another, or not meant to be listed
-   publicly at all. Confirm the final list with the stakeholders, then delete
-   this banner.
+   The Oct 6 2026 stakeholder meeting named six organisations but said "five
+   in total", and that discrepancy is still unresolved.
+
+   Settled so far: the notes' "Oilsmarble" was a mis-transcription of Arts
+   Marvels, which already runs the Hub alongside BIPOC Foundation.
+
+   Still open: whether the public list is five or six, and whether Arts
+   Marvels and BIPOC Foundation belong here at all — they operate the Hub
+   rather than fund it from outside, which may be exactly how a count of six
+   names was described as five. Confirm the final list with the stakeholders,
+   then delete this banner.
 
    Every `note` below is DRAFT COPY written to be deliberately generic — it
    claims support for the Hub and nothing more. No funding amounts, grant
@@ -28,10 +34,13 @@
    EDITING THIS LIST
      name   Required. Shown as-is, and used for the fallback tile.
      url    Official website, or "" for none. Only verified URLs belong here.
-     logo   Path under /assets/media/partners/. Drop the image file in and it
-            appears automatically; while the file is missing — or if the path
-            is wrong — the tile falls back to the organisation's name. Set ""
-            when there is no logo to use yet.
+     logo   Any path under /assets/. New funder logos go in
+            /assets/media/partners/ at the paths already written below — drop
+            the file in and it appears, no code change needed. While the file
+            is missing, or if the path is wrong, the tile falls back to the
+            organisation's name instead. Set "" when there is no logo at all.
+            Prefer a tile-sized image (~192px wide, as in /assets/media/links/)
+            over a full-resolution one: a tile never renders wider than ~175px.
      note   One short line of appreciation/context. Keep it generic unless the
             relationship has been confirmed in writing.
    ════════════════════════════════════════════════════════════════════════ */
@@ -67,16 +76,18 @@ export const PARTNERS = [
     note: "Thank you for the programme support behind skills, training, and creative development at the Hub.",
   },
   {
-    // TODO(confirm): spelling, correct legal name, and URL all unverified.
-    name: "Oilsmarble",
-    url: "",
-    logo: "/assets/media/partners/oilsmarble.png",
-    note: "Thank you for standing behind community creative work in Lethbridge.",
+    // "Oilsmarble" in the meeting notes was a mis-transcription of Arts Marvels
+    // (confirmed by the user 2026-10-21). Logo and link are the site's own:
+    // Instagram is the only Arts Marvels URL the site uses, in 45 places.
+    name: "Arts Marvels",
+    url: "https://www.instagram.com/artsmarvels/",
+    logo: "/assets/media/links/logo-arts-marvels.png",
+    note: "Arts Marvels powers the Hub day to day, turning studio space into programming, production, and opportunity for the community.",
   },
   {
     name: "BIPOC Foundation",
     url: "https://bipocfoundation.org/",
-    logo: "/assets/media/bipoc-foundation-logo.png",
+    logo: "/assets/media/links/logo-bipoc-foundation.png",
     note: "The Hub is powered by BIPOC Foundation, whose mission for economic empowerment, access, and representation shapes everything we do here.",
   },
 ];
