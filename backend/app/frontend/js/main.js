@@ -1,6 +1,7 @@
 import { api } from "./api.js";
 import { attachAllPhotoLimits } from "./upload-limits.js";
 import { CURRENT_PAGE, getSearchParam } from "./config.js";
+import { initPartners } from "./partners.js";
 import { todayISO } from "./date-utils.js";
 import {
   getPersistedCheckoutDraft,
@@ -36,6 +37,7 @@ const PAGE_DATA_REQUIREMENTS = {
   info: { rooms: false, bookings: false, admin: false, selectedRoom: false, selectedBooking: false, publicStaff: false },
   pricing: { rooms: false, bookings: false, admin: false, selectedRoom: false, selectedBooking: false, publicStaff: false },
   programming: { rooms: false, bookings: false, admin: false, selectedRoom: false, selectedBooking: false, publicStaff: false },
+  partners: { rooms: false, bookings: false, admin: false, selectedRoom: false, selectedBooking: false, publicStaff: false },
   rooms: { rooms: true, bookings: false, admin: false, selectedRoom: false, selectedBooking: false },
   room: { rooms: false, bookings: false, admin: false, selectedRoom: true, selectedBooking: false },
   reserve: { rooms: false, bookings: false, admin: false, selectedRoom: true, selectedBooking: false },
@@ -162,6 +164,7 @@ document.querySelectorAll("img").forEach((img) => {
     "/pricing": `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>`,
     "/services": `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>`,
     "/programming": `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>`,
+    "/partners": `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>`,
     "/bookings": `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
     "/faq": `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
   };
@@ -913,6 +916,9 @@ initAuthView({ refreshSession, clearSession });
 initBookingsView({ refreshAvailabilityAndBookings });
 initBookingDetailView({ reloadBookingDetail: loadSelectedBooking });
 initHomeView();
+// Renders any partner marquee / acknowledgement mount point on the page, so
+// dropping one onto another page needs no extra wiring here.
+initPartners();
 initInfoView();
 initIntakeView();
 initPaymentSuccessView({ reloadPaymentSuccess: loadSelectedBooking });
