@@ -13867,3 +13867,200 @@ body[data-page="community-links"] .site-acknowledgement-credit {
   outline: 3px solid var(--brand-red);
   outline-offset: 2px;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Funders & partners (/partners, and anywhere the marquee is dropped in)
+
+   The strip is a pure CSS marquee: the track holds two identical runs and
+   slides by -50%, which lands run two exactly where run one began, so the
+   loop never shows a seam. The gap lives on each run (plus a trailing gap)
+   rather than on the track, so both runs are the same width and -50% is
+   genuinely one run.
+
+   Markup comes from js/partners.js. Any tile whose logo file is missing shows
+   the organisation's name instead, so logos can be dropped in later.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.partner-marquee {
+  --partner-tile-gap: 20px;
+  position: relative;
+  margin: 24px 0 4px;
+  /* Fade the strip out at both edges so tiles enter and leave rather than
+     being chopped off by the panel. */
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
+}
+
+.partner-marquee-viewport {
+  overflow: hidden;
+}
+
+.partner-marquee-track {
+  --partner-marquee-duration: 36s;
+  display: flex;
+  width: max-content;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .partner-marquee-track {
+    animation: partner-marquee-scroll var(--partner-marquee-duration) linear infinite;
+  }
+}
+
+@keyframes partner-marquee-scroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+/* Hold the strip still while someone is reading a tile or tabbing through it. */
+.partner-marquee:focus-within .partner-marquee-track {
+  animation-play-state: paused;
+}
+
+@media (hover: hover) {
+  .partner-marquee:hover .partner-marquee-track {
+    animation-play-state: paused;
+  }
+}
+
+.partner-marquee-run {
+  display: flex;
+  align-items: center;
+  gap: var(--partner-tile-gap);
+  /* Matches the inter-tile gap across the join between the two runs. */
+  padding: 0 var(--partner-tile-gap) 0 0;
+  margin: 0;
+  list-style: none;
+  flex: none;
+}
+
+.partner-tile {
+  flex: none;
+  width: 190px;
+}
+
+.partner-tile-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 104px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--card-radius);
+  background: var(--surface-strong);
+  text-decoration: none;
+  color: inherit;
+}
+
+@media (hover: hover) {
+  a.partner-tile-inner {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  a.partner-tile-inner:hover {
+    border-color: rgba(215, 25, 32, 0.32);
+    box-shadow: 0 12px 28px rgba(0, 38, 62, 0.1);
+  }
+}
+
+.partner-tile-inner:focus-visible {
+  outline: 3px solid var(--brand-red);
+  outline-offset: 2px;
+}
+
+/* The logo slot holds both states. `.has-logo` is set by js/partners.js when a
+   logo is configured, and taken back off if the file fails to load — so the
+   name tile is the automatic fallback, not a separate piece of markup. */
+.partner-logo-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.partner-logo {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.partner-logo-name {
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  color: var(--brand-blue);
+  text-wrap: balance;
+}
+
+.partner-logo-slot.has-logo .partner-logo-name {
+  display: none;
+}
+
+/* Acknowledgement cards — the context that turns a wall of logos into thanks. */
+.partner-card-mark {
+  display: flex;
+  align-items: center;
+  height: 60px;
+}
+
+/* A card whose logo file is missing drops the mark entirely rather than
+   leaving a 60px hole — the card's heading already names the organisation.
+   js/partners.js takes `.has-logo` off the slot when an image fails. */
+.partner-card-mark:not(:has(.has-logo)) {
+  display: none;
+}
+
+.partner-card-mark .partner-logo-slot {
+  justify-content: flex-start;
+  width: auto;
+  max-width: 100%;
+}
+
+.partner-card h3 {
+  margin: 0;
+}
+
+.partner-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* Without motion the duplicate run is dead weight, so drop it and let the
+   single run scroll by hand instead. */
+@media (prefers-reduced-motion: reduce) {
+  .partner-marquee-viewport {
+    overflow-x: auto;
+  }
+  .partner-marquee-track {
+    animation: none;
+    transform: none;
+  }
+  .partner-marquee-run[aria-hidden="true"] {
+    display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .partner-marquee {
+    --partner-tile-gap: 14px;
+  }
+  .partner-tile {
+    width: 150px;
+  }
+  .partner-tile-inner {
+    height: 88px;
+    padding: 12px;
+  }
+  .partner-logo-name {
+    font-size: 0.85rem;
+  }
+}

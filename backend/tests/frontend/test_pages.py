@@ -7,6 +7,7 @@ structure. No database mutations; these verify the HTML templates are correct.
 import re
 import sys
 import os
+from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from tests.base import BaseAppTest
@@ -134,6 +135,80 @@ class PageContentTest(BaseAppTest):
                     self.client.get(path).text,
                     f"{path} links to the unlisted page, which makes it findable",
                 )
+
+    def test_02e_partners_page_is_listed_and_acknowledges_with_context(self) -> None:
+        """The funders carousel is only half the ask — the stakeholders wanted
+        supporters acknowledged *with context*, not a bare wall of logos."""
+        resp = self.client.get("/partners")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.text
+
+        self.assertIn("Partners &amp; Sponsorships | BIPOC Hub", html)
+        self.assertIn('<meta name="description"', html)
+        self.assertIn('<link rel="canonical" href="https://bipoccreativeinnovationstudio.com/partners"', html)
+        self.assertIn('<meta property="og:url" content="https://bipoccreativeinnovationstudio.com/partners"', html)
+        self.assertIn('<meta name="twitter:card" content="summary_large_image"', html)
+        self.assertIn('data-page="partners"', html)
+
+        # Both mount points, so the strip and the acknowledgements both render.
+        self.assertIn("data-partner-marquee-mount", html)
+        self.assertIn("data-partner-acknowledgements-mount", html)
+
+        # Unlike /community-links this page is meant to be found.
+        self.assertIn("/partners", self.client.get("/sitemap.xml").text)
+        self.assertNotIn("Disallow: /partners", self.client.get("/robots.txt").text)
+
+    def test_02f_partners_is_reachable_from_the_nav_on_every_page_that_has_one(self) -> None:
+        """A page nobody can click to is a page nobody reads. The "More" menu is
+        duplicated into every page's markup, so it drifts unless pinned down."""
+        frontend = Path(__file__).resolve().parents[2] / "app" / "frontend"
+        pages = sorted(frontend.glob("*.html"))
+        self.assertTrue(pages)
+
+        checked = 0
+        for page in pages:
+            html = page.read_text(encoding="utf-8")
+            if "nav-group-menu" not in html:
+                continue  # community-links.html is deliberately chrome-less
+            checked += 1
+            with self.subTest(page=page.name):
+                self.assertIn(
+                    'href="/partners" ',
+                    html,
+                    f"{page.name}: the More menu is missing the Partners entry",
+                )
+        self.assertGreater(checked, 1)
+
+    def test_02g_partner_list_lives_in_one_editable_block_and_is_flagged_unconfirmed(self) -> None:
+        """The public funder list was never confirmed — the Oct 6 2026 notes
+        named six organisations but said "five in total". This fails the moment
+        someone removes the warning without settling the list, and keeps the
+        list from being scattered back into page markup."""
+        partners_js = (
+            Path(__file__).resolve().parents[2] / "app" / "frontend" / "js" / "partners.js"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("export const PARTNERS", partners_js)
+        self.assertIn("NOT CONFIRMED", partners_js)
+
+        # The strip and the cards must both read from that one list.
+        self.assertEqual(partners_js.count("export const PARTNERS"), 1)
+        for renderer in ("renderPartnerMarquee", "renderPartnerAcknowledgements"):
+            self.assertIn(f"export function {renderer}", partners_js)
+
+        # Names must not be duplicated into the page markup, or editing the
+        # list in one place stops being enough.
+        page = (
+            Path(__file__).resolve().parents[2] / "app" / "frontend" / "partners.html"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("Oilsmarble", page)
+        self.assertNotIn("NRED Program", page)
+
+        main_js = (
+            Path(__file__).resolve().parents[2] / "app" / "frontend" / "js" / "main.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn('from "./partners.js"', main_js)
+        self.assertIn("initPartners();", main_js)
 
     def test_03_account_page(self) -> None:
         resp = self.client.get("/account")
