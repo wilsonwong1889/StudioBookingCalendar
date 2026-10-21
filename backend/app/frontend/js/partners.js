@@ -23,9 +23,10 @@
    Marvels.
 
    Still subject to confirmation, in the summary's own words: the formal
-   names, which "were unclear in the recording". Specifically, which
-   Community Foundations, and what NRED stands for — do not expand the
-   acronym on the page until someone confirms it.
+   names, which "were unclear in the recording". What remains open is which
+   Community Foundations is meant — no specific foundation was named, so
+   that entry still has no link. NRED is settled: Northern and Regional
+   Economic Development, per the province's own guidelines.
 
    Every `note` below claims support for the Hub and nothing more. No
    funding amounts, grant names, or terms are asserted, because none were
@@ -57,10 +58,12 @@ export const PARTNERS = [
   {
     // One funder, not two: the 6 Oct 2026 summary names it "Government of
     // Alberta NRED Program". Splitting it was what made five look like six.
-    // The acronym is left unexpanded on purpose — nobody has confirmed it.
-    // URL is the province's own; the programme's page is not confirmed.
+    // NRED is Northern and Regional Economic Development — confirmed 2026-10-21
+    // against the province's own programme guidelines on open.alberta.ca, which
+    // is what this links to. The tile keeps the summary's wording rather than
+    // the expansion, so the page matches what the stakeholders called it.
     name: "Government of Alberta NRED Program",
-    url: "https://www.alberta.ca/",
+    url: "https://open.alberta.ca/publications/northern-regional-economic-development-program-guidelines",
     logo: "",
     note: "Thank you to the Government of Alberta NRED Program for supporting creative and economic opportunity across the province.",
   },
