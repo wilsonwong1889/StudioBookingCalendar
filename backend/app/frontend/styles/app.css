@@ -13867,3 +13867,135 @@ body[data-page="community-links"] .site-acknowledgement-credit {
   outline: 3px solid var(--brand-red);
   outline-offset: 2px;
 }
+
+/* ---------------------------------------------------------------------------
+   Studio Community Program (/community-program)
+
+   The month's program is a poster beside a block of facts. The poster is
+   optional — when it is removed the detail column simply takes the full width,
+   so a month with no graphic yet still looks deliberate.
+   --------------------------------------------------------------------------- */
+.cp-month-panel {
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.cp-month-body {
+  display: grid;
+  grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+/* No poster this month: the lone detail column should not stretch to a
+   full-bleed line length. */
+.cp-month-body:not(:has(.cp-poster)) {
+  grid-template-columns: minmax(0, 720px);
+}
+
+.cp-poster img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
+
+.cp-month-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cp-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px 28px;
+  padding: 20px 22px;
+  border-radius: 12px;
+  background: var(--brand-blue-soft);
+  border: 1px solid var(--line);
+}
+
+.cp-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cp-fact-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--brand-red);
+}
+
+.cp-fact-value {
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+.cp-fact-note {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.cp-month-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cp-month-copy p {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.cp-funfact {
+  padding: 14px 16px;
+  border-left: 3px solid var(--brand-red);
+  border-radius: 0 8px 8px 0;
+  background: var(--accent-soft);
+  font-size: 0.94rem;
+}
+
+.cp-register-note {
+  margin: -6px 0 0;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.cp-presented-by {
+  margin: 4px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+@media (max-width: 860px) {
+  .cp-month-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  /* Portrait posters eat a whole phone screen before any detail is visible.
+     Cap the height and centre it so the facts stay within reach of the fold. */
+  .cp-poster img {
+    max-width: 340px;
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .cp-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    padding: 18px;
+  }
+}

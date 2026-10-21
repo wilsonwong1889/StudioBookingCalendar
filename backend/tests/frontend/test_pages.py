@@ -17,7 +17,7 @@ class PageContentTest(BaseAppTest):
     def test_00_all_pages_return_200(self) -> None:
         for path in ("/", "/account", "/pricing", "/rooms", "/room", "/reserve",
                      "/staff", "/staff-dashboard", "/bookings", "/booking",
-                     "/payment-success", "/admin"):
+                     "/payment-success", "/admin", "/community-program"):
             resp = self.client.get(path)
             self.assertEqual(resp.status_code, 200, f"{path} returned {resp.status_code}")
 
@@ -126,6 +126,7 @@ class PageContentTest(BaseAppTest):
             "/", "/rooms", "/pricing", "/services", "/staff",
             "/programming", "/info", "/faq", "/contact", "/room",
             "/account", "/booking", "/bookings", "/reserve",
+            "/community-program",
         )
         for path in public_pages:
             with self.subTest(path=path):
@@ -134,6 +135,33 @@ class PageContentTest(BaseAppTest):
                     self.client.get(path).text,
                     f"{path} links to the unlisted page, which makes it findable",
                 )
+
+    def test_02e_community_program_page_is_listed_and_swappable(self) -> None:
+        """The month's content changes every month, so this asserts the frame
+        around it, not the programme: that the page is findable, and that the
+        editable block and its instructions are still there. Someone rewriting
+        the page by hand should fail here rather than quietly leave the next
+        editor with no idea which part to replace."""
+        resp = self.client.get("/community-program")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.text
+
+        self.assertIn("Studio Community Program", html)
+
+        # Findable: in the sitemap and reachable from the public navigation.
+        self.assertIn("/community-program", self.client.get("/sitemap.xml").text)
+        for path in ("/", "/rooms", "/programming", "/contact"):
+            with self.subTest(path=path):
+                self.assertIn('href="/community-program"', self.client.get(path).text)
+
+        # The editable region and the instructions that make it editable.
+        self.assertIn("MONTHLY UPDATE", html)
+        self.assertIn("END MONTHLY UPDATE", html)
+        self.assertIn('id="this-month"', html)
+        self.assertIn("cp-facts", html)
+
+        # The search-engine event listing has to travel with the content.
+        self.assertIn('"@type": "Event"', html)
 
     def test_03_account_page(self) -> None:
         resp = self.client.get("/account")

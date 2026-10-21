@@ -61,6 +61,7 @@ FRONTEND_PAGES = {
     "/payment-success": "payment-success.html",
     "/admin": "admin.html",
     "/programming": "programming.html",
+    "/community-program": "community-program.html",
     # Unlisted: reachable only by its URL. Deliberately absent from the
     # navigation and from SITEMAP_PATHS, and disallowed in robots.txt below.
     "/community-links": "community-links.html",
@@ -358,6 +359,7 @@ SITEMAP_PATHS = (
     "/services",
     "/staff",
     "/programming",
+    "/community-program",
     "/info",
     "/faq",
     "/contact",
