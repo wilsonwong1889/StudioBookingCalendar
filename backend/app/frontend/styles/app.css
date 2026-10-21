@@ -13530,8 +13530,17 @@ body[data-page="community-links"]::before {
   content: "";
   position: fixed;
   inset: 0;
-  border: 5px solid transparent;
-  border-image: linear-gradient(135deg, var(--brand-red) 0%, var(--button-red) 35%, var(--brand-blue) 100%) 1;
+  border: 6px solid transparent;
+  /* Held flat at each end rather than blended the whole way, so the frame reads
+     as red AND navy rather than as one muddy gradient. */
+  border-image: linear-gradient(
+      135deg,
+      var(--brand-red) 0%,
+      var(--brand-red) 32%,
+      var(--brand-blue) 68%,
+      var(--brand-blue) 100%
+    )
+    1;
   pointer-events: none;
   z-index: 2;
 }
@@ -13578,11 +13587,11 @@ body[data-page="community-links"]::before {
 .links-header h1::after {
   content: "";
   display: block;
-  width: 56px;
-  height: 3px;
+  width: 72px;
+  height: 4px;
   margin: 12px auto 0;
   border-radius: 2px;
-  background: var(--brand-red);
+  background: linear-gradient(90deg, var(--brand-red) 0%, var(--brand-red) 50%, var(--brand-blue) 50%, var(--brand-blue) 100%);
 }
 
 .links-tagline {
@@ -13624,13 +13633,26 @@ body[data-page="community-links"]::before {
   gap: 10px;
 }
 
+/* Each section label carries a brand rule across the rest of its line, so the
+   red and the navy appear together at every heading rather than only in the
+   frame at the edge of the screen. */
 .links-group h2 {
+  display: flex;
+  align-items: center;
+  gap: 11px;
   margin: 0 0 2px;
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--links-accent);
+}
+.links-group h2::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, var(--brand-red) 0%, var(--brand-blue) 100%);
 }
 
 /* Sub-headings inside a group. Navy rather than red so they sit a step below
@@ -13655,6 +13677,9 @@ body[data-page="community-links"]::before {
   min-height: 60px;
   padding: 12px 16px;
   border: 1px solid var(--links-line);
+  /* A brand spine down the left of every card. Navy at rest, red once you are
+     on it, so the hover state carries the other half of the palette. */
+  border-left: 4px solid var(--brand-blue);
   border-radius: 10px;
   background: var(--links-surface);
   color: var(--brand-blue);
@@ -13760,6 +13785,9 @@ body[data-page="community-links"]::before {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--links-line);
+  /* Red spine against the card's navy one, so a row that has both shows both
+     brand colours side by side. */
+  border-left: 4px solid var(--brand-red);
   border-radius: 10px;
   background: var(--links-surface);
   color: var(--links-accent);
@@ -13769,7 +13797,8 @@ body[data-page="community-links"]::before {
 @media (hover: hover) {
   .org-ig:hover {
     background: var(--links-surface-hover);
-    border-color: var(--brand-red);
+    border-left-color: var(--brand-blue);
+    color: var(--brand-blue);
   }
 }
 
@@ -13801,11 +13830,14 @@ body[data-page="community-links"] .site-acknowledgement {
   /* The shared rule insets this block 28px on each side, which left the rule
      above it visibly narrower than the cards. Match the column instead. */
   width: 100%;
-  margin-top: 10px;
-  padding: 18px 2px 0;
-  border-top: 1px solid var(--links-line);
-  background: none;
-  color: var(--muted);
+  margin-top: 20px;
+  /* A navy panel to close the page, matching the navy footer the rest of the
+     site uses. White at 80% over this navy is ~9.9:1. */
+  padding: 22px 20px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--brand-blue);
+  color: rgba(255, 255, 255, 0.8);
   font-size: 0.8rem;
   line-height: 1.6;
   text-align: center;
@@ -13819,15 +13851,15 @@ body[data-page="community-links"] .site-acknowledgement p {
   max-width: 68ch;
 }
 body[data-page="community-links"] .site-acknowledgement-credit {
-  margin-top: 8px;
-  color: var(--brand-blue);
+  margin-top: 10px;
+  color: #ffffff;
   font-weight: 600;
 }
 
 @media (hover: hover) {
   .link-card:hover {
     background: var(--links-surface-hover);
-    border-color: var(--brand-red);
+    border-left-color: var(--brand-red);
   }
 }
 
