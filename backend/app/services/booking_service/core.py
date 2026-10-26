@@ -12,7 +12,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
-from app.config import settings
+from app.config import is_reservation_only, settings
 from app.core.security import create_access_token, hash_password
 from app.models.booking import AuditLog, Booking, BookingSlot, BookingStaffAssignment, NotificationLog, Refund, Review
 from app.models.room import Room
@@ -52,7 +52,10 @@ RESCHEDULE_NOTIFICATIONS_ENABLED = False
 
 # Wednesday=2, Thursday=3, Friday=4, Saturday=5 (Python weekday() values)
 BOOKING_OPEN_WEEKDAYS = frozenset({2, 3, 4, 5})
-ACTIVE_BOOKING_STATUSES = ("PendingPayment", "Paid", "DepositPaid", "Completed")
+# "Reserved" is a booking confirmed without payment (BOOKING_MODE=reserve). It
+# holds its slot exactly like a paid one, so it belongs in every query that
+# asks "is this hour taken?".
+ACTIVE_BOOKING_STATUSES = ("PendingPayment", "Reserved", "Paid", "DepositPaid", "Completed")
 ACTIVE_STAFF_BOOKING_STATUSES = ("Requested", "AcceptedPendingPayment", "PendingPayment", "Paid", "Completed")
 BOOKABLE_ROOM_STATUS = "available"
 
@@ -76,6 +79,10 @@ class PastBookingError(ValueError):
 
 class PaymentSessionError(Exception):
     pass
+
+
+class GuestBookingDisabledError(Exception):
+    """Raised when a guest tries to book while an account is required."""
 
 
 class StaffSelectionError(Exception):
@@ -524,7 +531,8 @@ def build_booking_feed_item(db: Session, booking: Booking) -> dict:
         "created_at": booking.created_at,
         "updated_at": booking.updated_at,
         "location_label": "Downtown studio district",
-        "can_cancel": booking.status in ("PendingPayment", "Paid", "DepositPaid"),
+        "can_cancel": booking.status in ("PendingPayment", "Reserved", "Paid", "DepositPaid"),
+        # A reservation has nothing to pay, so it must never offer a pay button.
         "can_pay": booking.status == "PendingPayment",
     }
 
@@ -620,6 +628,16 @@ def ensure_single_booking_per_day(
         )
 
 
+def initial_booking_status() -> str:
+    """The status a new room booking starts in.
+
+    In reservation-only mode the booking is confirmed outright, so it starts
+    Reserved and never passes through PendingPayment — which also means the
+    unpaid-booking sweeper leaves it alone.
+    """
+    return "Reserved" if is_reservation_only() else "PendingPayment"
+
+
 def create_booking(db: Session, user: User, payload: BookingCreate) -> Booking:
     return _create_booking_record(
         db,
@@ -627,7 +645,7 @@ def create_booking(db: Session, user: User, payload: BookingCreate) -> Booking:
         user=user,
         start_time=payload.start_time,
         duration_minutes=payload.duration_minutes,
-        status="PendingPayment",
+        status=initial_booking_status(),
         reservation_token=payload.reservation_token,
         promo_code=payload.promo_code,
         note=payload.note,
@@ -637,6 +655,14 @@ def create_booking(db: Session, user: User, payload: BookingCreate) -> Booking:
 
 
 def create_guest_booking(db: Session, payload: GuestBookingCreate) -> GuestBookingCreateOut:
+    # Reservation-only mode confirms the room outright with nothing paid, so the
+    # only thing deterring a no-show is that the booking is attached to a real
+    # account somebody signed into. A throwaway guest record gives that up.
+    if is_reservation_only():
+        raise GuestBookingDisabledError(
+            "Please sign in or create an account to reserve a room."
+        )
+
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
     guest_email = f"guest+{timestamp}-{uuid4().hex[:8]}@guest.studiobooking.local"
     guest_user = User(

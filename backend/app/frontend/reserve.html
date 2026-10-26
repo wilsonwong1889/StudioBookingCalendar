@@ -261,20 +261,35 @@
                 </div>
               </details>
 
+              <!-- Two policies, one shown. Reservation-only mode takes no
+                   deposit, so promising that deposits are non-refundable would
+                   describe money nobody collected. Both sets live here rather
+                   than being rewritten by script, so the wording a customer
+                   agrees to is reviewable in the markup. -->
               <div class="reserve-policy-block">
                 <label class="reserve-policy-label">
                   <input id="reserve-policy-checkbox" type="checkbox" class="reserve-policy-checkbox" />
-                  <span>I understand the cancellation &amp; deposit policy</span>
+                  <span data-when="payment">I understand the cancellation &amp; deposit policy</span>
+                  <span data-when="reserve">I understand the cancellation policy</span>
                 </label>
-                <ul class="reserve-policy-list">
+                <ul class="reserve-policy-list" data-when="payment">
                   <li>Deposits are non-refundable after checkout</li>
                   <li>Cancellations do not return the deposit</li>
                   <li>No-show: deposit is not refunded</li>
                   <li>Late arrival or early departure: charged for full booked time</li>
                 </ul>
+                <ul class="reserve-policy-list" data-when="reserve">
+                  <li>Nothing is charged online — the session is settled at the studio</li>
+                  <li>Cancel from My Bookings as early as you can so the hour can be re-opened</li>
+                  <li>Repeated no-shows may lose booking access</li>
+                  <li>Late arrival or early departure: charged for full booked time</li>
+                </ul>
               </div>
 
-              <button id="reserve-submit-button" class="primary-button reserve-confirm-button" type="submit">Continue to checkout</button>
+              <button id="reserve-submit-button" class="primary-button reserve-confirm-button" type="submit">
+                <span data-when="payment">Continue to checkout</span>
+                <span data-when="reserve">Confirm reservation</span>
+              </button>
             </form>
           </aside>
         </section>

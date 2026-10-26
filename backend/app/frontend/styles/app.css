@@ -13514,6 +13514,46 @@ body[data-page="home"] .home-layout > .panel:nth-of-type(even) {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Reservation-only mode (BOOKING_MODE=reserve).
+
+   Nothing is collected online, so every line that quotes money due now is a
+   promise the studio cannot keep on this page. The total still shows — the
+   session still costs that — it is just settled at the studio.
+
+   Driven off a body attribute set at boot rather than removed at render time,
+   because the summary panel re-renders on every date and duration change.
+   --------------------------------------------------------------------------- */
+body[data-booking-mode="reserve"] .reserve-deposit-note,
+body[data-booking-mode="reserve"] .reserve-balance-note {
+  display: none;
+}
+
+/* Mode-specific copy. Default to the payment wording so a page that never gets
+   the config (offline, blocked fetch) still shows a complete, coherent policy
+   rather than an empty block. */
+[data-when="reserve"] {
+  display: none;
+}
+body[data-booking-mode="reserve"] [data-when="payment"] {
+  display: none;
+}
+body[data-booking-mode="reserve"] [data-when="reserve"] {
+  display: revert;
+}
+
+body[data-booking-mode="reserve"] .reserve-price-total::after {
+  content: "Nothing to pay online — settle at the studio.";
+  display: block;
+  grid-column: 1 / -1;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+
 /* A logo beside a short line of copy, used on the info page to introduce a
    sibling brand. Wraps to stacked on a narrow screen. */
 .brand-callout {

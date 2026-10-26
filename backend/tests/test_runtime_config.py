@@ -176,7 +176,70 @@ class RuntimeConfigurationTest(unittest.TestCase):
 
         with self.assertRaises(RuntimeConfigurationError) as context:
             validate_runtime_configuration(settings_obj)
-        self.assertIn("PAYMENT_BACKEND must be paypal in production (current: stub)", str(context.exception))
+        self.assertIn("PAYMENT_BACKEND must be paypal in production", str(context.exception))
+        self.assertIn("current: stub", str(context.exception))
+
+    def test_production_allows_stub_payment_backend_in_reservation_mode(self) -> None:
+        """Reservation-only takes no money, so there is no payment backend to
+        demand. Without this carve-out the studio cannot run payment-free."""
+        settings_obj = SimpleNamespace(
+            APP_ENV="production",
+            SECRET_KEY="super-long-live-secret-with-entropy-1234567890",
+            APP_BASE_URL="https://studio.example.ca",
+            PAYMENT_BACKEND="stub",
+            BOOKING_MODE="reserve",
+            EMAIL_BACKEND="disabled",
+            SMTP_HOST="",
+            SMTP_PORT=587,
+            SMTP_USERNAME="",
+            SMTP_PASSWORD="",
+            CELERY_TASK_ALWAYS_EAGER=False,
+            ALLOWED_CORS_ORIGINS="https://studio.example.ca",
+            cors_origins=["https://studio.example.ca"],
+            PAYPAL_CLIENT_ID="",
+            PAYPAL_CLIENT_SECRET="",
+            PAYPAL_WEBHOOK_ID="",
+            PAYPAL_ENV="sandbox",
+            SENDGRID_API_KEY="SG.change-me",
+            EMAIL_FROM="bookings@studio.example.ca",
+            SMS_BACKEND="console",
+            TWILIO_ACCOUNT_SID="",
+            TWILIO_AUTH_TOKEN="",
+            TWILIO_FROM_NUMBER="",
+        )
+
+        validate_runtime_configuration(settings_obj)  # must not raise
+
+    def test_production_rejects_unknown_booking_mode(self) -> None:
+        settings_obj = SimpleNamespace(
+            APP_ENV="production",
+            SECRET_KEY="super-long-live-secret-with-entropy-1234567890",
+            APP_BASE_URL="https://studio.example.ca",
+            PAYMENT_BACKEND="paypal",
+            BOOKING_MODE="freebies",
+            EMAIL_BACKEND="disabled",
+            SMTP_HOST="",
+            SMTP_PORT=587,
+            SMTP_USERNAME="",
+            SMTP_PASSWORD="",
+            CELERY_TASK_ALWAYS_EAGER=False,
+            ALLOWED_CORS_ORIGINS="https://studio.example.ca",
+            cors_origins=["https://studio.example.ca"],
+            PAYPAL_CLIENT_ID="live-client-id-value",
+            PAYPAL_CLIENT_SECRET="live-client-secret-value",
+            PAYPAL_WEBHOOK_ID="live-webhook-id",
+            PAYPAL_ENV="sandbox",
+            SENDGRID_API_KEY="SG.change-me",
+            EMAIL_FROM="bookings@studio.example.ca",
+            SMS_BACKEND="console",
+            TWILIO_ACCOUNT_SID="",
+            TWILIO_AUTH_TOKEN="",
+            TWILIO_FROM_NUMBER="",
+        )
+
+        with self.assertRaises(RuntimeConfigurationError) as context:
+            validate_runtime_configuration(settings_obj)
+        self.assertIn("BOOKING_MODE must be payment or reserve", str(context.exception))
 
     def test_production_rejects_missing_paypal_webhook_id(self) -> None:
         settings_obj = SimpleNamespace(

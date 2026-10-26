@@ -2,6 +2,7 @@ import { api } from "./api.js";
 import { attachAllPhotoLimits } from "./upload-limits.js";
 import { CURRENT_PAGE, getSearchParam } from "./config.js";
 import { initPartners } from "./partners.js";
+import { applyBookingMode } from "./supabase.js";
 import { todayISO } from "./date-utils.js";
 import {
   getPersistedCheckoutDraft,
@@ -910,6 +911,12 @@ async function clearSession() {
 })();
 
 subscribe(renderApp);
+
+// Tag the page with the booking mode before the views render, so payment
+// furniture never flashes on screen in reservation-only mode.
+applyBookingMode().catch(() => {
+  /* no-op — a failed config fetch leaves the default payment mode */
+});
 
 initAdminView({ refreshAll: refreshAvailabilityAndBookings, refreshAdminToday, getState: () => state });
 initAuthView({ refreshSession, clearSession });

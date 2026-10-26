@@ -15,6 +15,8 @@ from app.config import (
     get_supabase_configuration_status,
     settings,
     validate_runtime_configuration,
+    get_booking_mode,
+    is_reservation_only,
 )
 from app.database import engine
 from app.routers import (
@@ -516,6 +518,10 @@ def public_config(response: Response):
     return {
         "app_env": settings.APP_ENV,
         "payment_backend": get_payment_backend(settings),
+        # The frontend hides every price and pay control on this one flag, so a
+        # reservation-mode customer is never shown a total they cannot pay.
+        "booking_mode": get_booking_mode(settings),
+        "reservation_only": is_reservation_only(settings),
         "paypal_client_id": settings.PAYPAL_CLIENT_ID if paypal_status["paypal_checkout_ready"] else None,
         "paypal_env": settings.PAYPAL_ENV,
         "paypal_checkout_ready": paypal_status["paypal_checkout_ready"],

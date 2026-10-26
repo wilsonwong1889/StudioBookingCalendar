@@ -28,6 +28,7 @@ from app.schemas.review import ReviewCreate, ReviewOut
 from app.services.booking_service import (
     BookingConflictError,
     DailyBookingLimitError,
+    GuestBookingDisabledError,
     cancel_booking,
     capture_booking_payment,
     confirm_free_booking,
@@ -180,6 +181,8 @@ def create_guest_booking_endpoint(
 ):
     try:
         return create_guest_booking(db, payload)
+    except GuestBookingDisabledError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
     except DailyBookingLimitError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except StaffSelectionError as exc:

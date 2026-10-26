@@ -39,6 +39,12 @@ class BaseAppTest(unittest.TestCase):
         os.environ["DATABASE_URL"] = cls.test_database_url
         os.environ["SECRET_KEY"] = os.environ.get("SECRET_KEY", "week1-test-secret")
         os.environ["PAYMENT_BACKEND"] = "stub"
+        # Pin the booking mode the same way. Otherwise a developer running with
+        # BOOKING_MODE=reserve in their .env silently flips every payment test
+        # into reservation mode, and the suite fails for reasons that have
+        # nothing to do with the code under test. Reservation-mode tests opt in
+        # explicitly by patching settings.
+        os.environ["BOOKING_MODE"] = "payment"
         # Route uploads to the local media directory. Without this the suite
         # inherits the real Supabase credentials from .env and writes test
         # images into the production bucket — and fails outright whenever that

@@ -309,7 +309,7 @@ function getUpcomingBookings(bookings) {
 
 function getHistoryBookings(bookings) {
   return bookings
-    .filter((booking) => !isBookingUpcoming(booking) && ["Paid", "DepositPaid", "Completed", "Cancelled", "Refunded", "Declined", "Expired"].includes(booking.status))
+    .filter((booking) => !isBookingUpcoming(booking) && ["Reserved", "Paid", "DepositPaid", "Completed", "Cancelled", "Refunded", "Declined", "Expired"].includes(booking.status))
     .sort((left, right) => getBookingLifecycleTimeValue(right) - getBookingLifecycleTimeValue(left));
 }
 
@@ -348,7 +348,7 @@ function renderBookingCard(booking, { upcoming = false } = {}) {
     : formatCurrency(booking.price_cents);
   const actionLabel = pendingPayment ? "Finish payment" : upcoming ? "Manage booking" : "View details";
   const actionClass = pendingPayment ? "primary-button primary-link" : "ghost-button ghost-link";
-  const canCancel = upcoming && ["PendingPayment", "Paid", "DepositPaid", "Requested", "AcceptedPendingPayment"].includes(booking.status);
+  const canCancel = upcoming && ["PendingPayment", "Reserved", "Paid", "DepositPaid", "Requested", "AcceptedPendingPayment"].includes(booking.status);
   const detailHref = getBookingDetailHref(booking);
   const hasLiveCountdown = pendingPayment && booking.payment_expires_at;
   const supportCopy = pendingPayment
@@ -367,6 +367,8 @@ function renderBookingCard(booking, { upcoming = false } = {}) {
           ? (getBalanceOwedCents(booking) > 0
               ? `Deposit paid — ${formatCurrency(getBalanceOwedCents(booking))} balance due at the studio`
               : "Deposit paid")
+        : booking.status === "Reserved"
+          ? "Reserved — no payment needed. Cancel here if your plans change."
         : upcoming
           ? "Deposits are non-refundable"
           : booking.status === "Declined"

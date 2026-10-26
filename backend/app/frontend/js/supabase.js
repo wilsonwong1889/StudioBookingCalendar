@@ -10,6 +10,29 @@ async function loadPublicConfig() {
   return publicConfigPromise;
 }
 
+/**
+ * Mark the page with the booking mode so CSS can hide payment-only furniture.
+ *
+ * Driven off a body attribute rather than a render-time check because the
+ * summary panel re-renders on every date/time change and the config arrives
+ * asynchronously — an attribute applies whenever it lands, to whatever is on
+ * screen, with no ordering to get wrong.
+ */
+export async function applyBookingMode() {
+  const config = await loadPublicConfig();
+  const mode = config?.booking_mode || "payment";
+  document.body.dataset.bookingMode = mode;
+  if (mode === "reserve") {
+    // Nothing is paid online, so the last step confirms rather than checks out.
+    document.querySelectorAll("[data-reserve-step] strong, [data-staff-step] strong").forEach((el) => {
+      if (el.textContent.trim().toLowerCase() === "checkout") {
+        el.textContent = "Confirm";
+      }
+    });
+  }
+  return mode;
+}
+
 export async function hasSupabaseConfig() {
   const config = await loadPublicConfig();
   return Boolean(config?.supabase_url && config?.supabase_publishable_key);

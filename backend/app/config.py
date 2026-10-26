@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     PAYPAL_ENV: str = "sandbox"
     PAYPAL_TIMEOUT_SECONDS: int = 20
     PAYMENT_BACKEND: str = "stub"
+    # "payment" = the room is held by PendingPayment and released if unpaid.
+    # "reserve" = the booking is confirmed outright and no money is collected.
+    # The PayPal integration stays wired up either way; this only decides
+    # whether customers are sent through it.
+    BOOKING_MODE: str = "payment"
     # Stub-mode webhook signatures (tests/dev) are rejected past this age.
     WEBHOOK_TOLERANCE_SECONDS: int = 300
 
@@ -197,6 +202,17 @@ def get_payment_backend(settings_obj: Optional[Settings] = None) -> str:
     return str(getattr(current, "PAYMENT_BACKEND", "") or "").strip().lower()
 
 
+def get_booking_mode(settings_obj: Optional[Settings] = None) -> str:
+    current = settings_obj or settings
+    mode = str(getattr(current, "BOOKING_MODE", "") or "").strip().lower()
+    return mode or "payment"
+
+
+def is_reservation_only(settings_obj: Optional[Settings] = None) -> bool:
+    """True when a booking is confirmed outright and no money is collected."""
+    return get_booking_mode(settings_obj) == "reserve"
+
+
 def get_paypal_configuration_status(settings_obj: Optional[Settings] = None) -> dict[str, bool]:
     current = settings_obj or settings
     paypal_requested = get_payment_backend(current) == "paypal"
@@ -254,9 +270,18 @@ def validate_runtime_configuration(settings_obj: Optional[Settings] = None) -> N
         errors.append("SECRET_KEY must be a strong non-placeholder value in production")
     if not current.APP_BASE_URL.startswith("https://"):
         errors.append("APP_BASE_URL must use https in production")
-    if payment_backend != "paypal":
+    booking_mode = get_booking_mode(current)
+    if booking_mode not in {"payment", "reserve"}:
+        errors.append(f"BOOKING_MODE must be payment or reserve (current: {booking_mode})")
+    # Reservation-only takes no money, so there is no payment backend to demand.
+    # Outside that mode a real one is still required: the stub would silently
+    # mark bookings paid that nobody paid for.
+    if booking_mode != "reserve" and payment_backend != "paypal":
         current_backend = str(getattr(current, "PAYMENT_BACKEND", "") or "").strip() or "unset"
-        errors.append(f"PAYMENT_BACKEND must be paypal in production (current: {current_backend})")
+        errors.append(
+            f"PAYMENT_BACKEND must be paypal in production unless BOOKING_MODE is reserve "
+            f"(current: {current_backend})"
+        )
     if current.EMAIL_BACKEND not in {"disabled", "sendgrid", "smtp", "resend", "supabase"}:
         errors.append("EMAIL_BACKEND must be disabled, sendgrid, smtp, resend, or supabase in production")
     if current.CELERY_TASK_ALWAYS_EAGER and not getattr(current, "ALLOW_INLINE_TASKS_IN_PRODUCTION", False):

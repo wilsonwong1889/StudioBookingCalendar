@@ -100,6 +100,9 @@ class NewFeaturesSmokeTest(unittest.TestCase):
         os.environ["DATABASE_URL"] = cls.test_database_url
         os.environ["SECRET_KEY"] = os.environ.get("SECRET_KEY", "new-features-test-secret")
         os.environ["PAYMENT_BACKEND"] = "stub"
+        # These payment tests must run in payment mode regardless of the
+        # developer's .env, which may be set to reserve.
+        os.environ["BOOKING_MODE"] = "payment"
         os.environ.setdefault("CELERY_TASK_ALWAYS_EAGER", "true")
 
         for module_name in list(sys.modules):

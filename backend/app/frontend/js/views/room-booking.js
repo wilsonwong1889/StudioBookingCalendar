@@ -960,8 +960,12 @@ function renderSubmitButton(currentState) {
     return;
   }
   elements.reserveSubmitButton.disabled = !canSubmit;
+  // There is no checkout to continue to when nothing is collected online.
+  const isReserveMode = document.body.dataset.bookingMode === "reserve";
   elements.reserveSubmitButton.textContent = canSubmit
-    ? `Continue to checkout ${totalLabel}`
+    ? isReserveMode
+      ? `Confirm reservation ${totalLabel}`
+      : `Continue to checkout ${totalLabel}`
     : !selection.valid
       ? loadingDay
         ? "Loading times..."
